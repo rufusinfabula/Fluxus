@@ -1,0 +1,6 @@
+[Unit]
+Description=Fluxus-Media — Extract Clips
+[Service]
+Type=oneshot
+User=www-data
+ExecStart=/var/lib/fluxus-media/scripts/extract_clips.sh

@@ -1,0 +1,26 @@
+# Dati di esecuzione: non appartengono al sorgente
+*.db
+*.db-wal
+*.db-shm
+*.db.bak*
+logs/
+recordings/
+clips/
+sessions/
+tmp/
+
+# Backup lasciati dagli interventi sul posto
+*.bak
+*.bak-*
+*.orig
+*~
+
+# Configurazione reale della macchina: nel repository stanno solo i .example
+config/fluxus.conf
+config/fluxus-media.env
+config/fluxus-remote.env
+
+# Dipendenze scaricate dall'installer
+app/assets/vendor/
+
+.DS_Store

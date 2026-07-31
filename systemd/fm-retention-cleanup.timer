@@ -1,0 +1,7 @@
+[Unit]
+Description=Fluxus-Media — Retention Cleanup ogni 30 minuti
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+[Install]
+WantedBy=timers.target

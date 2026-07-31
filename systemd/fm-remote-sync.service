@@ -1,0 +1,6 @@
+[Unit]
+Description=Fluxus Remote — Sync marker/cue da relay
+[Service]
+Type=oneshot
+User=www-data
+ExecStart=/usr/bin/php /var/lib/fluxus-media/scripts/remote_sync.php

@@ -1,0 +1,17 @@
+# Configurazione minima di MediaMTX per Fluxus.
+#
+# 'api: yes' NON e' opzionale: le sorgenti rtmp-push e il pulsante "Check"
+# interrogano l'API di controllo per sapere su quale percorso stia
+# effettivamente arrivando lo stream.
+#
+# 'all_others: source: publisher' e' cio' che permette a un encoder esterno di
+# pubblicare su rtmp://<host>:1935/<id-sorgente> senza configurazione previa.
+rtmp: yes
+rtsp: yes
+hls: yes
+webrtc: no
+srt: no
+api: yes
+paths:
+  all_others:
+    source: publisher

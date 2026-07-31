@@ -1,0 +1,1624 @@
+/* Fluxus-Media — design system custom CSS. Poco e chirurgico: si appoggia a UIkit. */
+
+:root {
+    --fm-mono: ui-monospace, 'Cascadia Code', monospace;
+    --fm-accent: #f0506e;
+    --fm-accent-hover: #d63d5a;
+}
+
+body {
+    font-size: 14px;
+}
+
+.fm-mono {
+    font-family: var(--fm-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Bottoni: label maiuscole (firma visiva dell'interfaccia) ──────── */
+.uk-button {
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.uk-form-label .fm-required {
+    color: var(--fm-accent);
+}
+
+/* ── Chip prefisso file ─────────────────────────────────────────────── */
+.fm-prefix-chip {
+    display: inline-block;
+    font-family: var(--fm-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fm-accent);
+    background: #fdf0f2;
+    border: 1px solid #f7d8de;
+    border-radius: 4px;
+    padding: 2px 7px;
+}
+
+/* ── Pill di stato grandi (Attiva/Inattiva, Attivo/Inattivo) ───────── */
+.fm-status-pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.fm-status-pill-on {
+    background: #32d296;
+}
+
+.fm-status-pill-off {
+    background: #faa05a;
+}
+
+/* ── Badge tipo marker/cue ──────────────────────────────────────────── */
+.fm-badge-marker {
+    background: #2a2d3a;
+    color: #fff;
+}
+
+/* ── Scheda dettaglio registrazione: elenco a righe label/valore ───── */
+.fm-dl-row {
+    display: flex;
+    align-items: baseline;
+    padding: 14px 0;
+    border-bottom: 1px solid #f2f2f2;
+    gap: 16px;
+}
+
+.fm-dl-row:last-child {
+    border-bottom: none;
+}
+
+.fm-dl-label {
+    width: 140px;
+    flex-shrink: 0;
+    color: #999;
+    font-size: 14px;
+}
+
+.fm-dl-value {
+    font-size: 16px;
+    color: #333;
+}
+
+/* ── Card download ──────────────────────────────────────────────────── */
+.fm-download-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f2f2f2;
+}
+
+.fm-download-row:last-child {
+    border-bottom: none;
+}
+
+.fm-download-row .fm-dl-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.fm-download-row .fm-download-title {
+    font-size: 14px;
+}
+
+.fm-download-row .fm-download-desc {
+    font-size: 12px;
+    color: #999;
+}
+
+/* ── Zona pericolosa ────────────────────────────────────────────────── */
+.fm-danger-zone-title {
+    color: var(--fm-accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+
+/* ── Player segmento (nativo, chiaro — come gli altri player) ──────── */
+.fm-segplayer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.fm-segplayer-idx {
+    width: 20px;
+    color: #999;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.fm-segplayer-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+/* Durata reale del segmento, accanto alla dimensione: con le riprese dopo una
+   caduta i segmenti non durano tutti quanto segment_duration. */
+.fm-segplayer-dur {
+    font-family: var(--fm-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: #666;
+    width: 62px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.fm-segplayer-size {
+    font-size: 12px;
+    color: #666;
+    width: 70px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.fm-video-file-row {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 4px 6px;
+    margin-left: -6px;
+    margin-right: -6px;
+    transition: background .1s;
+}
+
+.fm-video-file-row:hover {
+    background: #fafafa;
+}
+
+/* ── Bottone icona quadrato outline (headphones/archivio nelle card sorgente) ── */
+.fm-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+
+.fm-icon-btn:hover {
+    border-color: #ccc;
+    background: #fafafa;
+}
+
+.fm-idle-badge {
+    display: inline-block;
+    background: #f0f0f0;
+    color: #999;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.fm-schedule-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 13px;
+}
+
+.fm-schedule-row .fm-schedule-label {
+    color: #333;
+}
+
+.fm-schedule-row .fm-schedule-pill {
+    margin-left: auto;
+}
+
+/* ── Icone azione con hover circolare ──────────────────────────────── */
+.fm-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    transition: background .15s;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-decoration: none;
+}
+
+.fm-action-icon:hover {
+    background: #f0f0f0;
+}
+
+/* ── Titoli di sezione / micro-label maiuscole ─────────────────────── */
+.fm-section-title,
+.fm-micro-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    color: #888;
+}
+
+h2.fm-page-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Navbar ─────────────────────────────────────────────────────────── */
+.fm-navbar-logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    margin-right: 8px;
+}
+
+.fm-version-badge {
+    font-size: 10px;
+    margin-left: 6px;
+}
+
+.fm-navbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.fm-clock-block {
+    text-align: center;
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.fm-clock-time {
+    font-family: var(--fm-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+.fm-clock-tz {
+    font-size: 10px;
+}
+
+/* ── System bar ─────────────────────────────────────────────────────── */
+.fm-sysbar {
+    background: #1e2130;
+    border-bottom: 1px solid #0d0f1a;
+    padding: 5px 0;
+    font-size: 11px;
+    color: #c8cdd8;
+}
+
+.fm-sysbar-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.fm-sysbar-metric {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.fm-sysbar-label {
+    color: #8892a4;
+}
+
+.fm-sysbar-bar {
+    display: block;
+    height: 5px;
+    width: 55px;
+    background: #3a3f52;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.fm-sysbar-bar-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: #32d296;
+    border-radius: 3px;
+    transition: width .4s, background .4s;
+}
+
+.fm-sysbar-pct {
+    font-weight: 600;
+    font-family: var(--fm-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.fm-sysbar-abs {
+    color: #8892a4;
+}
+
+.fm-sysbar-sep {
+    color: #3a3f52;
+}
+
+.fm-sysbar-fresh {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #8892a4;
+}
+
+.fm-sysbar-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #32d296;
+    flex-shrink: 0;
+}
+
+/* ── Volumi di archiviazione nella system bar (v2.5.0) ─────────────── */
+.fm-sysbar-vol {
+    position: relative;
+}
+
+/* Fino a due volumi stanno affiancati in barra; da tre in su restano il primo
+   e i puntini, e il resto va nella tendina. */
+.fm-vol-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fm-vol-inline-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.fm-vol-more {
+    color: #8892a4;
+    letter-spacing: 1px;
+    cursor: default;
+}
+
+.fm-sysbar-vol-toggle {
+    background: none;
+    border: none;
+    padding: 0 2px;
+    color: #8892a4;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.fm-sysbar-vol-toggle:hover {
+    color: #e0e0e0;
+}
+
+.fm-vol-dropdown {
+    background: #232739;
+    border: 1px solid #3a3f52;
+    border-radius: 4px;
+    padding: 10px 12px;
+    min-width: 300px;
+    font-size: 11px;
+    color: #c8cdd8;
+}
+
+.fm-vol-dropdown-title {
+    color: #8892a4;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-size: 9px;
+    margin-bottom: 8px;
+}
+
+.fm-vol-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    white-space: nowrap;
+}
+
+.fm-vol-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fm-vol-offline {
+    color: #6b7285;
+}
+
+.fm-vol-offline-text {
+    font-style: italic;
+    color: #6b7285;
+}
+
+.fm-vol-icon {
+    color: #8892a4;
+    flex-shrink: 0;
+}
+
+/* ── Box Archiviazione in Impostazioni ─────────────────────────────── */
+/* Icona del disco dentro un cerchio il cui colore dice a cosa serve il volume:
+   blu = audio (#1565c0), viola = video (#6a1b9a), metà e metà se entrambi,
+   grigio se non è destinazione di nulla. Il colore lo applica lo script del box. */
+.fm-vol-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #9aa0ad;
+    color: #fff;
+    font-size: 17px;
+    line-height: 1;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .07);
+}
+
+/* Rileva dischi: piccolo, sopra l'elenco, non deve competere con le card. */
+.fm-vol-rescan {
+    background: none;
+    border: 1px solid #e3e5ea;
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin-bottom: 8px;
+    color: #8892a4;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.fm-vol-rescan:hover {
+    color: #333;
+    border-color: #b0b5c2;
+}
+
+/* Elenco volumi: una card per disco, riordinabile dalla maniglia. I tag
+   AUDIO/VIDEO si trascinano da una card all'altra per scegliere la
+   destinazione; ogni movimento salva da solo (nessun pulsante). */
+.fm-vol-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Il volume attivo è quello pieno: sfondo grigio chiaro e bordo continuo. */
+.fm-vol-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid #e3e5ea;
+    border-radius: 6px;
+    background: #f4f5f7;
+}
+
+/* Volume non ancora abilitato: bianco e tratteggiato, cioè visibilmente "vuoto"
+   e meno importante di quelli in uso. NIENTE opacity — sbiadiva anche il
+   pulsante "Abilita", facendolo sembrare disattivato. */
+.fm-vol-card-disabled {
+    background: #fff;
+    border-style: dashed;
+}
+
+.fm-vol-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Riga di dettaglio: percorso e avvisi stanno tutti qui, in chip compatti, così
+   una card con più avvisi resta alta come le altre. */
+.fm-vol-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.fm-vol-chip {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 9px;
+    font-size: 10px;
+    line-height: 15px;
+    font-family: inherit;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.fm-vol-chip-warn {
+    background: #fff4e5;
+    color: #b26a00;
+    border: 1px solid #ffd9a8;
+}
+
+.fm-vol-chip-err {
+    background: #fdeced;
+    color: #c0392b;
+    border: 1px solid #f7c6c9;
+}
+
+.fm-vol-space {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+/* Togli dall'elenco: discreto, si accende al passaggio del mouse. Lo spacer
+   tiene allineata la colonna sulle card che non hanno il pulsante. */
+.fm-vol-remove,
+.fm-vol-remove-spacer {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fm-vol-remove {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #b0b5c2;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.fm-vol-remove:hover {
+    background: #fdeced;
+    color: #c0392b;
+}
+
+/* Due caselle di rilascio per card, una per tipo media: sempre visibili, così
+   si vede dove lasciare il tag anche quando il volume non ne ha ancora. Il
+   segnaposto è uno pseudo-elemento, per non mettere nodi che il sortable
+   tratterebbe come elementi trascinabili. */
+.fm-vol-drop {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 76px;
+    min-height: 34px;
+    padding: 4px;
+    border: 1px dashed #cfd3dc;
+    border-radius: 6px;
+    background: #fafbfc;
+}
+
+/* La casella vuota è cliccabile: il tag ci si sposta senza trascinare. */
+.fm-vol-drop:empty {
+    cursor: pointer;
+}
+
+.fm-vol-drop:empty:hover {
+    border-color: #9aa0ad;
+    background: #fff;
+}
+
+.fm-vol-drop:empty::after {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #b9bec9;
+}
+
+.fm-vol-drop-audio:empty::after {
+    content: "audio";
+}
+
+.fm-vol-drop-video:empty::after {
+    content: "video";
+}
+
+/* Bordo colorato quando la casella ospita il suo tag. */
+.fm-vol-drop-audio:not(:empty) {
+    border-color: #cfe3fb;
+    background: #f6fafe;
+}
+
+.fm-vol-drop-video:not(:empty) {
+    border-color: #e6d3ee;
+    background: #fcf8fd;
+}
+
+/* Sui dischi non abilitati il pulsante prende il posto delle due caselle e ne
+   occupa la stessa larghezza complessiva (76 + 12 di gap + 76), così le colonne
+   restano allineate fra tutte le card. */
+.fm-vol-slot-enable {
+    flex: 0 0 auto;
+    width: 164px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+}
+
+.fm-media-tag {
+    cursor: grab;
+    user-select: none;
+}
+
+.fm-media-tag:active {
+    cursor: grabbing;
+}
+
+.uk-sortable-drag .fm-media-tag {
+    cursor: grabbing;
+}
+
+.fm-drag-handle {
+    cursor: grab;
+    color: #b0b5c2;
+    text-align: center;
+}
+
+.fm-drag-handle:active {
+    cursor: grabbing;
+}
+
+.fm-drag-handle:hover {
+    color: #666;
+}
+
+.uk-sortable-drag .fm-drag-handle {
+    cursor: grabbing;
+}
+
+
+/* ── Pulse / dot di registrazione ──────────────────────────────────── */
+@keyframes fm-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .6; }
+}
+
+.fm-pulse {
+    animation: fm-pulse 1.2s infinite;
+}
+
+.fm-rec-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--fm-accent);
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.fm-rec-dot-btn {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.fm-badge-live {
+    background: var(--fm-accent);
+    color: #fff;
+}
+
+/* ── Card ───────────────────────────────────────────────────────────── */
+.fm-card {
+    transition: box-shadow .2s;
+}
+
+.fm-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+}
+
+.fm-card-active {
+    border-left: 3px solid var(--fm-accent);
+}
+
+.fm-card-meta {
+    font-size: 11px;
+    color: #999;
+    word-break: break-all;
+}
+
+.fm-card-subsection {
+    border-top: 1px solid #e5e5e5;
+    margin-top: 10px;
+    padding-top: 8px;
+}
+
+/* ── Badge / label / tag / dot ─────────────────────────────────────── */
+.fm-badge-idle {
+    background: #e5e5e5;
+    color: #666;
+}
+
+.fm-badge-cue {
+    background: var(--fm-accent);
+    color: #fff;
+}
+
+.fm-remote-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #555;
+    color: #fff;
+}
+
+.fm-badge-audio,
+.fm-badge-video {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid;
+}
+
+.fm-badge-audio {
+    background: #eaf3fe;
+    color: #1e87f0;
+    border-color: #cfe3fb;
+}
+
+.fm-badge-video {
+    background: #f6ecfa;
+    color: #a855c9;
+    border-color: #e6d3ee;
+}
+
+.fm-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px 2px 5px;
+    border-radius: 20px;
+    border: 1px solid;
+    line-height: 1;
+}
+
+.fm-tag-off {
+    border-color: #e8e8e8;
+    color: #d0d0d0;
+}
+
+.fm-tag-on {
+    border-color: #aaa;
+    color: #555;
+}
+
+kbd {
+    padding: 2px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 11px;
+    background: #f5f5f5;
+    font-family: var(--fm-mono);
+}
+
+.fm-btn-danger kbd,
+.fm-on-accent kbd {
+    background: rgba(0, 0, 0, .2);
+    border: 1px solid rgba(255, 255, 255, .3);
+    color: #fff;
+}
+
+/* ── Tabelle ────────────────────────────────────────────────────────── */
+.fm-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.fm-table thead th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #bbb;
+    font-weight: 500;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.fm-table tbody td {
+    padding: 12px 0;
+    border-bottom: 1px solid #f2f2f2;
+    vertical-align: middle;
+}
+
+.fm-markers-table th,
+.fm-markers-table td {
+    text-align: center;
+}
+
+.fm-markers-table th:nth-child(1),
+.fm-markers-table th:nth-child(2),
+.fm-markers-table th:nth-child(3),
+.fm-markers-table td:nth-child(1),
+.fm-markers-table td:nth-child(2),
+.fm-markers-table td:nth-child(3) {
+    text-align: left;
+}
+
+.fm-table tbody tr.fm-row-clickable {
+    cursor: pointer;
+    transition: background .1s;
+}
+
+.fm-table tbody tr.fm-row-clickable:hover {
+    background: #fafafa;
+}
+
+.fm-table tbody tr.fm-row-clickable:hover .fm-chevron {
+    color: #1e87f0;
+}
+
+.fm-table .fm-idx {
+    color: #ccc;
+    font-size: 12px;
+}
+
+.fm-table .fm-filename {
+    font-family: var(--fm-mono);
+    font-size: 12px;
+    color: #333;
+}
+
+.fm-table .fm-date {
+    color: #666;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.fm-chevron {
+    color: #ccc;
+}
+
+.fm-status-dot {
+    display: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+@media (max-width: 960px) {
+    .fm-status-text { display: none; }
+    .fm-status-dot { display: inline-block; }
+}
+
+.fm-row-playing {
+    background: rgba(232, 48, 74, .08);
+}
+
+/* ── Filtri ─────────────────────────────────────────────────────────── */
+.fm-filterbar optgroup {
+    text-transform: uppercase;
+}
+
+.fm-filter-total {
+    margin-left: auto;
+}
+
+/* ── Progress ───────────────────────────────────────────────────────── */
+.fm-progress::-webkit-progress-value {
+    background: var(--fm-accent);
+}
+
+.fm-progress::-moz-progress-bar {
+    background: var(--fm-accent);
+}
+
+.fm-progress-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.fm-progress-elapsed {
+    font-family: var(--fm-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.fm-progress-filename {
+    font-size: 11px;
+    color: #999;
+}
+
+/* ── Modal: larghezza generosa su tutte le finestre modali ─────────── */
+.uk-modal-dialog.fm-modal-wide {
+    width: 70%;
+    max-width: none;
+}
+
+@media (max-width: 640px) {
+    .uk-modal-dialog.fm-modal-wide {
+        width: 95%;
+    }
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+.fm-modal-hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 10px;
+}
+
+/* ── Login ──────────────────────────────────────────────────────────── */
+.fm-login-wrap {
+    min-height: 100vh;
+}
+
+.fm-login-logo {
+    width: 160px;
+    height: 160px;
+    max-width: 60%;
+}
+
+.fm-login-note {
+    font-size: 11px;
+    color: #999;
+}
+
+.fm-login-note code {
+    font-size: 11px;
+}
+
+.fm-login-btn {
+    background-color: #d32f2f;
+    color: #fff;
+    border-color: #d32f2f;
+}
+
+.fm-login-btn:hover,
+.fm-login-btn:focus {
+    background-color: #b71c1c;
+    border-color: #b71c1c;
+    color: #fff;
+}
+
+/* ── Player fisso (mobile/bottom) ──────────────────────────────────── */
+.fm-player-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1a1a2e;
+    color: #fff;
+    padding: 10px 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, .3);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fm-player-fixed audio {
+    flex: 1;
+    height: 36px;
+}
+
+.fm-player-fixed .fm-player-track {
+    font-size: 12px;
+    color: #ccc;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fm-inline-audio {
+    height: 32px;
+    border-radius: 4px;
+    width: 100%;
+}
+
+/* ── Breadcrumb ─────────────────────────────────────────────────────── */
+.uk-breadcrumb {
+    font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EDIT — tema scuro (sezione avanzata: edit.php / edit-trim.php)
+   ═══════════════════════════════════════════════════════════════════ */
+
+body.ed-body {
+    background: #0d0d0d;
+    color: #e0e0e0;
+}
+
+body.ed-body .uk-navbar-container {
+    background: #111 !important;
+    border-bottom: 1px solid #222;
+}
+
+body.ed-body .uk-navbar-nav > li > a {
+    color: #aaa;
+}
+
+body.ed-body .uk-navbar-nav > li > a:hover,
+body.ed-body .uk-navbar-nav > li.uk-active > a {
+    color: #fff;
+}
+
+.ed-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+}
+
+.ed-header {
+    border-bottom: 1px solid #222;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.ed-header-title {
+    font-family: var(--fm-mono);
+    font-size: 13px;
+    color: #ccc;
+}
+
+.ed-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.ed-card-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    color: #888;
+    margin: 0 0 12px;
+}
+
+/* Tabelle scure */
+.ed-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ed-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #666;
+    border-bottom: 1px solid #222;
+    text-align: left;
+    padding: 6px 10px;
+}
+
+.ed-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid #1e1e1e;
+    color: #ccc;
+}
+
+.ed-table tr:hover td {
+    background: #1f1f1f;
+}
+
+.ed-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Bottoni */
+.ed-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+    font-family: inherit;
+}
+
+.ed-btn-primary {
+    background: var(--fm-accent);
+    color: #fff;
+}
+
+.ed-btn-primary:hover {
+    background: var(--fm-accent-hover);
+    color: #fff;
+}
+
+.ed-btn-primary:disabled {
+    background: #333;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.ed-btn-ghost {
+    background: transparent;
+    color: #aaa;
+    border-color: #333;
+}
+
+.ed-btn-ghost:hover {
+    border-color: #555;
+    color: #fff;
+}
+
+/* Badge tipizzati scuri */
+.ed-pill {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid;
+    text-transform: uppercase;
+}
+
+.ed-pill-green  { background: #1a2a1a; color: #5fba7d; border-color: #2a3a2a; }
+.ed-pill-blue   { background: #1a1a2a; color: #6a9ae8; border-color: #2a2a3a; }
+.ed-pill-purple { background: #2a1a2a; color: #c07de0; border-color: #3a2a3a; }
+.ed-pill-red    { background: #2a1a18; color: #f0506e; border-color: #3a2a28; }
+
+/* Input / select scuri */
+.ed-input,
+.ed-select {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #ccc;
+    padding: 5px 10px;
+    border-radius: 4px;
+    outline: none;
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.ed-input:focus,
+.ed-select:focus {
+    border-color: var(--fm-accent);
+}
+
+/* Area waveform */
+.ed-waveform {
+    position: relative;
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 16px 16px 8px;
+}
+
+.ed-waveform-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    font-size: 12px;
+    gap: 8px;
+}
+
+/* Transport bar */
+.ed-transport {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1a1a1a;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-top: 10px;
+}
+
+.ed-transport-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 4px;
+    border: 1px solid #333;
+    background: transparent;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color .15s, color .15s, background .15s;
+}
+
+.ed-transport-btn:hover {
+    border-color: #555;
+    color: #fff;
+}
+
+.ed-transport-btn.ed-active {
+    background: var(--fm-accent);
+    border-color: var(--fm-accent);
+    color: #fff;
+}
+
+.ed-zoom {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ed-zoom-track {
+    position: relative;
+    width: 90px;
+    height: 3px;
+    background: #333;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.ed-zoom-thumb {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--fm-accent);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+}
+
+/* Pannelli IN/OUT */
+.ed-io-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.ed-io-panel {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 12px 16px;
+}
+
+.ed-io-label {
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.ed-io-value {
+    font-family: var(--fm-mono);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--fm-accent);
+}
+
+/* Barre durata / salva */
+.ed-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.ed-bar-back {
+    color: #666;
+    margin-left: auto;
+    font-size: 12px;
+}
+
+.ed-bar-back:hover {
+    color: #aaa;
+}
+
+/* Messaggi di stato */
+.ed-status {
+    display: inline-block;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+}
+
+.ed-status-ok {
+    background: #1a2a1a;
+    color: #5fba7d;
+    border-color: #2a3a2a;
+}
+
+.ed-status-error {
+    background: #2a1a1a;
+    color: #f0506e;
+    border-color: #3a2a2a;
+}
+
+/* Spinner */
+.ed-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #444;
+    border-top-color: var(--fm-accent);
+    border-radius: 50%;
+    animation: ed-spin .7s linear infinite;
+}
+
+@keyframes ed-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Selezione multipla (lista registrazioni) ───────────────────────────
+   Pallino al posto del checkbox quadrato: in una tabella densa pesa molto
+   meno. Proprio perché il comando è piccolo, il feedback forte lo dà la
+   riga (.fm-row-selected), non il pallino. */
+.fm-dot-check {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    /* 8px a sinistra: stacca il pallino dal bordo della tabella e dalla barra
+       di riga selezionata (inset 3px sul primo td). */
+    margin: 0 0 0 8px;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    background: #fff;
+    vertical-align: middle;
+    cursor: pointer;
+    transition: border-color .12s, background .12s, box-shadow .12s;
+}
+
+.fm-dot-check:hover:not(:disabled) {
+    border-color: var(--fm-accent);
+}
+
+/* L'anello interno bianco tiene il pallino leggero anche da pieno. */
+.fm-dot-check:checked {
+    background: var(--fm-accent);
+    border-color: var(--fm-accent);
+    box-shadow: inset 0 0 0 2px #fff;
+}
+
+/* "Alcune ma non tutte": trattino centrale, distinto a colpo d'occhio dal pieno. */
+.fm-dot-check:indeterminate {
+    border-color: var(--fm-accent);
+    background-image: linear-gradient(to bottom,
+        transparent 42%, var(--fm-accent) 42%, var(--fm-accent) 58%, transparent 58%);
+}
+
+.fm-dot-check:disabled {
+    opacity: .3;
+    cursor: not-allowed;
+}
+
+.fm-dot-check:focus-visible {
+    outline: 2px solid var(--fm-accent);
+    outline-offset: 2px;
+}
+
+.fm-table tbody tr.fm-row-selected,
+.fm-table tbody tr.fm-row-clickable.fm-row-selected:hover {
+    background: #fff4f6;
+}
+
+.fm-table tbody tr.fm-row-selected td:first-child {
+    box-shadow: inset 3px 0 0 var(--fm-accent);
+}
+
+/* Barra azioni della selezione */
+.fm-bulkbar {
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #f0d7dd;
+    border-radius: 4px;
+    background: #fff8f9;
+}
+
+/* ── Anteprima video inline (recording.php) ─────────────────────────────
+   Il player si apre in una riga sotto quella del segmento, non in un modale:
+   così resta visibile a quale file appartiene ciò che si sta guardando. */
+.fm-video-player-row[hidden] {
+    display: none;
+}
+
+.fm-table tbody tr.fm-video-player-row > td {
+    padding: 0;
+    /* La riga-player è la continuazione di quella sopra: niente linea in mezzo. */
+    border-top: 0;
+    background: #fafafa;
+    box-shadow: inset 3px 0 0 var(--fm-accent);
+}
+
+.fm-video-inline {
+    padding: 10px 12px 14px;
+}
+
+.fm-video-inline-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.fm-video-inline-name {
+    font-size: 12px;
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fm-video-inline-close {
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #999;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.fm-video-inline-close:hover {
+    color: var(--fm-accent);
+}
+
+.fm-video-inline video {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+    background: #000;
+    border-radius: 4px;
+}
+
+/* Riga aperta: stessa barra d'accento del player, così i due blocchi si
+   leggono come un pezzo solo. */
+.fm-table tbody tr.fm-video-row-open,
+.fm-table tbody tr.fm-row-clickable.fm-video-row-open:hover {
+    background: #fafafa;
+}
+
+.fm-table tbody tr.fm-video-row-open td:first-child {
+    box-shadow: inset 3px 0 0 var(--fm-accent);
+}
+
+.fm-video-row-open .fm-video-play-icon {
+    color: var(--fm-accent);
+}
+
+/* ── Marker/cue a posteriori (recording.php) ────────────────────────────
+   Barra compatta in fondo alla card dei file: una riga sola, la spiegazione
+   sta nel tooltip dell'icona invece che in un paragrafo. */
+.fm-posthoc-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.fm-posthoc-title {
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #999;
+    margin-right: 4px;
+}
+
+.fm-posthoc-help {
+    color: #bbb;
+    cursor: help;
+    vertical-align: -1px;
+}
+
+.fm-posthoc-help:hover {
+    color: var(--fm-accent);
+}
+
+/* L'etichetta prende lo spazio che avanza, ma non schiaccia gli altri campi
+   quando la card è stretta. */
+.fm-posthoc-bar .fm-posthoc-label {
+    flex: 1 1 160px;
+    min-width: 140px;
+}
+
+.fm-posthoc-bar .uk-input,
+.fm-posthoc-bar .uk-select {
+    height: 30px;
+}
+
+#fm-posthoc-msg {
+    flex: 1 1 100%;
+    font-size: 12px;
+}
+
+/* ── Piè di pagina (includes/foot.php) ──────────────────────────────────
+   Versione in chiaro: è la prima cosa da chiedere a chi segnala un problema. */
+.fm-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 28px;
+    padding: 14px 20px 22px;
+    border-top: 1px solid #e5e5e5;
+    font-size: 11px;
+    color: #999;
+}
+
+.fm-footer .fm-mono {
+    color: #777;
+}
+
+/* Firma: "Recursive" peso 700 (Google Fonts, caricato in head.php). Con
+   display=swap, se il font non arriva resta il testo nel font di sistema. */
+.fm-signature {
+    font-family: 'Recursive', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: .01em;
+    color: #777;
+}
+
+.fm-footer-sep {
+    color: #ccc;
+}
+
+/* La zona pericolosa chiude la pagina: staccata dal resto, non incollata al
+   piè di pagina. */
+.fm-danger-zone {
+    margin-bottom: 8px;
+}

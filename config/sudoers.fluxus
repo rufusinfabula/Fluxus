@@ -1,0 +1,17 @@
+# Fluxus-Media — permessi minimi per www-data (PHP-FPM) per gestire gli
+# unit systemd di scheduling (fm-sched-*) da schedules.php.
+Cmnd_Alias FM_INSTALL = /usr/bin/install -m 644 /var/lib/fluxus-media/tmp/fm-sched-*.service /etc/systemd/system/fm-sched-*.service, \
+                         /usr/bin/install -m 644 /var/lib/fluxus-media/tmp/fm-sched-*.timer /etc/systemd/system/fm-sched-*.timer
+Cmnd_Alias FM_SYSTEMCTL = /usr/bin/systemctl daemon-reload, \
+                           /usr/bin/systemctl enable --now fm-sched-*.timer, \
+                           /usr/bin/systemctl disable --now fm-sched-*.timer
+Cmnd_Alias FM_RM = /usr/bin/rm -f /etc/systemd/system/fm-sched-*.timer /etc/systemd/system/fm-sched-*.service
+
+www-data ALL=(root) NOPASSWD: FM_INSTALL, FM_SYSTEMCTL, FM_RM
+
+# Abilitazione di un disco esterno all'uso da parte di Fluxus (v2.5.0), da
+# Impostazioni → Archiviazione. Lo script è root:root 0755 in /usr/local/bin:
+# NON va spostato in /var/lib/fluxus-media/scripts, che appartiene a www-data —
+# lì www-data potrebbe riscriverlo e ottenere root.
+Cmnd_Alias FM_VOLUME = /usr/local/bin/fluxus-enable-volume.sh *
+www-data ALL=(root) NOPASSWD: FM_VOLUME
