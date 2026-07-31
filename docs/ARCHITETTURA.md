@@ -17,9 +17,10 @@ Questo documento descrive **com'è fatto**. Per il resto:
 - **Lavori in corso**: [ROADMAP.md](ROADMAP.md)
 
 ⚠️ I percorsi citati (`/var/www/fluxus-media`, `/var/lib/fluxus-media`, il
-sottopercorso web `/fluxus-media/`) sono quelli dell'installazione da cui il
-progetto proviene. Renderli configurabili dall'installer è la prima voce della
-roadmap: finché non è fatta, vanno letti come valori predefiniti.
+sottopercorso web `/fluxus-media/`) **non sono più scritti nel codice**: dalla
+`0.2.0` arrivano tutti da un file di configurazione, uno per installazione. Qui
+compaiono nella forma che assumono per l'istanza `fluxus-media`, cioè quella da
+cui il progetto proviene. Vedi *Configurazione* più sotto.
 
 ---
 
@@ -118,7 +119,8 @@ Codice (webroot):
   sources.php    schedules.php  settings.php
   login.php      logout.php
   edit.php  edit-trim.php      ← in quarantena, vedi sotto
-  includes/   config.php db.php db_init.php auth.php helpers.php
+  VERSION              ← unica fonte del numero di versione
+  includes/   conf.php config.php db.php db_init.php auth.php helpers.php
               nav.php head.php head_dark.php foot.php
               markers_table.php marker_modal.php preview_modal.php
   api/        status.php start.php stop.php recordings.php marker.php
@@ -135,6 +137,7 @@ Dati (volume interno, radice `FM_BASE`):
 
 ```
 /var/lib/fluxus-media/
+  fluxus.conf                                           → /etc/fluxus/fluxus-media.conf
   db/fluxus_media.db                                    + -wal / -shm
   recordings/{source_id}/{base}.mp3|.mp4                registrazione singola
   recordings/{source_id}/{base}_{NNN}.mp3|.mp4          segmentata o ripresa
@@ -144,7 +147,8 @@ Dati (volume interno, radice `FM_BASE`):
   tmp/preview/{source_id}/   HLS effimero dell'anteprima
   volumes/{volume_id}        symlink alla radice di un disco esterno
   logs/                      vedi "Log"
-  scripts/                   record.sh run_schedule.sh extract_clips.sh
+  scripts/                   fluxus-env.sh ← carica la configurazione
+                             record.sh run_schedule.sh extract_clips.sh
                              stop_recording.sh retention_cleanup.sh
                              preview.sh remote_sync.php
 ```
@@ -158,13 +162,46 @@ Configurazione fuori dal progetto:
 
 | File | Contenuto |
 |---|---|
-| `/etc/nginx/sites-available/default` | le `location` di `/fluxus-media/…` |
-| `/etc/fluxus-media.env` | default dell'encoder (⚠️ commenti con `;`, non `#`) |
-| `/etc/fluxus-remote.env` | URL e chiave del relay Fluxus Remote (`root:www-data 640`) |
-| `/etc/sudoers.d/fluxus-media` | i pochi comandi root concessi a `www-data` |
+| `/etc/fluxus/<istanza>.conf` | **percorsi e nomi dell'installazione** (root:root 0644) |
+| `/etc/fluxus/<istanza>.remote.conf` | URL e chiave del relay Fluxus Remote (`root:<gruppo>` 0640) |
+| `/etc/nginx/sites-available/default` | le `location` del sottopercorso |
+| `/etc/sudoers.d/<istanza>` | i pochi comandi root concessi all'utente di Fluxus |
 | `/etc/mediamtx.yml` | listener + `all_others: source: publisher` |
 | `/etc/fstab` | dischi esterni, **per UUID**, con `nofail` |
 | `/usr/local/bin/fluxus-enable-volume.sh` | abilitazione disco (root:root 0755) |
+
+---
+
+## Configurazione
+
+Un file per installazione, `/etc/fluxus/<istanza>.conf`, in forma
+`CHIAVE=valore`. Stabilisce **nome dell'istanza**, cartella dati, radice web,
+sottopercorso, utente e gruppo di sistema, prefisso dei servizi systemd e
+indirizzi del server RTMP. È l'unico punto in cui quei valori esistono.
+
+Dal nome dell'istanza derivano tutti i valori non dichiarati, secondo una regola
+sola: `/var/lib/<istanza>`, `/var/www/<istanza>`, sottopercorso `/<istanza>`,
+servizi `<istanza>-*`, cartella `<istanza>/` sui dischi esterni. È questo che
+permette di installare Fluxus **due volte sulla stessa macchina** — una
+in produzione e una di collaudo — senza che si tocchino.
+
+Lo leggono in due, con le stesse regole:
+
+| Chi | Come lo trova |
+|---|---|
+| gli script (`scripts/fluxus-env.sh`) | risalendo dalla propria posizione: stanno in `<cartella dati>/scripts`, e `<cartella dati>/fluxus.conf` è un collegamento al file in `/etc` |
+| l'applicazione (`includes/conf.php`) | `FLUXUS_CONF` dall'ambiente, poi `includes/instance.php` scritto dall'installer, poi il nome della cartella che la contiene |
+
+Se la configurazione non si trova, **ci si ferma**: niente percorso di ripiego,
+che su una macchina con due installazioni scriverebbe nella cartella sbagliata.
+
+`nginx/`, `systemd/` e `config/sudoers.fluxus.in` nel repository sono **modelli**
+con segnaposto `@NOME@`, resi dall'installer con i valori dell'istanza.
+
+Il modello commentato di tutte le chiavi è
+[config/fluxus.conf.example](../config/fluxus.conf.example); il *perché* di ogni
+scelta sta in [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Configurazione
+dell'istanza*.
 
 ---
 
@@ -303,52 +340,59 @@ Cose da sapere prima di toccarlo:
 
 ## systemd
 
-Fissi:
+Fissi — i nomi hanno il prefisso dell'istanza, i modelli stanno in
+[systemd/](../systemd/):
 
 | Unit | Cadenza |
 |---|---|
-| `fm-extract-clips.timer` | 30s |
-| `fm-retention-cleanup.timer` | 30min |
-| `fm-remote-sync.timer` | 5s (inerte se Fluxus Remote non è configurato) |
+| `<prefisso>-extract-clips.timer` | 30s |
+| `<prefisso>-retention-cleanup.timer` | 30min |
+| `<prefisso>-remote-sync.timer` | 5s (inerte se Fluxus Remote non è configurato) |
 
-Generati: ogni orario attivo produce `fm-sched-{id}.timer` +
-`fm-sched-{id}.service`, scritti da `schedules.php` in `/etc/systemd/system/`
-via i comandi `sudo` concessi in `/etc/sudoers.d/fluxus-media` (install,
-`daemon-reload`, `enable/disable --now`, `rm`).
+Generati: ogni orario attivo produce `<prefisso>-sched-{id}.timer` +
+`<prefisso>-sched-{id}.service`, scritti da `schedules.php` in
+`/etc/systemd/system/` via i comandi `sudo` concessi in
+`/etc/sudoers.d/<istanza>` (install, `daemon-reload`, `enable/disable --now`,
+`rm`).
 
 ```ini
-# fm-sched-9.timer
+# fluxus-media-sched-9.timer
 [Timer]
 OnCalendar=Mon..Fri 17:03
 Persistent=false
 
-# fm-sched-9.service
+# fluxus-media-sched-9.service
 [Service]
 Type=oneshot
 User=www-data
 KillMode=none
+Environment=FLUXUS_CONF=/etc/fluxus/fluxus-media.conf
 ExecStart=/var/lib/fluxus-media/scripts/run_schedule.sh 9
 ```
 
 `KillMode=none` è necessario: `record.sh` deve sopravvivere alla fine
 dell'unit oneshot.
 
-Diagnosi: `systemctl list-timers | grep fm-`, e `logs/fm-schedule.log` per
-sapere chi ha avviato cosa (il journal del service su questo host risulta
-vuoto).
+Diagnosi: `systemctl list-timers | grep <prefisso>`, e `logs/fm-schedule.log`
+per sapere chi ha avviato cosa (il journal del service su questo host risulta
+vuoto). I nomi dei **file di log** restano `fm-*` a prescindere dall'istanza:
+stanno già dentro una cartella dati per istanza.
 
 ---
 
 ## nginx
 
 Nel vhost di default. I media stanno fuori dalla webroot e sono serviti per
-`alias`:
+`alias`. Il modello con i segnaposto è
+[nginx/locations-fluxus.conf.in](../nginx/locations-fluxus.conf.in); qui è reso
+per l'istanza `fluxus-media`:
 
 ```nginx
 location ~ ^/fluxus-media/.*\.php$ {
     include snippets/fastcgi-php.conf;
     fastcgi_pass unix:/run/php/php8.2-fpm.sock;
     fastcgi_read_timeout 300;          # l'estrazione clip può essere lenta
+    fastcgi_param FLUXUS_CONF /etc/fluxus/fluxus-media.conf;
 }
 location /fluxus-media/            { alias /var/www/fluxus-media/; index index.php; }
 location /fluxus-media/recordings/ { alias /var/lib/fluxus-media/recordings/; add_header Accept-Ranges bytes; }
@@ -390,15 +434,25 @@ scrivere sulla microSD credendo di scrivere sull'esterno.
 `recordings.notes`: una diretta programmata non si perde perché qualcuno ha
 urtato un cavo USB.
 
-I dischi si abilitano dall'interfaccia (Impostazioni → Archiviazione →
-*Abilita*), che chiama `sudo /usr/local/bin/fluxus-enable-volume.sh <UUID>`. Lo
-script stacca il disco dall'automount, lo mette in `/etc/fstab` per UUID con
-`nofail`, lo monta sotto `/mnt/<label>`, crea le cartelle e la sentinella, e
-verifica in chiusura che `www-data` ci scriva davvero. **Non formatta mai
-nulla.**
+Sul disco esterno la radice dei dati è una cartella che porta il **nome
+dell'istanza** (`<mount>/fluxus-media/`): due installazioni possono usare lo
+stesso disco senza sovrascriversi le registrazioni.
 
-⚠️ Lo script deve restare `root:root 0755` in `/usr/local/bin`. In
-`/var/lib/fluxus-media/scripts` (che appartiene a `www-data`) la regola
+I dischi si abilitano dall'interfaccia (Impostazioni → Archiviazione →
+*Abilita*), che chiama
+`sudo /usr/local/bin/fluxus-enable-volume.sh <UUID> <cartella> <utente> <gruppo>`.
+Lo script stacca il disco dall'automount, lo mette in `/etc/fstab` per UUID con
+`nofail`, lo monta sotto `/mnt/<label>`, crea le cartelle e la sentinella, e
+verifica in chiusura che l'utente di Fluxus ci scriva davvero. **Non formatta
+mai nulla.**
+
+⚠️ Lo script è **unico per la macchina** e non appartiene a nessuna istanza: per
+questo cartella, utente e gruppo gli arrivano come argomenti invece che da una
+configurazione. È la regola sudo a fissarli ai valori di quell'istanza — lui si
+limita a controllare che siano sensati.
+
+⚠️ Lo script deve restare `root:root 0755` in `/usr/local/bin`. Nella cartella
+`scripts` dell'istanza (che appartiene all'utente di Fluxus) la regola
 `NOPASSWD` diventerebbe una scala verso root.
 
 Altre due trappole già pagate: `blkid` lanciato da `www-data` torna **vuoto
@@ -571,7 +625,11 @@ attivo ha dato valori depressi del ~30% e ha portato a conclusioni sbagliate.
 
 - Tutto il naming ha prefisso `fm` / `FM_`: costanti (`FM_BASE`, `FM_CLIPS`),
   helper (`fmDB`, `fmJson`, `fmError`), classi CSS (`fm-*`).
-- I percorsi passano **sempre** dalle costanti `FM_*`, mai scritti a mano.
+- I percorsi passano **sempre** dalle costanti `FM_*` (in bash, dalle variabili
+  che `fluxus-env.sh` valorizza), mai scritti a mano. Lo stesso vale per
+  l'utente di sistema, il prefisso dei servizi e gli indirizzi del server RTMP:
+  un valore reintrodotto a mano rompe la seconda installazione senza che nulla
+  lo segnali, perché la prima continua a funzionare.
 - Interfaccia in italiano, UIkit 3 in dark mode, badge AUDIO blu `#1565c0` e
   VIDEO viola `#6a1b9a`.
 - Le migrazioni di schema si aggiungono a `db_init.php`, non a `schema.sql`.

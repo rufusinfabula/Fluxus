@@ -5,7 +5,29 @@
 // marker/cue creati dalla pulsantiera remota e li ricrea localmente usando
 // il timestamp del click (non l'istante di elaborazione).
 
-require_once '/var/www/fluxus-media/includes/db.php';
+// Trova l'applicazione partendo da sé. Questo script vive in
+// <cartella dati>/scripts, quindi risale di un livello e legge fluxus.conf
+// esattamente come fa fluxus-env.sh per gli script bash; da lì sa dov'è la
+// radice web e carica l'applicazione, dichiarandole con FLUXUS_CONF quale
+// istanza sta servendo.
+$fmConfFile = getenv('FLUXUS_CONF');
+if (!is_string($fmConfFile) || $fmConfFile === '') {
+    $fmConfFile = dirname(__DIR__) . '/fluxus.conf';
+}
+if (!is_readable($fmConfFile)) {
+    fwrite(STDERR, "remote_sync.php: configurazione non leggibile: $fmConfFile\n");
+    exit(78);   // EX_CONFIG
+}
+// Bastano due chiavi per arrivare all'applicazione: il resto lo legge lei.
+$fmBoot = [];
+foreach (file($fmConfFile, FILE_IGNORE_NEW_LINES) ?: [] as $fmLine) {
+    if (preg_match('/^\s*(FLUXUS_WEB_DIR|FLUXUS_INSTANCE)\s*=\s*(.*)$/', $fmLine, $m)) {
+        $fmBoot[$m[1]] = trim($m[2], " \t\"'");
+    }
+}
+$fmWebDir = $fmBoot['FLUXUS_WEB_DIR'] ?? ('/var/www/' . ($fmBoot['FLUXUS_INSTANCE'] ?? ''));
+putenv('FLUXUS_CONF=' . $fmConfFile);
+require_once rtrim($fmWebDir, '/') . '/includes/db.php';
 
 if (FM_REMOTE_URL === '' || FM_REMOTE_API_KEY === '') {
     exit(0); // feature non configurata

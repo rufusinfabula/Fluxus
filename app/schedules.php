@@ -11,19 +11,26 @@ function fmWriteScheduleUnits(int $id, string $onCalendar): void {
     // KillMode=none: run_schedule.sh lancia record.sh in background (nohup ... &) e esce subito.
     // Con il KillMode di default (control-group) systemd ucciderebbe record.sh non appena
     // il service oneshot termina, impedendo alla registrazione di partire davvero.
-    $service = "[Unit]\nDescription=" . FM_APP_NAME . " Schedule {$id}\n\n[Service]\nType=oneshot\nUser=www-data\nKillMode=none\nExecStart=" . FM_SCRIPTS . "/run_schedule.sh {$id}\n";
-    $timer = "[Unit]\nDescription=" . FM_APP_NAME . " Schedule {$id} Timer\n\n[Timer]\nOnCalendar={$onCalendar}\nPersistent=false\n\n[Install]\nWantedBy=timers.target\n";
+    //
+    // FLUXUS_CONF nell'unit: il timer può scattare mentre la macchina ospita più
+    // installazioni, e run_schedule.sh deve sapere di quale è.
+    $unit = fmScheduleUnit($id);
+    $service = "[Unit]\nDescription=" . FM_APP_NAME . " (" . FM_INSTANCE . ") Schedule {$id}\n\n"
+        . "[Service]\nType=oneshot\nUser=" . FM_USER . "\nGroup=" . FM_GROUP . "\nKillMode=none\n"
+        . "Environment=FLUXUS_CONF=" . FM_CONF_FILE . "\n"
+        . "ExecStart=" . FM_SCRIPTS . "/run_schedule.sh {$id}\n";
+    $timer = "[Unit]\nDescription=" . FM_APP_NAME . " (" . FM_INSTANCE . ") Schedule {$id} Timer\n\n[Timer]\nOnCalendar={$onCalendar}\nPersistent=false\n\n[Install]\nWantedBy=timers.target\n";
 
-    $tmpService = FM_TMP . "/fm-sched-{$id}.service";
-    $tmpTimer = FM_TMP . "/fm-sched-{$id}.timer";
+    $tmpService = FM_TMP . "/{$unit}.service";
+    $tmpTimer = FM_TMP . "/{$unit}.timer";
     file_put_contents($tmpService, $service);
     file_put_contents($tmpTimer, $timer);
 
     $cmds = [
-        'sudo -n install -m 644 ' . escapeshellarg($tmpService) . ' /etc/systemd/system/fm-sched-' . $id . '.service',
-        'sudo -n install -m 644 ' . escapeshellarg($tmpTimer) . ' /etc/systemd/system/fm-sched-' . $id . '.timer',
+        'sudo -n install -m 644 ' . escapeshellarg($tmpService) . ' /etc/systemd/system/' . $unit . '.service',
+        'sudo -n install -m 644 ' . escapeshellarg($tmpTimer) . ' /etc/systemd/system/' . $unit . '.timer',
         'sudo -n systemctl daemon-reload',
-        'sudo -n systemctl enable --now fm-sched-' . $id . '.timer',
+        'sudo -n systemctl enable --now ' . $unit . '.timer',
     ];
     foreach ($cmds as $c) { shell_exec($c . ' 2>&1'); }
     @unlink($tmpService);
@@ -31,9 +38,10 @@ function fmWriteScheduleUnits(int $id, string $onCalendar): void {
 }
 
 function fmRemoveScheduleUnits(int $id): void {
+    $unit = fmScheduleUnit($id);
     $cmds = [
-        'sudo -n systemctl disable --now fm-sched-' . $id . '.timer',
-        'sudo -n rm -f /etc/systemd/system/fm-sched-' . $id . '.timer /etc/systemd/system/fm-sched-' . $id . '.service',
+        'sudo -n systemctl disable --now ' . $unit . '.timer',
+        'sudo -n rm -f /etc/systemd/system/' . $unit . '.timer /etc/systemd/system/' . $unit . '.service',
         'sudo -n systemctl daemon-reload',
     ];
     foreach ($cmds as $c) { shell_exec($c . ' 2>&1'); }

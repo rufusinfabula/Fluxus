@@ -1,0 +1,21 @@
+# Fluxus Remote — relay per creare marker e cue da fuori LAN.
+#
+# Sta in un file separato da quello principale perché contiene una chiave
+# condivisa: va installato in  /etc/fluxus/<istanza>.remote.conf  come
+# root:<gruppo di Fluxus> 0640, mentre la configurazione principale è
+# leggibile da tutti.
+#
+# Stesso formato dell'altro: CHIAVE=valore, commenti con '#'.
+#
+# Lasciare i valori vuoti per tenere la funzione disattivata: senza indirizzo e
+# senza chiave la sincronizzazione esce subito e non fa alcuna chiamata di rete.
+
+# Indirizzo di base del relay, senza barra finale.
+FLUXUS_REMOTE_URL=
+
+# Chiave condivisa con il relay, inviata come Authorization: Bearer.
+FLUXUS_REMOTE_API_KEY=
+
+# Nome con cui questa macchina si presenta al relay. Se vuoto si usa il nome
+# host del sistema.
+FLUXUS_NODE_NAME=

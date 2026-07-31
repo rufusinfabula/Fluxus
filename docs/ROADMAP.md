@@ -14,25 +14,28 @@ Cosa manca oggi, in concreto:
 
 - **Nessun installer funzionante.** Quello ereditato è fermo a una versione
   molto precedente e non installa nemmeno i file dell'applicazione.
-- **Percorsi cablati nel codice**: ogni script ridichiara per conto suo la
-  cartella dati, l'applicazione ha l'utente di sistema e gli indirizzi del
-  server RTMP scritti in chiaro in più punti.
+- ~~**Percorsi cablati nel codice**~~ — risolto dalla fase 1.
 - **Dipendenza da Internet per l'interfaccia**: fogli di stile, icone e player
   arrivano da CDN esterni.
 - **Nessun modo di configurare la rete** se non da riga di comando.
 
 ---
 
-## Fase 1 — Un solo punto di verità per percorsi e nomi → `0.2.0`
+## Fase 1 — Un solo punto di verità per percorsi e nomi → `0.2.0` ✅
 
-Un file di configurazione unico, letto sia dall'applicazione sia dagli script,
-che stabilisce cartella dati, radice web, sottopercorso, utente di sistema,
-indirizzi del server RTMP e **nome dell'istanza**.
+**Fatta.** Un file di configurazione unico, letto sia dall'applicazione sia
+dagli script, che stabilisce cartella dati, radice web, sottopercorso, utente di
+sistema, indirizzi del server RTMP e **nome dell'istanza**.
 
 Il nome dell'istanza è ciò che permette di installare Fluxus **due volte sulla
 stessa macchina** senza collisioni: da esso derivano i nomi dei servizi, del
 file di configurazione, delle regole del server web e dei permessi. Serve
 subito per collaudare il pacchetto accanto a un'installazione in produzione.
+
+Servizi, regole del server web e permessi sono diventati **modelli** con
+segnaposto: la fase 3 deve solo renderli. Vedi il
+[changelog](CHANGELOG.md#020) e, per il perché di ogni scelta, la sezione
+*Configurazione dell'istanza* delle [note tecniche](NOTE-TECNICHE.md).
 
 ## Fase 2 — L'interfaccia funziona senza Internet → `0.3.0`
 

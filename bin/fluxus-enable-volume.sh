@@ -1,15 +1,22 @@
 #!/bin/bash
-# Fluxus — fluxus-enable-volume.sh <UUID>
+# Fluxus — fluxus-enable-volume.sh <UUID> <cartella> <utente> <gruppo>
 #
 # Prepara un disco perché Fluxus possa scriverci: lo stacca dall'automount del
 # desktop, lo monta stabilmente sotto /mnt da /etc/fstab (per UUID, con nofail)
-# e crea la cartella dati di proprietà di www-data.
+# e crea la cartella dati, di proprietà dell'utente di Fluxus.
 #
-# Invocato da api/volume_enable.php via sudo (regola in /etc/sudoers.d/fluxus-media).
+# Invocato da api/volume_enable.php via sudo (regola in /etc/sudoers.d/<istanza>).
 #
-# ⚠️ Deve restare root:root 0755 e FUORI da /var/lib/fluxus-media/scripts, che
-# appartiene a www-data: se www-data potesse riscriverlo, la regola sudo
-# NOPASSWD gli darebbe root completo.
+# ⚠️ Questo script è UNICO per tutta la macchina, mentre le installazioni
+# possono essere più d'una: cartella, utente e gruppo arrivano quindi come
+# argomenti. Non li legge da una configurazione, e non deve farlo: gira come
+# root su richiesta di un processo che root non è. È la regola sudo, che li
+# fissa ai valori di quell'istanza, l'unica autorità su quali valori siano
+# leciti — qui si controlla solo che siano sensati.
+#
+# ⚠️ Deve restare root:root 0755 e FUORI dalla cartella scripts dell'istanza,
+# che appartiene all'utente di Fluxus: se quello potesse riscriverlo, la regola
+# sudo NOPASSWD gli darebbe root completo.
 #
 # Stampa una riga "OK <mountpoint>" oppure "ERR <messaggio>".
 
@@ -40,6 +47,18 @@ UUID="${1:-}"
 [[ -n "$UUID" ]] || fail "UUID mancante"
 # Copre UUID ext4 (8-4-4-4-12) e le forme corte di vfat/exfat/ntfs (FC06-F2C2).
 [[ "$UUID" =~ ^[A-Fa-f0-9-]{4,36}$ ]] || fail "UUID non valido"
+
+# Cartella che Fluxus crea sulla radice del disco: porta il nome dell'istanza,
+# così due installazioni sulla stessa macchina possono usare lo stesso disco
+# senza sovrascriversi le registrazioni.
+DATA_NAME="${2:-}"
+[[ "$DATA_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || fail "Nome cartella non valido"
+
+FLUXUS_USER="${3:-}"
+FLUXUS_GROUP="${4:-}"
+FLUXUS_UID=$(id -u "$FLUXUS_USER" 2>/dev/null) || fail "Utente $FLUXUS_USER inesistente"
+FLUXUS_GID=$(getent group "$FLUXUS_GROUP" 2>/dev/null | cut -d: -f3)
+[[ -n "$FLUXUS_GID" ]] || fail "Gruppo $FLUXUS_GROUP inesistente"
 
 DEV=$(blkid -U "$UUID" 2>/dev/null) || true
 [[ -n "$DEV" && -b "$DEV" ]] || fail "Nessun dispositivo con UUID $UUID"
@@ -81,10 +100,10 @@ done < <(findmnt -nro TARGET -S "$DEV" 2>/dev/null)
 
 mkdir -p "$MOUNT" || fail "Impossibile creare $MOUNT"
 
-# Opzioni: i filesystem senza permessi POSIX vanno montati assegnandoli a
-# www-data (uid/gid 33), gli altri usano i permessi sul filesystem.
+# Opzioni: i filesystem senza permessi POSIX vanno montati assegnandoli
+# all'utente di Fluxus, gli altri usano i permessi sul filesystem.
 case "$FSTYPE" in
-    vfat|exfat|ntfs|ntfs3|fuseblk) OPTS="defaults,nofail,x-systemd.device-timeout=10,uid=33,gid=33,umask=002" ;;
+    vfat|exfat|ntfs|ntfs3|fuseblk) OPTS="defaults,nofail,x-systemd.device-timeout=10,uid=$FLUXUS_UID,gid=$FLUXUS_GID,umask=002" ;;
     *)                             OPTS="defaults,nofail,x-systemd.device-timeout=10" ;;
 esac
 [[ "$FSTYPE" == "ntfs" || "$FSTYPE" == "fuseblk" ]] && FSTYPE="ntfs3"
@@ -102,17 +121,17 @@ if ! findmnt -no TARGET "$MOUNT" >/dev/null 2>&1; then
     mount "$MOUNT" 2>/dev/null || fail "Montaggio di $MOUNT fallito (vedi dmesg)"
 fi
 
-DATA="$MOUNT/fluxus-media"
+DATA="$MOUNT/$DATA_NAME"
 mkdir -p "$DATA/recordings" "$DATA/clips" || fail "Impossibile creare $DATA"
 # Su vfat/exfat chown non ha effetto (l'owner lo impone il mount): non è un errore.
-chown -R www-data:www-data "$DATA" 2>/dev/null || true
+chown -R "$FLUXUS_UID:$FLUXUS_GID" "$DATA" 2>/dev/null || true
 chmod 2775 "$DATA" "$DATA/recordings" "$DATA/clips" 2>/dev/null || true
 touch "$DATA/.fluxus-volume" 2>/dev/null || fail "$DATA non è scrivibile"
-chown www-data:www-data "$DATA/.fluxus-volume" 2>/dev/null || true
+chown "$FLUXUS_UID:$FLUXUS_GID" "$DATA/.fluxus-volume" 2>/dev/null || true
 
-# Prova finale: deve poterci scrivere davvero www-data, non root.
-if ! su -s /bin/sh -c "test -w '$DATA/recordings'" www-data; then
-    fail "$DATA/recordings non risulta scrivibile da www-data"
+# Prova finale: deve poterci scrivere davvero l'utente di Fluxus, non root.
+if ! su -s /bin/sh -c "test -w '$DATA/recordings'" "$FLUXUS_USER"; then
+    fail "$DATA/recordings non risulta scrivibile da $FLUXUS_USER"
 fi
 
 echo "OK $MOUNT"

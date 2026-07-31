@@ -28,8 +28,7 @@ RESOLUTION="${6:-1280x720}"
 FPS="${7:-25}"
 TTL="${8:-900}"
 
-FM_TMP="${FM_TMP:-/var/lib/fluxus-media/tmp}"
-FM_LOGS="${FM_LOGS:-/var/lib/fluxus-media/logs}"
+source "$(dirname "${BASH_SOURCE[0]}")/fluxus-env.sh"
 
 DIR="$FM_TMP/preview/$SOURCE_ID"
 LOG="$FM_LOGS/fm-preview-${SOURCE_ID}.log"
@@ -51,11 +50,11 @@ rm -f "$DIR"/*.ts "$DIR"/*.m3u8 "$DIR"/pid "$DIR"/error 2>/dev/null
 # ⚠️ Il prefisso include lo slash: senza, la sorgente 21 prenderebbe anche 210.
 push_input_url() {
     local name
-    name=$(curl -fsS --max-time 3 'http://127.0.0.1:9997/v3/paths/list?itemsPerPage=1000' 2>/dev/null \
+    name=$(curl -fsS --max-time 3 "$FLUXUS_MEDIAMTX_API/v3/paths/list?itemsPerPage=1000" 2>/dev/null \
         | jq -r --arg id "$SOURCE_ID" \
             '[.items[]? | select(.ready == true) | .name
               | select(. == $id or startswith($id + "/"))] | sort | first // empty' 2>/dev/null)
-    printf 'rtmp://127.0.0.1:1935/%s' "${name:-$SOURCE_ID}"
+    fluxus_rtmp_url "${name:-$SOURCE_ID}"
 }
 
 # Ingresso. -reconnect* sono AVOption del solo http/https: su rtmp/rtsp/srt

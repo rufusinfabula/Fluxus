@@ -132,9 +132,30 @@ function fmFilenamePrefix(array $source): string {
     return $prefix !== '' ? fmSlug($prefix) : fmSlug($source['name']);
 }
 
-/** Stato di un timer systemd fm-sched-{id}.timer: ultimo/prossimo scatto (timestamp unix o null). */
+/**
+ * Prefisso da anteporre a un comando che lancia uno script di Fluxus.
+ *
+ * Gli script troverebbero la propria configurazione da soli, risalendo dalla
+ * cartella in cui stanno; dirglielo esplicitamente serve al caso in cui
+ * cartella dati e istanza non si corrispondano, e rende leggibile in `ps` per
+ * quale installazione sta lavorando un ffmpeg.
+ */
+function fmScriptEnv(): string {
+    return 'FLUXUS_CONF=' . escapeshellarg(FM_CONF_FILE) . ' ';
+}
+
+/**
+ * Nome dell'unit systemd dell'orario {id}. Il prefisso viene dalla
+ * configurazione: due installazioni sulla stessa macchina devono avere nomi di
+ * servizio diversi, o si disattivano i timer a vicenda.
+ */
+function fmScheduleUnit(int $scheduleId): string {
+    return FM_UNIT_PREFIX . '-sched-' . $scheduleId;
+}
+
+/** Stato di un timer di un orario: ultimo/prossimo scatto (timestamp unix o null). */
 function fmGetTimerStatus(int $scheduleId): array {
-    $unit = escapeshellarg('fm-sched-' . $scheduleId . '.timer');
+    $unit = escapeshellarg(fmScheduleUnit($scheduleId) . '.timer');
     $parse = function ($s) {
         $s = trim((string)$s);
         if ($s === '') return null;
@@ -410,8 +431,10 @@ function fmDetectedVolumes(): array {
             'device'     => $dev,
             'fs'         => $fs,
             // La radice dei dati sul volume interno resta FM_BASE, così i path
-            // storici non cambiano; sugli altri dischi una cartella dedicata.
-            'fluxus_path'=> $isRoot ? FM_BASE : rtrim($mount, '/') . '/fluxus-media',
+            // storici non cambiano; sugli altri dischi una cartella dedicata,
+            // che porta il nome dell'istanza (FM_VOLUME_DIR) perché due
+            // installazioni possano usare lo stesso disco senza pestarsi.
+            'fluxus_path'=> $isRoot ? FM_BASE : rtrim($mount, '/') . '/' . FM_VOLUME_DIR,
             'label'      => $isRoot ? 'Interno (microSD)' : ($labels[realpath($dev) ?: $dev] ?? basename($mount)),
             'is_root'    => $isRoot,
             'total_gb'   => round($total / 1073741824, 1),
@@ -578,7 +601,7 @@ function fmAssignStorage(string $mount, string $mediaType): array {
         return [false, 'Volume non riconosciuto: è stato scollegato?'];
     }
     if (!$target['is_root'] && !$target['writable']) {
-        return [false, sprintf('Il volume «%s» non è scrivibile da www-data.', $target['label'])];
+        return [false, sprintf('Il volume «%s» non è scrivibile da %s.', $target['label'], FM_USER)];
     }
     $id = $target['is_root']
         ? fmDefaultVolume()['id']
@@ -643,7 +666,7 @@ function fmRegisterVolume(string $fluxusPath, string $label): int {
 
 /**
  * Symlink FM_BASE/volumes/{id} -> radice del volume, servito da nginx sotto
- * /fluxus-media/volumes/. È ciò che permette ai player di leggere i file su un
+ * {FM_WEB_BASE}/volumes/. È ciò che permette ai player di leggere i file su un
  * disco esterno senza aggiungere una location per ogni volume.
  */
 function fmEnsureVolumeLink(int $volumeId, string $path): void {
@@ -861,7 +884,7 @@ function fmResolvePushPath(int $sourceId): ?array
 {
     if ($sourceId <= 0) return null;
 
-    $ch = curl_init('http://127.0.0.1:9997/v3/paths/list?itemsPerPage=1000');
+    $ch = curl_init(FM_MEDIAMTX_API . '/v3/paths/list?itemsPerPage=1000');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     $res  = curl_exec($ch);
@@ -899,5 +922,11 @@ function fmPushInputUrl(int $sourceId): string
     $path = fmResolvePushPath($sourceId);
     $name = $path['name'] ?? (string)$sourceId;
 
-    return 'rtmp://127.0.0.1:1935/' . $name;
+    return fmRtmpUrl($name);
+}
+
+/** Indirizzo di ingresso del server RTMP per un percorso (id sorgente o path MediaMTX). */
+function fmRtmpUrl(string $path = ''): string
+{
+    return 'rtmp://' . FM_RTMP_HOST . ':' . FM_RTMP_PORT . ($path !== '' ? '/' . $path : '');
 }

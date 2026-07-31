@@ -8,9 +8,7 @@
 # Ora record.sh è l'unico a finalizzare; qui si scrive solo come rete di
 # sicurezza, se record.sh non è più vivo per farlo (vedi docs/NOTE-TECNICHE.md, vincolo 15).
 
-FM_BASE="/var/lib/fluxus-media"
-FM_DB="$FM_BASE/db/fluxus_media.db"
-FM_TMP="$FM_BASE/tmp"
+source "$(dirname "${BASH_SOURCE[0]}")/fluxus-env.sh"
 
 RECORDING_ID="$1"
 [[ -z "$RECORDING_ID" ]] && { echo "Uso: stop_recording.sh <recording_id>"; exit 1; }

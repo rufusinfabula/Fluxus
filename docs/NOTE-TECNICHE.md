@@ -30,14 +30,20 @@ disponibili (EDIT è solo per i cue audio).
 
 ## Stack
 
-- Web: nginx (vhost di default, porta 80/443) su http://<ip-pi>/fluxus-media/, PHP 8.2-FPM, UIkit 3.21.6 (CDN)
-- DB: SQLite — /var/lib/fluxus-media/db/fluxus_media.db
+- Web: nginx (vhost di default, porta 80/443) sul sottopercorso dell'istanza, PHP 8.2-FPM, UIkit 3.21.6 (CDN)
+- DB: SQLite — `<cartella dati>/db/fluxus_media.db`
 - Recording: script bash + ffmpeg
 - RTMP/RTSP: MediaMTX (systemd, porta 1935 RTMP, 8554 RTSP)
 - Scheduling: unit systemd generate dinamicamente
-- User di sistema: www-data (nessun utente dedicato — pool PHP-FPM condivisa con gli altri siti dell'host)
+- User di sistema: `FLUXUS_USER`, in pratica www-data (nessun utente dedicato — pool PHP-FPM condivisa con gli altri siti dell'host)
 
 ## Percorsi
+
+⚠️ **Dalla 0.2.0 nessuno di questi percorsi è scritto nel codice**: cartella
+dati, radice web e sottopercorso arrivano dalla configurazione dell'istanza —
+vedi "Configurazione dell'istanza". Qui sotto sono nella forma che assumono per
+l'istanza `fluxus-media`, cioè quella da cui il progetto proviene, che è anche
+ciò che si ottiene per derivazione dal solo nome dell'istanza.
 
 ⚠️ **I percorsi qui sotto sono quelli del volume interno.** Dalla v2.5.0 le
 registrazioni e i cue possono stare su un disco esterno, che replica la stessa
@@ -45,6 +51,7 @@ struttura sotto la propria radice — vedi "Archiviazione su più volumi".
 
 ```
 /var/lib/fluxus-media/
+  fluxus.conf                                         → /etc/fluxus/fluxus-media.conf
   db/fluxus_media.db
   recordings/{source_id}/{filename_base}.mp3          # audio singolo
   recordings/{source_id}/{filename_base}.mp4          # video singolo
@@ -59,6 +66,7 @@ struttura sotto la propria radice — vedi "Archiviazione su più volumi".
        fm-remote-sync.log, fm-retention.log, fm-preview-{source_id}.log,
        fm-schedule.log
   scripts/
+    fluxus-env.sh                                       ← caricatore della configurazione
     record.sh, run_schedule.sh, extract_clips.sh, stop_recording.sh,
     retention_cleanup.sh, remote_sync.php, preview.sh
 
@@ -73,7 +81,10 @@ struttura sotto la propria radice — vedi "Archiviazione su più volumi".
   edit-trim.php          ← IN QUARANTENA (vedi sezione dedicata) — redirect a edit.php
   settings.php
   login.php / logout.php
+  VERSION                ← unica fonte del numero di versione
   includes/
+    conf.php               ← trova e legge la configurazione dell'istanza
+    instance.php           ← scritto dall'installer, non versionato: il nome dell'istanza
     config.php, db.php, db_init.php, auth.php, helpers.php,
     nav.php, head.php, head_dark.php, foot.php,
     markers_table.php, marker_modal.php, preview_modal.php,
@@ -96,40 +107,176 @@ struttura sotto la propria radice — vedi "Archiviazione su più volumi".
 `federation.php` né alcun endpoint `api/federation/*`, e nessuna voce in
 navbar. Vedi sezione dedicata più sotto.
 
+## Configurazione dell'istanza (0.2.0, 2026-07-31)
+
+Fino alla 0.1.0 ogni percorso era scritto nel codice, e in più punti: `config.php`
+dichiarava `FM_BASE`, e poi ognuno dei sei script bash la ridichiarava per conto
+proprio, insieme al nome del database. L'utente di sistema, il sottopercorso web
+e l'indirizzo del server RTMP comparivano a loro volta in una decina di file fra
+applicazione, unit systemd, regole nginx e sudoers.
+
+Non era solo brutto: rendeva **impossibile una seconda installazione sulla stessa
+macchina**, e quindi impossibile collaudare un pacchetto senza rischiare
+l'installazione che registra tutti i giorni.
+
+### Un file, due lettori
+
+Il punto di verità è un file per istanza, `/etc/fluxus/<istanza>.conf`, in forma
+`CHIAVE=valore` con i commenti che cominciano per `#`. Lo leggono in due:
+
+| Chi | Come |
+|---|---|
+| gli script bash | `scripts/fluxus-env.sh`, che ogni script carica come prima riga |
+| l'applicazione | `includes/conf.php`, caricato da `config.php` |
+
+I due lettori sono gemelli e devono restare tali: stesso formato, stesse regole di
+derivazione. Se si cambia uno va cambiato l'altro.
+
+⚠️ **Il file viene letto, non eseguito.** Il lato bash non fa `source`: una riga
+come `FLUXUS_HW_ENCODER_OPTS=-preset veryfast -crf 23` gli farebbe eseguire il
+comando `-crf`, e ogni valore con uno spazio andrebbe messo fra virgolette.
+Leggendolo riga per riga i valori restano letterali da entrambi i lati.
+
+⚠️ **Il lato PHP non usa `parse_ini_file()`**, ed è una scelta, non una svista:
+quella funzione, davanti a un commento scritto con `#` invece che con `;`,
+fallisce sull'**intero file** e torna `false` senza dire niente. È già costato una
+diagnosi ai tempi di `/etc/fluxus-media.env`. Con un lettore proprio la trappola
+non esiste più, e i commenti si scrivono nel modo che tutti si aspettano.
+
+### Come ciascuno trova la propria configurazione
+
+Il problema vero non è leggere il file: è sapere **quale** file, su una macchina
+dove le installazioni possono essere due.
+
+**Gli script si localizzano da soli.** Vivono in `<cartella dati>/scripts`,
+quindi risalgono di un livello e trovano `<cartella dati>/fluxus.conf`, che
+l'installer crea come collegamento a `/etc/fluxus/<istanza>.conf`. È il motivo
+per cui uno script lanciato a mano da un terminale, uno lanciato da un timer e
+uno lanciato da PHP finiscono sempre sull'istanza a cui appartengono, senza
+dipendere dall'ambiente. `FLUXUS_CONF` nell'ambiente ha comunque la precedenza,
+e la impostano sia gli unit systemd sia l'applicazione quando lancia uno script.
+
+**L'applicazione** prova nell'ordine: `FLUXUS_CONF` dall'ambiente,
+`includes/instance.php` (una riga scritta dall'installer, non versionata), il
+nome della cartella che la contiene (`/var/www/fluxus-dev` → istanza
+`fluxus-dev`).
+
+**Se nessuno dei due trova la configurazione, si ferma.** Non esiste un percorso
+predefinito di ripiego: su una macchina con due installazioni, un percorso
+indovinato scriverebbe nella cartella dell'altra. Lo script esce con 78
+(`EX_CONFIG`) e l'applicazione risponde 500 con il nome del file che si aspettava.
+
+### Cosa sta nel file e cosa no
+
+Nel file sta **solo ciò che non si può dedurre**. Le cartelle sotto la radice
+dati (`db/`, `recordings/`, `clips/`, `tmp/`, `logs/`, `scripts/`, `sessions/`)
+restano derivate in codice: sono la struttura, non una scelta.
+
+Ogni chiave assente si ricava dal nome dell'istanza — `/var/lib/<istanza>`,
+`/var/www/<istanza>`, `/<istanza>`, prefisso dei servizi `<istanza>` — quindi il
+file minimo utile è una riga sola. L'installer le scrive comunque tutte per
+esteso: un file esplicito è più facile da leggere fra sei mesi.
+
+⚠️ **Il nome del file di database resta `fluxus_media.db`** anche per le istanze
+che si chiamano diversamente. Sta già dentro una cartella dati per istanza, non
+può collidere con niente, e cambiarlo renderebbe illeggibile ogni installazione
+esistente in cambio di nulla.
+
+⚠️ **I segreti stanno in un file a parte**, `/etc/fluxus/<istanza>.remote.conf`
+(`root:<gruppo>` 0640): la configurazione principale è leggibile da tutti, e la
+chiave del relay non deve esserlo.
+
+⚠️ **Il prefisso dei servizi è una chiave a sé** (`FLUXUS_UNIT_PREFIX`), con
+default uguale al nome dell'istanza. L'installazione da cui il progetto proviene
+usa il prefisso storico `fm`: se un giorno la si porta sull'installer, quella
+chiave va messa a `fm`, o i suoi timer risultano sconosciuti al nuovo codice.
+
+### Il nome dell'istanza compare anche fuori dai percorsi
+
+Due punti facili da dimenticare, entrambi già sistemati:
+
+- **la cartella creata sui dischi esterni** (`<mount>/<istanza>/`, prima era
+  `fluxus-media` fissa): due installazioni che usano lo stesso disco USB si
+  sarebbero sovrascritte le registrazioni;
+- **i nomi degli alias di sudo** nel file `/etc/sudoers.d/<istanza>`: i
+  `Cmnd_Alias` vivono in uno spazio di nomi unico per tutto sudo, e due file con
+  gli stessi nomi rendono illeggibile l'intero sudoers, non solo il proprio.
+
+I nomi dei **file di log** restano invece `fm-*`: vivono già dentro una cartella
+per istanza, non c'è collisione da risolvere e rinominarli avrebbe reso false
+tutte le tracce citate in questo documento.
+
+### `fluxus-enable-volume.sh` è unico per la macchina
+
+Lo script privilegiato sta in `/usr/local/bin` e non appartiene a nessuna
+istanza: cartella, utente e gruppo gli arrivano quindi come **argomenti**. Non
+legge una configurazione, e non deve farlo — gira come root su richiesta di un
+processo che root non è. È la regola sudo a fissare quegli argomenti ai valori
+dell'istanza; lo script si limita a controllare che siano sensati (nome di
+cartella senza percorsi, utente e gruppo esistenti).
+
 ## config.php — Costanti
 
 ```php
 <?php
-define('FM_VERSION',    '2.5.2');
-define('FM_APP_NAME',   'Fluxus');            // nome mostrato in UI (logo, title, login) — NON "Fluxus-Media"
-define('FM_NODE_TYPE',  'fluxus-media');
-define('FM_BASE',       '/var/lib/fluxus-media');
+require_once __DIR__ . '/conf.php';
+$_fmConf = fmInstanceConf();          // legge /etc/fluxus/<istanza>.conf
+
+define('FM_VERSION',    fmReadVersion());   // dal file VERSION, unica fonte
+define('FM_APP_NAME',   $_fmConf['FLUXUS_APP_NAME']);   // in UI — NON "Fluxus-Media"
+define('FM_INSTANCE',   $_fmConf['FLUXUS_INSTANCE']);
+define('FM_NODE_TYPE',  FM_INSTANCE);
+define('FM_CONF_FILE',  $_fmConf['FLUXUS_CONF_FILE']);
+
+define('FM_BASE',       rtrim($_fmConf['FLUXUS_DATA_DIR'], '/'));
+define('FM_WEB_DIR',    rtrim($_fmConf['FLUXUS_WEB_DIR'], '/'));
+define('FM_WEB_BASE',   rtrim($_fmConf['FLUXUS_WEB_BASE'], '/'));   // '' = radice del vhost
 define('FM_DB',         FM_BASE . '/db/fluxus_media.db');
 define('FM_RECORDINGS', FM_BASE . '/recordings');
 define('FM_CLIPS',      FM_BASE . '/clips');
 define('FM_TMP',        FM_BASE . '/tmp');
 define('FM_SCRIPTS',    FM_BASE . '/scripts');
 define('FM_LOGS',       FM_BASE . '/logs');
-define('FM_WEB_BASE',   '/fluxus-media');     // subpath sul vhost di default condiviso
+
+define('FM_USER',        $_fmConf['FLUXUS_USER']);        // unit generati, messaggi UI
+define('FM_GROUP',       $_fmConf['FLUXUS_GROUP']);
+define('FM_UNIT_PREFIX', $_fmConf['FLUXUS_UNIT_PREFIX']); // <prefisso>-sched-{id}
+define('FM_VOLUME_DIR',  FM_INSTANCE);                    // cartella sui dischi esterni
 
 // Sessione dedicata a Fluxus: NON tocca il php.ini di sistema (vedi Auth)
 define('FM_SESSIONS',    FM_BASE . '/sessions');
 define('FM_SESSION_TTL', 21600);              // 6 ore
+define('FM_PREVIEW_TTL', 900);                // relay di anteprima lasciato aperto
 
-// Encoder hardware (da setup.sh)
-$_env = @parse_ini_file('/etc/fluxus-media.env') ?: [];
-define('FM_HW_ENCODER',      $_env['FM_HW_ENCODER']      ?? 'libx264');
-define('FM_HW_ENCODER_OPTS', $_env['FM_HW_ENCODER_OPTS'] ?? '-preset fast -crf 23');
+// Server RTMP (MediaMTX)
+define('FM_RTMP_HOST',    $_fmConf['FLUXUS_RTMP_HOST']);
+define('FM_RTMP_PORT',    $_fmConf['FLUXUS_RTMP_PORT']);
+define('FM_MEDIAMTX_API', $_fmConf['FLUXUS_MEDIAMTX_API']);
+
+// Encoder di ripiego: la registrazione NON passa di qui (decide video_quality)
+define('FM_HW_ENCODER',      $_fmConf['FLUXUS_HW_ENCODER']);
+define('FM_HW_ENCODER_OPTS', $_fmConf['FLUXUS_HW_ENCODER_OPTS']);
 
 // Fluxus Remote — relay marker/cue da fuori LAN (v2.1), vuoto = disattivato
-$_remoteEnv = @parse_ini_file('/etc/fluxus-remote.env') ?: [];
-define('FM_REMOTE_URL',     rtrim($_remoteEnv['FM_REMOTE_URL'] ?? '', '/'));
-define('FM_REMOTE_API_KEY', $_remoteEnv['FM_REMOTE_API_KEY'] ?? '');
-define('FM_NODE_NAME',      $_remoteEnv['FM_NODE_NAME'] ?? (gethostname() ?: 'fluxus'));
+define('FM_REMOTE_URL',     $_fmConf['FLUXUS_REMOTE_URL']);
+define('FM_REMOTE_API_KEY', $_fmConf['FLUXUS_REMOTE_API_KEY']);
+define('FM_NODE_NAME',      $_fmConf['FLUXUS_NODE_NAME']);
 
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/db_init.php';   // auto-init + migrazioni incrementali, vedi sezione dedicata
 ```
+
+⚠️ `FM_VERSION` legge il file `VERSION`, che è l'unica fonte della versione in
+tutto il progetto. Prima era una costante scritta a mano, e conviveva con un
+secondo numero nel repository: due contatori da tenere allineati a memoria.
+`settings.schema_version` non c'entra nulla — è il contatore delle migrazioni
+del database.
+
+⚠️ Non esiste più alcuna impostazione `web_base` nel database. Ce n'era una,
+salvabile da Impostazioni, che **nessuno leggeva**: il sottopercorso veniva
+comunque dalla costante. Cambiarlo a caldo non avrebbe potuto funzionare —
+l'autorità vera è nginx — quindi il campo è stato tolto e al suo posto la pagina
+mostra, in sola lettura, istanza, sottopercorso e file di configurazione in uso.
 
 **Storico versioni**: 2.1.0 = Fluxus Remote (v2.1). 2.2.0 (2026-07-27) =
 pre-roll/post-roll dei cue configurabili da UI (box "Cue" in settings.php),
@@ -469,6 +616,16 @@ Eccezioni fatte finora (su richiesta esplicita):
    `rtmp://127.0.0.1:1935/$SOURCE_ID` ma chiede a MediaMTX su quale percorso
    stia realmente arrivando lo stream (`push_input_url()`) — vedi vincolo 8 e
    la sezione "Percorso di ingresso rtmp-push".
+9. (2026-07-31, 0.2.0) le quattro righe che dichiaravano `FM_BASE`, `FM_DB`,
+   `FM_LOGS` e `FM_TMP` sono state sostituite da un `source` di
+   `fluxus-env.sh`, e l'indirizzo del server RTMP arriva dalla configurazione
+   invece che dal codice. Nient'altro è cambiato: la logica di registrazione, il
+   supervisore, il watchdog e il calcolo della durata sono intatti.
+   **Perché è stata fatta**: finché la cartella dati era scritta dentro questo
+   file, ogni copia di Fluxus sulla stessa macchina registrava nella stessa
+   cartella e sullo stesso database. Non c'era modo di collaudare il pacchetto
+   accanto all'installazione che registra tutti i giorni — cioè di verificarlo
+   affatto. Vedi vincolo 24 e la sezione "Configurazione dell'istanza".
 
 ## Ripresa automatica e robustezza DB (v2.4.0, 2026-07-27)
 
@@ -899,14 +1056,21 @@ Marker/cue creati da remoto hanno `origin='remote'` e in
 dedicata "Remote" tra Tipo e Cue.
 
 ### Configurazione (Pi)
-- `/etc/fluxus-remote.env` (root:www-data, 640): `FM_REMOTE_URL` (base URL
-  del relay) + `FM_REMOTE_API_KEY` (token condiviso) + `FM_NODE_NAME`
-  (opzionale, max 60 caratteri, testo semplice — se assente si usa
-  l'hostname). Se URL/API key vuoti, la feature è disattivata
-  (`remote_sync.php` esce subito, nessuna chiamata di rete).
-- `scripts/remote_sync.php`: gira come `www-data` via
-  `fm-remote-sync.service`/`.timer` (`OnUnitActiveSec=5s`), stesso pattern
-  di `fm-extract-clips`. Log: `FM_LOGS/fm-remote-sync.log`.
+- `/etc/fluxus/<istanza>.remote.conf` (root:`<gruppo>`, 640 — file separato da
+  quello principale proprio perché contiene una chiave): `FLUXUS_REMOTE_URL`
+  (base URL del relay) + `FLUXUS_REMOTE_API_KEY` (token condiviso) +
+  `FLUXUS_NODE_NAME` (opzionale, max 60 caratteri, testo semplice — se assente
+  si usa l'hostname). Se URL/API key vuoti, la feature è disattivata
+  (`remote_sync.php` esce subito, nessuna chiamata di rete). Fino alla 0.1.0
+  era `/etc/fluxus-remote.env` con le chiavi `FM_*`, uno per macchina anziché
+  uno per istanza.
+- `scripts/remote_sync.php`: gira come l'utente di Fluxus via
+  `<prefisso>-remote-sync.service`/`.timer` (`OnUnitActiveSec=5s`), stesso
+  pattern di `<prefisso>-extract-clips`. Log: `FM_LOGS/fm-remote-sync.log`.
+  ⚠️ È l'unico PHP che gira fuori dalla radice web: trova la configurazione
+  risalendo da `<cartella dati>/scripts` come gli script bash, e da lì la
+  radice web da cui caricare l'applicazione. Prima aveva il percorso
+  `/var/www/fluxus-media/includes/db.php` scritto dentro.
 
 ### Modello di sicurezza
 - Pi → relay: solo outbound HTTPS, header `Authorization: Bearer
@@ -2098,3 +2262,31 @@ offline → salta, online → cancella file e riga, `clips_dir` NULL → path st
     fanno mai sul DB di produzione con id espliciti**: `sqlite_sequence` non
     torna indietro e da lì in poi i codici reali diventano a cinque cifre. Le
     sandbox usano un file DB separato. Vedi "Numerazione delle registrazioni".
+24. Configurazione dell'istanza (2026-07-31, 0.2.0): vedi la sezione dedicata.
+    Regole da non violare:
+    (a) **nessun percorso, nome utente o indirizzo di server scritto nel
+    codice**. Tutto passa dalle costanti `FM_*` lato PHP e dalle variabili di
+    `fluxus-env.sh` lato bash. Un valore reintrodotto a mano rompe la seconda
+    installazione senza che nulla lo segnali, perché la prima continua a
+    funzionare;
+    (b) `fluxus-env.sh` e `includes/conf.php` sono **gemelli**: stesso formato,
+    stesse regole di derivazione. Se ne cambia uno, si cambia l'altro;
+    (c) **niente `source` del file di configurazione** da bash e **niente
+    `parse_ini_file()`** da PHP: il primo eseguirebbe i valori con spazi, la
+    seconda perde l'intero file in silenzio davanti a un commento con `#`;
+    (d) **niente percorso predefinito di ripiego** quando la configurazione non
+    si trova: si esce con 78 lato script e con un 500 leggibile lato
+    applicazione. Un percorso indovinato, su una macchina con due
+    installazioni, scrive nella cartella dell'altra;
+    (e) gli script si localizzano da `<cartella dati>/scripts`: **non spostarli
+    altrove** senza dargli `FLUXUS_CONF`;
+    (f) `fluxus-enable-volume.sh` è unico per la macchina e riceve cartella,
+    utente e gruppo come argomenti: **non fargli leggere una configurazione**
+    scelta da chi lo invoca — gira come root per conto di un processo che root
+    non è. È la regola sudo a fissarne i valori;
+    (g) il nome dell'istanza compare anche nella cartella creata sui **dischi
+    esterni** e nei nomi degli **alias di sudo**: sono i due punti in cui due
+    installazioni si pestano i piedi fuori dai percorsi;
+    (h) il **nome del file di database** (`fluxus_media.db`) e i nomi dei file
+    di **log** (`fm-*`) restano quelli storici: stanno già dentro una cartella
+    per istanza e rinominarli non risolve nulla che non sia già risolto.

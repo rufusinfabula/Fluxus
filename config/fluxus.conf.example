@@ -1,0 +1,111 @@
+# Fluxus — configurazione dell'istanza
+#
+# Questo file è l'unico punto in cui vivono i percorsi e i nomi di
+# un'installazione. Lo leggono sia l'applicazione PHP sia gli script di
+# registrazione: nessuno dei due ha più un percorso scritto dentro.
+#
+# Il file vero va installato in  /etc/fluxus/<istanza>.conf  (root:root 0644),
+# con un collegamento simbolico  <cartella dati>/fluxus.conf  che punta a lui:
+# è così che gli script lo trovano da soli, partendo dalla propria posizione,
+# senza dipendere da variabili d'ambiente.
+#
+#     /etc/fluxus/fluxus-media.conf              ← il file
+#     /var/lib/fluxus-media/fluxus.conf   →      ← il collegamento
+#
+# Formato: una riga  CHIAVE=valore  per volta. I commenti cominciano con '#'.
+# Il valore arriva fino a fine riga, spazi compresi, e NON va messo fra
+# virgolette (servono solo se si vogliono spazi in testa o in coda). Non
+# esistono variabili né sostituzioni: ogni valore è letterale.
+#
+# Nel file sta solo ciò che non si può dedurre. Tutto il resto —  db/,
+# recordings/, clips/, tmp/, logs/, scripts/, sessions/  — resta derivato dalla
+# cartella dati, come è sempre stato.
+#
+# Ogni chiave lasciata fuori viene ricavata dal nome dell'istanza secondo la
+# regola scritta qui accanto, quindi il file minimo utile è una riga sola:
+# FLUXUS_INSTANCE. L'installer però le scrive tutte per esteso, perché un file
+# esplicito è più facile da leggere fra sei mesi.
+
+
+# ── Identità ──────────────────────────────────────────────────────────────────
+
+# Nome dell'istanza. È ciò che permette di installare Fluxus due volte sulla
+# stessa macchina: da qui derivano i percorsi, i nomi dei servizi, il file di
+# configurazione e la cartella creata sui dischi esterni. Ammessi lettere
+# minuscole, cifre e trattini.
+FLUXUS_INSTANCE=fluxus-media
+
+# Nome mostrato nell'interfaccia (logo, titolo, pagina di accesso). È il nome
+# del prodotto, non dell'istanza: due installazioni sulla stessa macchina si
+# distinguono dal "nome nodo" in Impostazioni, non da qui.
+FLUXUS_APP_NAME=Fluxus
+
+
+# ── Percorsi ──────────────────────────────────────────────────────────────────
+
+# Cartella dati: database, registrazioni, clip, log, script.
+# Se omessa: /var/lib/<istanza>
+FLUXUS_DATA_DIR=/var/lib/fluxus-media
+
+# Radice web: i file dell'applicazione (le pagine .php, gli asset, le icone).
+# Se omessa: /var/www/<istanza>
+FLUXUS_WEB_DIR=/var/www/fluxus-media
+
+# Sottopercorso a cui risponde l'interfaccia. Vuoto = la radice del vhost
+# (http://macchina/), altrimenti http://macchina/fluxus-media/.
+# Se omesso: /<istanza>
+#
+# ⚠️ Deve corrispondere a ciò che dice nginx: qui si dichiara soltanto sotto
+# quale indirizzo l'applicazione si troverà, non lo si decide. Cambiarlo senza
+# rigenerare la configurazione di nginx rompe i collegamenti e la sessione.
+FLUXUS_WEB_BASE=/fluxus-media
+
+
+# ── Sistema ───────────────────────────────────────────────────────────────────
+
+# Utente e gruppo con cui girano PHP-FPM, i timer e gli script. Devono essere
+# gli stessi, altrimenti il database finisce con i permessi sbagliati: è in
+# modalità WAL, e i file -wal/-shm prendono l'utente di chi scrive per primo.
+# Se omessi: www-data
+FLUXUS_USER=www-data
+FLUXUS_GROUP=www-data
+
+# Prefisso dei servizi systemd: <prefisso>-extract-clips.timer,
+# <prefisso>-sched-{id}.timer, e così via. Due istanze devono avere prefissi
+# diversi, o si disattivano i timer a vicenda.
+# Se omesso: il nome dell'istanza
+#
+# NB: l'installazione da cui il progetto proviene usa il prefisso storico 'fm'.
+FLUXUS_UNIT_PREFIX=fluxus-media
+
+# Socket di PHP-FPM. Serve alla configurazione di nginx, non all'applicazione.
+FLUXUS_PHP_FPM_SOCK=/run/php/php8.2-fpm.sock
+
+
+# ── Server RTMP (MediaMTX) ────────────────────────────────────────────────────
+
+# Dove Fluxus va a prendere le sorgenti di tipo 'rtmp-push', cioè quelle in cui
+# è un encoder esterno a spingere lo stream verso questa macchina.
+#
+# ⚠️ Due istanze sulla stessa macchina non possono condividere lo stesso
+# MediaMTX se usano sorgenti rtmp-push: i percorsi sono numerati per id di
+# sorgente e si sovrapporrebbero. La seconda istanza vuole un MediaMTX suo, su
+# porte diverse, dichiarate qui.
+FLUXUS_RTMP_HOST=127.0.0.1
+FLUXUS_RTMP_PORT=1935
+
+# API di controllo di MediaMTX: serve a sapere su quale percorso stia
+# realmente arrivando uno stream (gli encoder che concatenano "indirizzo" e
+# "stream" non pubblicano su quello che ci si aspetta).
+FLUXUS_MEDIAMTX_API=http://127.0.0.1:9997
+
+
+# ── Encoder di ripiego ────────────────────────────────────────────────────────
+
+# Valori usati solo dove non decide il profilo di qualità della sorgente. La
+# registrazione NON passa di qui: l'encoder lo sceglie sources.video_quality.
+#
+# ⚠️ Il Raspberry Pi 5 non ha encoder H.264 hardware (rimosso rispetto al Pi 4):
+# su quella macchina l'unico valore sensato è libx264.
+FLUXUS_HW_ENCODER=libx264
+FLUXUS_HW_ENCODER_OPTS=-preset veryfast -crf 23

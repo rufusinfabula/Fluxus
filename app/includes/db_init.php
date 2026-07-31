@@ -34,7 +34,6 @@ if ($_fm_needs_init) {
     $_db->exec("INSERT OR IGNORE INTO settings VALUES ('timezone', 'Europe/Rome')");
     $_db->exec("INSERT OR IGNORE INTO settings VALUES ('auth_enabled', '0')");
     $_db->exec("INSERT OR IGNORE INTO settings VALUES ('password_hash', '')");
-    $_db->exec("INSERT OR IGNORE INTO settings VALUES ('web_base', '')");
     $_db->exec("INSERT OR IGNORE INTO settings VALUES
         ('federation_api_key', '" . bin2hex(random_bytes(24)) . "')");
     $_db->exec("INSERT OR IGNORE INTO settings VALUES ('schema_version', '2')");

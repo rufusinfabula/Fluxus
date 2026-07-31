@@ -1,0 +1,9 @@
+[Unit]
+Description=@FLUXUS_APP_NAME@ Remote (@FLUXUS_INSTANCE@) — marker e cue dal relay
+
+[Service]
+Type=oneshot
+User=@FLUXUS_USER@
+Group=@FLUXUS_GROUP@
+Environment=FLUXUS_CONF=@FLUXUS_CONF_FILE@
+ExecStart=/usr/bin/php @FLUXUS_DATA_DIR@/scripts/remote_sync.php

@@ -24,7 +24,8 @@ if (!$stmt->fetch()) {
 }
 
 $cmd = sprintf(
-    '%s %d > /dev/null 2>&1 &',
+    '%s%s %d > /dev/null 2>&1 &',
+    fmScriptEnv(),
     escapeshellarg(FM_SCRIPTS . '/stop_recording.sh'),
     $recordingId
 );

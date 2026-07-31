@@ -68,7 +68,8 @@ $stmt->execute([
 $recordingId = (int)$db->lastInsertId();
 
 $cmd = sprintf(
-    'nohup %s %d %d %d %d > %s 2>&1 &',
+    '%snohup %s %d %d %d %d > %s 2>&1 &',
+    fmScriptEnv(),
     escapeshellarg(FM_SCRIPTS . '/record.sh'),
     $recordingId,
     $sourceId,

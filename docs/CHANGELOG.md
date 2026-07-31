@@ -12,6 +12,49 @@ correzioni** lungo la strada.
 
 ---
 
+## 0.2.0
+
+**Un solo punto di verità per percorsi e nomi** ([fase 1](ROADMAP.md) della
+roadmap).
+
+Prima, ogni percorso era scritto nel codice e ripetuto in più punti: la cartella
+dati compariva nell'applicazione e poi di nuovo in ognuno dei sei script,
+l'utente di sistema e l'indirizzo del server RTMP in una decina di file fra
+servizi, regole del server web e permessi. Ora tutto arriva da **un file di
+configurazione per installazione**, letto sia dall'applicazione sia dagli
+script.
+
+Il file dichiara il **nome dell'istanza**, e da quello si ricava tutto il resto:
+cartelle, sottopercorso web, nomi dei servizi, cartella creata sui dischi
+esterni. È ciò che permette di installare Fluxus **due volte sulla stessa
+macchina** — una in produzione e una di collaudo — senza che si tocchino, e
+quindi di collaudare il pacchetto senza rischiare l'installazione che registra
+tutti i giorni.
+
+Nel dettaglio:
+
+- configurazione dell'istanza in `/etc/fluxus/<istanza>.conf`, con le chiavi e i
+  loro valori derivati documentati in
+  [config/fluxus.conf.example](../config/fluxus.conf.example);
+- gli script trovano la propria configurazione **partendo da dove si trovano**:
+  lanciati a mano, da un timer o dall'applicazione, finiscono sempre
+  sull'istanza a cui appartengono;
+- servizi systemd, regole del server web e permessi diventano **modelli** con
+  segnaposto, pronti per l'installer della fase 3;
+- la chiave del relay esterno passa in un file separato con permessi più
+  stretti, anch'esso per istanza;
+- il numero di **versione** è ora uno solo: l'interfaccia mostra quello del file
+  `VERSION`, non più una costante scritta a mano nel codice;
+- tolto dalle Impostazioni il campo *Web base path*, che salvava un valore che
+  nessuno leggeva; al suo posto la pagina mostra istanza, sottopercorso e file
+  di configurazione in uso.
+
+Nessuna modifica al comportamento della registrazione, all'estrazione delle clip
+o allo schema del database. Con istanza `fluxus-media` ogni percorso coincide
+con quelli di prima.
+
+---
+
 ## 0.1.0
 
 Primo commit del repository. Il codice dell'applicazione, degli script di

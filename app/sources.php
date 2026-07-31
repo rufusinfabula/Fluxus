@@ -150,7 +150,7 @@ include __DIR__ . '/includes/head.php';
             </td>
             <td class="uk-text-truncate fm-mono" style="max-width:320px;font-size:12px;color:#666;">
                 <?php if ($s['type'] === 'rtmp-push'): ?>
-                    rtmp://<?= fmH($localIp) ?>:1935/<?= (int)$s['id'] ?>
+                    rtmp://<?= fmH($localIp) ?>:<?= fmH(FM_RTMP_PORT) ?>/<?= (int)$s['id'] ?>
                 <?php else: ?>
                     <?= fmH($s['url'] ?: $s['device'] ?: '—') ?>
                 <?php endif; ?>
@@ -397,6 +397,9 @@ include __DIR__ . '/includes/head.php';
     var modeBtns = document.querySelectorAll('.fm-mode-btn');
     var modeHint = document.getElementById('fm-mode-hint');
     var localIp = <?= json_encode($localIp) ?>;
+    // L'indirizzo mostrato all'encoder è quello della macchina in LAN, non
+    // quello con cui ffmpeg si collega a MediaMTX qui dentro (loopback).
+    var rtmpPort = <?= json_encode(FM_RTMP_PORT) ?>;
     var lastPullType = 'http';
     var currentMode = 'pull';
 
@@ -470,8 +473,8 @@ include __DIR__ . '/includes/head.php';
         document.getElementById('fm-rtmp-push-ready').style.display = hasId ? '' : 'none';
         document.getElementById('fm-rtmp-push-hint').style.display = hasId ? '' : 'none';
         if (hasId) {
-            document.getElementById('fm-rtmp-push-url').textContent = 'rtmp://' + localIp + ':1935/' + id;
-            document.getElementById('fm-rtmp-push-server').textContent = 'rtmp://' + localIp + ':1935';
+            document.getElementById('fm-rtmp-push-url').textContent = 'rtmp://' + localIp + ':' + rtmpPort + '/' + id;
+            document.getElementById('fm-rtmp-push-server').textContent = 'rtmp://' + localIp + ':' + rtmpPort;
             document.getElementById('fm-rtmp-push-key').textContent = id;
         }
     }

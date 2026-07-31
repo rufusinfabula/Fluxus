@@ -17,8 +17,11 @@ tmp/
 
 # Configurazione reale della macchina: nel repository stanno solo i .example
 config/fluxus.conf
-config/fluxus-media.env
-config/fluxus-remote.env
+config/fluxus-remote.conf
+config/*.env
+
+# Scritto dall'installer: dice a quale istanza appartiene questa copia
+app/includes/instance.php
 
 # Dipendenze scaricate dall'installer
 app/assets/vendor/

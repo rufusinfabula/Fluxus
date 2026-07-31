@@ -1,0 +1,9 @@
+[Unit]
+Description=@FLUXUS_APP_NAME@ (@FLUXUS_INSTANCE@) — pulizia per retention
+
+[Service]
+Type=oneshot
+User=@FLUXUS_USER@
+Group=@FLUXUS_GROUP@
+Environment=FLUXUS_CONF=@FLUXUS_CONF_FILE@
+ExecStart=@FLUXUS_DATA_DIR@/scripts/retention_cleanup.sh

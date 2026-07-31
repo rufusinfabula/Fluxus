@@ -5,11 +5,7 @@
 # default 30/90 se non impostati).
 # Eseguito ogni 30s da fm-extract-clips.timer.
 
-FM_BASE="/var/lib/fluxus-media"
-FM_DB="$FM_BASE/db/fluxus_media.db"
-FM_CLIPS="$FM_BASE/clips"
-FM_TMP="$FM_BASE/tmp"
-FM_LOGS="$FM_BASE/logs"
+source "$(dirname "${BASH_SOURCE[0]}")/fluxus-env.sh"
 
 mkdir -p "$FM_TMP" "$FM_LOGS"
 

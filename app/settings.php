@@ -14,7 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nodeName = trim($_POST['node_name'] ?? '');
     $timezone = trim($_POST['timezone'] ?? 'Europe/Rome');
     $authEnabled = !empty($_POST['auth_enabled']) ? '1' : '0';
-    $webBaseSetting = trim($_POST['web_base'] ?? '');
     $newPassword = $_POST['password'] ?? '';
     $cuePreRoll = (int)($_POST['cue_pre_roll'] ?? 30);
     $cuePostRoll = (int)($_POST['cue_post_roll'] ?? 90);
@@ -46,7 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fmSetSetting('node_name', $nodeName);
         fmSetSetting('timezone', $timezone);
         fmSetSetting('auth_enabled', $authEnabled);
-        fmSetSetting('web_base', $webBaseSetting);
         fmSetSetting('cue_pre_roll', (string)$cuePreRoll);
         fmSetSetting('cue_post_roll', (string)$cuePostRoll);
         fmSetSetting('marker_autosave_seconds', (string)$markerAutosaveSeconds);
@@ -62,7 +60,6 @@ $saved = isset($_GET['saved']);
 $nodeName = fmSetting('node_name', FM_APP_NAME);
 $timezone = fmSetting('timezone', 'Europe/Rome');
 $authEnabled = fmSetting('auth_enabled', '0') === '1';
-$webBaseSetting = fmSetting('web_base', '');
 $cuePreRoll = (int)fmSetting('cue_pre_roll', '30');
 $cuePostRoll = (int)fmSetting('cue_post_roll', '90');
 $markerAutosaveSeconds = (int)fmSetting('marker_autosave_seconds', '8');
@@ -115,7 +112,6 @@ include __DIR__ . '/includes/head.php';
     <form method="post">
         <input type="hidden" name="node_name" value="<?= fmH($nodeName) ?>">
         <input type="hidden" name="timezone" value="<?= fmH($timezone) ?>">
-        <input type="hidden" name="web_base" value="<?= fmH($webBaseSetting) ?>">
         <?php if ($authEnabled): ?><input type="hidden" name="auth_enabled" value="1"><?php endif; ?>
         <div class="uk-grid-small" uk-grid>
             <div class="uk-width-1-3@m">
@@ -171,7 +167,7 @@ include __DIR__ . '/includes/head.php';
 
 <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="archiviazione">
     <h3 class="fm-section-title uk-margin-small-bottom">Archiviazione</h3>
-    <p class="uk-text-meta uk-margin-remove-top">Dischi collegati al Pi. Trascina il tag <span class="fm-badge-audio">AUDIO</span> o <span class="fm-badge-video">VIDEO</span> sul volume dove vuoi salvare quel tipo di registrazioni, e trascina i volumi per l'impaginazione (lo stesso ordine si vede nella barra di stato). <strong>Ogni movimento si salva da solo.</strong> Fluxus crea sul disco una cartella <span class="fm-mono">fluxus-media/</span> con dentro <span class="fm-mono">recordings/</span> e <span class="fm-mono">clips/</span>, senza toccare il resto. Le registrazioni già fatte restano dove sono. Se al momento di registrare il disco non è collegato, si registra sul volume interno e la registrazione lo annota.</p>
+    <p class="uk-text-meta uk-margin-remove-top">Dischi collegati al Pi. Trascina il tag <span class="fm-badge-audio">AUDIO</span> o <span class="fm-badge-video">VIDEO</span> sul volume dove vuoi salvare quel tipo di registrazioni, e trascina i volumi per l'impaginazione (lo stesso ordine si vede nella barra di stato). <strong>Ogni movimento si salva da solo.</strong> Fluxus crea sul disco una cartella <span class="fm-mono"><?= fmH(FM_VOLUME_DIR) ?>/</span> con dentro <span class="fm-mono">recordings/</span> e <span class="fm-mono">clips/</span>, senza toccare il resto. Le registrazioni già fatte restano dove sono. Se al momento di registrare il disco non è collegato, si registra sul volume interno e la registrazione lo annota.</p>
 
     <?php // Rilegge i dischi collegati e annulla le rimozioni dall'elenco. ?>
     <button type="button" class="fm-vol-rescan" id="fm-vol-rescan"
@@ -241,8 +237,8 @@ include __DIR__ . '/includes/head.php';
                     <?php elseif (!$usable): ?>
                         <span class="fm-vol-chip fm-vol-chip-err"
                               uk-tooltip="title: <?= !empty($d['desktop_mount'])
-                                  ? 'Montato dal desktop in ' . fmH(dirname($d['mount'])) . ', una cartella in cui www-data non può entrare. Il pulsante lo rimonta sotto /mnt in modo permanente.'
-                                  : 'La cartella non è scrivibile da www-data. Il pulsante rimonta il disco con i permessi giusti.' ?>; pos: top">non abilitato per <?= fmH(FM_APP_NAME) ?></span>
+                                  ? 'Montato dal desktop in ' . fmH(dirname($d['mount'])) . ', una cartella in cui ' . fmH(FM_USER) . ' non può entrare. Il pulsante lo rimonta sotto /mnt in modo permanente.'
+                                  : 'La cartella non è scrivibile da ' . fmH(FM_USER) . '. Il pulsante rimonta il disco con i permessi giusti.' ?>; pos: top">non abilitato per <?= fmH(FM_APP_NAME) ?></span>
                     <?php endif; ?>
                 </div>
             </div>
@@ -309,7 +305,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!list || typeof UIkit === 'undefined') return;
 
     var hint = document.getElementById('fm-order-hint');
-    var endpoint = <?= json_encode(rtrim(FM_WEB_BASE, '/') . '/api/volume_order.php') ?>;
+    var endpoint = <?= json_encode(FM_WEB_BASE . '/api/volume_order.php') ?>;
+    // Nome della cartella che Fluxus crea sui dischi esterni: è quello
+    // dell'istanza, e va detto all'utente prima che accetti di preparare il disco.
+    var volumeDir = <?= json_encode(FM_VOLUME_DIR) ?>;
     // Stessi colori dei tag AUDIO/VIDEO usati in tutta la UI.
     var AUDIO = '#1e87f0', VIDEO = '#a855c9', NONE = '#9aa0ad';
     var timer = null;
@@ -465,9 +464,9 @@ document.addEventListener('DOMContentLoaded', function () {
         var dataLine = used >= 0.05
             ? '<p class="uk-alert-success uk-padding-small uk-margin-remove-bottom">' +
               'Sul disco ci sono già <b>' + used.toFixed(1).replace('.', ',') + ' GB</b> di dati: <b>non vengono toccati</b>. ' +
-              'Fluxus non formatta e non cancella nulla, aggiunge solo la cartella <code>fluxus-media/</code>.</p>'
+              'Fluxus non formatta e non cancella nulla, aggiunge solo la cartella <code>' + volumeDir + '/</code>.</p>'
             : '<p class="uk-alert-success uk-padding-small uk-margin-remove-bottom">' +
-              'Il disco è praticamente vuoto. Nessun dato viene cancellato: Fluxus aggiunge solo la cartella <code>fluxus-media/</code>.</p>';
+              'Il disco è praticamente vuoto. Nessun dato viene cancellato: Fluxus aggiunge solo la cartella <code>' + volumeDir + '/</code>.</p>';
 
         UIkit.modal.confirm(
             '<h4 class="uk-margin-remove-bottom">Preparare «' + label + '» per Fluxus?</h4>' +
@@ -549,9 +548,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 <label class="uk-form-label">Timezone</label>
                 <input class="uk-input uk-form-small fm-mono" type="text" name="timezone" value="<?= fmH($timezone) ?>" placeholder="Europe/Rome">
             </div>
+            <?php // Il sottopercorso web non si cambia da qui: lo decide
+                  // l'installazione, e deve corrispondere a ciò che dice nginx.
+                  // Il campo che c'era prima salvava un valore che nessuno
+                  // leggeva. Si mostra soltanto, insieme all'istanza. ?>
             <div class="uk-width-1-2@m">
-                <label class="uk-form-label">Web base path (vuoto = root)</label>
-                <input class="uk-input uk-form-small fm-mono" type="text" name="web_base" value="<?= fmH($webBaseSetting) ?>" placeholder="/fluxus-media">
+                <label class="uk-form-label">Istanza</label>
+                <p class="uk-text-small fm-mono uk-margin-remove"><?= fmH(FM_INSTANCE) ?><span class="uk-text-meta"> · <?= fmH(FM_WEB_BASE !== '' ? FM_WEB_BASE . '/' : '/') ?></span></p>
+                <p class="uk-text-meta uk-margin-remove">Configurata in <span class="fm-mono"><?= fmH(FM_CONF_FILE) ?></span></p>
             </div>
             <div class="uk-width-1-2@m">
                 <label class="uk-form-label uk-display-block">&nbsp;</label>

@@ -22,8 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     fmJson(['ok' => false, 'error' => 'Metodo non consentito'], 405);
 }
 
-/** Durata massima di una preview lasciata aperta: rete di sicurezza se il browser sparisce. */
-const FM_PREVIEW_TTL = 900;
+// FM_PREVIEW_TTL (durata massima di una preview lasciata aperta, rete di
+// sicurezza se il browser sparisce) sta fra le costanti, in config.php.
+
 /** Quanto si attende che ffmpeg si colleghi e produca il primo segmento. */
 const FM_PREVIEW_WAIT_SEC = 20;
 
@@ -62,7 +63,7 @@ fmKillPreviewRelay($pidFile);
 $playlist = $dir . '/index.m3u8';
 @unlink($playlist);
 
-$cmd = 'setsid nohup ' . escapeshellarg(FM_SCRIPTS . '/preview.sh')
+$cmd = fmScriptEnv() . 'setsid nohup ' . escapeshellarg(FM_SCRIPTS . '/preview.sh')
     . ' ' . escapeshellarg((string)$sourceId)
     . ' ' . escapeshellarg((string)$source['media_type'])
     . ' ' . escapeshellarg($type)

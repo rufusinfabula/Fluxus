@@ -1,6 +1,6 @@
 #!/bin/bash
 # Fluxus-Media — run_schedule.sh <schedule_id>
-# Invocato dal timer systemd fm-sched-{id}.timer. Crea la riga recording
+# Invocato dal timer systemd <prefisso>-sched-{id}.timer. Crea la riga recording
 # (status='pending') e lancia record.sh, che aggiorna status='recording'.
 #
 # 2026-07-27: aggiunto il log FM_LOGS/fm-schedule.log. Motivo: il 2026-07-27 alle
@@ -10,11 +10,7 @@
 # vuoto. Il log annota anche se l'ora dell'avvio è compatibile con l'on_calendar
 # dello schedule, ma NON blocca nulla: è puramente diagnostico.
 
-FM_BASE="/var/lib/fluxus-media"
-FM_DB="$FM_BASE/db/fluxus_media.db"
-FM_RECORDINGS="$FM_BASE/recordings"
-FM_SCRIPTS="$FM_BASE/scripts"
-FM_LOGS="$FM_BASE/logs"
+source "$(dirname "${BASH_SOURCE[0]}")/fluxus-env.sh"
 
 mkdir -p "$FM_LOGS"
 SCHED_LOG="$FM_LOGS/fm-schedule.log"

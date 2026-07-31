@@ -472,7 +472,10 @@ un click: Fluxus lo rimonta come si deve e crea le cartelle che gli servono.
 - **Nome nodo** — come si chiama questo Fluxus, utile se ce n'è più di uno.
 - **Timezone** — il fuso degli orari (`Europe/Rome`). Cambiarlo cambia quando
   scattano le registrazioni programmate.
-- **Web base path** — solo per chi sposta l'installazione.
+- **Istanza** — in sola lettura: il nome di questa installazione, l'indirizzo a
+  cui risponde e il file di configurazione da cui li prende. Serve a capire con
+  quale Fluxus si sta parlando quando su una stessa macchina ce n'è più d'uno.
+  Non si cambia da qui: lo decide chi installa.
 - **Richiedi autenticazione** + **Nuova password** — accende il login. Da fare
   se il Pi sta su una rete condivisa.
 

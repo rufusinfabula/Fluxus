@@ -1,6 +1,0 @@
-[Unit]
-Description=Fluxus-Media — Retention Cleanup
-[Service]
-Type=oneshot
-User=www-data
-ExecStart=/var/lib/fluxus-media/scripts/retention_cleanup.sh

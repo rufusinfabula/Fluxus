@@ -3,11 +3,7 @@
 # Applica i limiti di retention per sorgente: max_recordings, max_days_recordings,
 # max_clips_per_marker, max_days_clips. Eseguito periodicamente da systemd timer.
 
-FM_BASE="/var/lib/fluxus-media"
-FM_DB="$FM_BASE/db/fluxus_media.db"
-FM_CLIPS="$FM_BASE/clips"
-FM_LOGS="$FM_BASE/logs"
-FM_TMP="$FM_BASE/tmp"
+source "$(dirname "${BASH_SOURCE[0]}")/fluxus-env.sh"
 
 mkdir -p "$FM_LOGS" "$FM_TMP"
 

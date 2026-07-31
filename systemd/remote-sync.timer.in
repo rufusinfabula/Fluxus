@@ -1,0 +1,9 @@
+[Unit]
+Description=@FLUXUS_APP_NAME@ Remote (@FLUXUS_INSTANCE@) — sincronizzazione ogni 5 secondi
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=5s
+
+[Install]
+WantedBy=timers.target

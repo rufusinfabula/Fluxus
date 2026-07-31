@@ -1,0 +1,55 @@
+# Blocchi nginx di Fluxus — modello.
+#
+# I segnaposto @NOME@ vengono sostituiti dall'installer con i valori della
+# configurazione dell'istanza. Il file reso va incluso dentro un blocco server
+# del vhost, oppure copiato al suo interno.
+#
+# Con FLUXUS_WEB_BASE vuoto (Fluxus alla radice del vhost) le righe restano
+# corrette: @FLUXUS_WEB_BASE@/ diventa semplicemente /.
+#
+# ⚠️ Il blocco PHP di Fluxus deve precedere il 'location ~ \.php$' generico del
+# vhost, altrimenti il timeout lungo non viene applicato e l'estrazione di una
+# clip lunga muore a metà.
+
+    # PHP — Fluxus ha bisogno di un timeout più lungo (estrazione clip ffmpeg)
+    location ~ ^@FLUXUS_WEB_BASE@/.*\.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:@FLUXUS_PHP_FPM_SOCK@;
+        fastcgi_read_timeout 300;
+        fastcgi_param FLUXUS_CONF @FLUXUS_CONF_FILE@;
+    }
+
+
+    location @FLUXUS_WEB_BASE@/ {
+        alias @FLUXUS_WEB_DIR@/;
+        autoindex off;
+        index index.php;
+    }
+    # Registrazioni e clip audio/video (dati privati, fuori dalla radice web)
+    location @FLUXUS_WEB_BASE@/recordings/ {
+        alias @FLUXUS_DATA_DIR@/recordings/;
+        add_header Accept-Ranges bytes;
+    }
+    location @FLUXUS_WEB_BASE@/clips/ {
+        alias @FLUXUS_DATA_DIR@/clips/;
+        add_header Accept-Ranges bytes;
+    }
+    # Registrazioni su volumi esterni (v2.5.0): in <cartella dati>/volumes/ c'è
+    # un symlink per ogni volume registrato, così aggiungere un disco non
+    # richiede di toccare nginx. disable_symlinks resta off (default): i link
+    # sono creati solo da Fluxus e puntano alle radici dati dei volumi.
+    location @FLUXUS_WEB_BASE@/volumes/ {
+        alias @FLUXUS_DATA_DIR@/volumes/;
+        add_header Accept-Ranges bytes;
+    }
+    # Anteprima live: HLS effimero scritto da scripts/preview.sh.
+    # Mai in cache — playlist e segmenti cambiano ogni 2s e vengono cancellati.
+    location @FLUXUS_WEB_BASE@/preview/ {
+        alias @FLUXUS_DATA_DIR@/tmp/preview/;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        types {
+            application/vnd.apple.mpegurl m3u8;
+            video/mp2t                    ts;
+        }
+        default_type application/octet-stream;
+    }

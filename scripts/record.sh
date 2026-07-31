@@ -22,11 +22,15 @@
 # Eccezione 2026-07-29 (8): profilo 'hd' e forbice di qualità allargata (media crf 25->28,
 # bassa crf 28->32), per differenziare davvero i profili fra loro
 # (vedi docs/NOTE-TECNICHE.md, vincolo 14).
+# Eccezione 2026-07-31 (9): i percorsi e l'indirizzo del server RTMP non sono più
+# scritti qui dentro ma arrivano da fluxus-env.sh, che li legge dalla configurazione
+# dell'istanza. È la condizione per installare Fluxus una seconda volta sulla stessa
+# macchina: finché la cartella dati era scritta in questo file, ogni copia registrava
+# nella stessa (vedi docs/NOTE-TECNICHE.md, vincolo 24).
 
-FM_BASE="/var/lib/fluxus-media"
-FM_DB="$FM_BASE/db/fluxus_media.db"
-FM_LOGS="$FM_BASE/logs"
-FM_TMP="$FM_BASE/tmp"
+# FM_BASE, FM_DB, FM_LOGS, FM_TMP e FLUXUS_* arrivano da qui. Lo script continua a
+# trovarli valorizzati come quando erano dichiarati in queste righe.
+source "$(dirname "${BASH_SOURCE[0]}")/fluxus-env.sh"
 
 RECORDING_ID="$1"
 SOURCE_ID="$2"
@@ -58,7 +62,7 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-# NB: /etc/fluxus-media.env (FM_HW_ENCODER / FM_HW_ENCODER_OPTS) non viene più letto qui:
+# NB: FLUXUS_HW_ENCODER / FLUXUS_HW_ENCODER_OPTS non vengono usati qui:
 # l'encoder è determinato dal profilo qualità della sorgente (vedi sotto). Il Pi 5 non ha
 # encoder H.264 hardware, quindi quel meccanismo puntava comunque a un device inesistente.
 
@@ -199,14 +203,14 @@ add_output_args() {
 # ⚠️ Il prefisso include lo slash: senza, la sorgente 21 prenderebbe anche 210.
 push_input_url() {
     local name
-    name=$(curl -fsS --max-time 3 'http://127.0.0.1:9997/v3/paths/list?itemsPerPage=1000' 2>/dev/null \
+    name=$(curl -fsS --max-time 3 "$FLUXUS_MEDIAMTX_API/v3/paths/list?itemsPerPage=1000" 2>/dev/null \
         | jq -r --arg id "$SOURCE_ID" \
             '[.items[]? | select(.ready == true) | .name
               | select(. == $id or startswith($id + "/"))] | sort | first // empty' 2>/dev/null)
     if [[ -n "$name" && "$name" != "$SOURCE_ID" ]]; then
         echo "Sorgente push su percorso non canonico: $name" >&2
     fi
-    printf 'rtmp://127.0.0.1:1935/%s' "${name:-$SOURCE_ID}"
+    fluxus_rtmp_url "${name:-$SOURCE_ID}"
 }
 
 # Costruisce CMD per il tentativo corrente, con -t pari al tempo che resta.

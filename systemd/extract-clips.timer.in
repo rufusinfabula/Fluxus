@@ -1,0 +1,9 @@
+[Unit]
+Description=@FLUXUS_APP_NAME@ (@FLUXUS_INSTANCE@) — estrazione clip ogni 30 secondi
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=30s
+
+[Install]
+WantedBy=timers.target

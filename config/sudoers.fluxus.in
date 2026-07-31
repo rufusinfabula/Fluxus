@@ -1,0 +1,40 @@
+# Fluxus — permessi minimi per l'utente di PHP-FPM, modello.
+#
+# I segnaposto @NOME@ li sostituisce l'installer, che scrive il file reso in
+# /etc/sudoers.d/<istanza> (root:root 0440, e sempre passando da visudo -c).
+#
+# @FLUXUS_SUDO_ALIAS@ è il nome dell'istanza in maiuscolo con i trattini
+# sostituiti da underscore (fluxus-dev → FLUXUS_DEV). Serve perché i
+# Cmnd_Alias vivono in uno spazio di nomi unico per tutto sudo: due istanze
+# con gli stessi nomi di alias renderebbero illeggibile l'intero sudoers.
+#
+# ⚠️ Due istanze che girano con lo stesso utente di sistema si fidano a
+# vicenda: i pattern qui sotto sono per istanza, ma l'utente è uno solo. È
+# accettabile fra un'installazione e il suo collaudo sulla stessa macchina,
+# non fra installazioni di proprietari diversi.
+
+# Unit systemd degli orari (<prefisso>-sched-*), generati da schedules.php.
+Cmnd_Alias @FLUXUS_SUDO_ALIAS@_INSTALL = \
+    /usr/bin/install -m 644 @FLUXUS_DATA_DIR@/tmp/@FLUXUS_UNIT_PREFIX@-sched-*.service /etc/systemd/system/@FLUXUS_UNIT_PREFIX@-sched-*.service, \
+    /usr/bin/install -m 644 @FLUXUS_DATA_DIR@/tmp/@FLUXUS_UNIT_PREFIX@-sched-*.timer   /etc/systemd/system/@FLUXUS_UNIT_PREFIX@-sched-*.timer
+Cmnd_Alias @FLUXUS_SUDO_ALIAS@_SYSTEMCTL = \
+    /usr/bin/systemctl daemon-reload, \
+    /usr/bin/systemctl enable --now @FLUXUS_UNIT_PREFIX@-sched-*.timer, \
+    /usr/bin/systemctl disable --now @FLUXUS_UNIT_PREFIX@-sched-*.timer
+Cmnd_Alias @FLUXUS_SUDO_ALIAS@_RM = \
+    /usr/bin/rm -f /etc/systemd/system/@FLUXUS_UNIT_PREFIX@-sched-*.timer /etc/systemd/system/@FLUXUS_UNIT_PREFIX@-sched-*.service
+
+@FLUXUS_USER@ ALL=(root) NOPASSWD: @FLUXUS_SUDO_ALIAS@_INSTALL, @FLUXUS_SUDO_ALIAS@_SYSTEMCTL, @FLUXUS_SUDO_ALIAS@_RM
+
+# Abilitazione di un disco esterno all'uso da parte di Fluxus (v2.5.0), da
+# Impostazioni → Archiviazione. Lo script è root:root 0755 in /usr/local/bin:
+# NON va spostato nella cartella scripts dell'istanza, che appartiene
+# all'utente di Fluxus — lì potrebbe riscriverlo e ottenere root.
+#
+# Cartella, utente e gruppo sono fissati qui ai valori di questa istanza: lo
+# script è unico per la macchina e li riceve come argomenti, quindi è questa
+# regola a stabilire che non possano essere altri.
+Cmnd_Alias @FLUXUS_SUDO_ALIAS@_VOLUME = \
+    /usr/local/bin/fluxus-enable-volume.sh --info *, \
+    /usr/local/bin/fluxus-enable-volume.sh * @FLUXUS_INSTANCE@ @FLUXUS_USER@ @FLUXUS_GROUP@
+@FLUXUS_USER@ ALL=(root) NOPASSWD: @FLUXUS_SUDO_ALIAS@_VOLUME

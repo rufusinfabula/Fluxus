@@ -9,11 +9,16 @@ angolo che registra da sola, giorno dopo giorno, e a cui si chiede conto dal
 browser. Nessun servizio cloud, nessuna porta aperta verso Internet, nessun
 abbonamento.
 
-> **Stato: in lavorazione (`0.1.0`).**
+> **Stato: in lavorazione (`0.2.0`).**
 > Il software funziona ed è in uso quotidiano, ma **non è ancora installabile
 > da questo repository**: l'installer è la voce principale della
 > [roadmap](docs/ROADMAP.md). Fino ad allora questo è il sorgente, non un
 > pacchetto pronto.
+>
+> Fatto finora: percorsi, nomi e utente di sistema non sono più scritti nel
+> codice ma vengono da un file di configurazione, uno per installazione — il
+> che permetterà di tenere sulla stessa macchina un'installazione in uso e una
+> di collaudo.
 
 ---
 
@@ -70,11 +75,12 @@ registrazioni perdute.
 app/         applicazione web PHP
 scripts/     registrazione, estrazione clip, retention, anteprima
 bin/         comandi di sistema e script privilegiati
-systemd/     unit dei servizi periodici
-nginx/       configurazione del server web
+systemd/     modelli dei servizi periodici
+nginx/       modello della configurazione del server web
 config/      modelli dei file di configurazione
 packaging/   costruzione dell'immagine SD
 docs/        documentazione
+VERSION      unica fonte del numero di versione
 ```
 
 ## Licenza
