@@ -10,15 +10,11 @@ $fmWebBase = rtrim(FM_WEB_BASE, '/');
 <link rel="icon" type="image/png" sizes="32x32" href="<?= $fmWebBase ?>/icons/fluxus-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="<?= $fmWebBase ?>/icons/fluxus-64.png">
 <link rel="apple-touch-icon" sizes="180x180" href="<?= $fmWebBase ?>/icons/fluxus-180.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.6/dist/css/uikit.min.css">
-<?php // Icone di UIkit v2 (Font Awesome 4): usate per i tipi di disco in
-      // Impostazioni e nella barra di stato. Definisce solo .fa-*, non tocca UIkit 3. ?>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-<?php // "Recursive" (peso 700): usato solo per la firma nel piè di pagina. Con
-      // display=swap, se Google Fonts non è raggiungibile resta il font di
-      // sistema e non si perde nulla. ?>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:wght@700&display=swap">
+<?php // Tutto ciò che serve alla pagina è servito da qui: niente CDN, l'interfaccia
+      // deve funzionare su una macchina che non ha ancora una connessione.
+      // Versioni, licenze e come si aggiornano: assets/vendor/README.md. ?>
+<link rel="stylesheet" href="<?= $fmWebBase ?>/assets/vendor/uikit-3.21.6.min.css">
+<?php // Il font della firma nel piè di pagina è dichiarato in style.css. ?>
 <link rel="stylesheet" href="<?= $fmWebBase ?>/assets/style.css">
 </head>
 <body>

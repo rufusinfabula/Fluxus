@@ -86,8 +86,8 @@ include __DIR__ . '/includes/head_dark.php';
     </div>
 </div>
 
-<script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-<script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+<script src="<?= $webBase ?>/assets/vendor/wavesurfer-7.12.11.min.js"></script>
+<script src="<?= $webBase ?>/assets/vendor/wavesurfer-regions-7.12.11.min.js"></script>
 <script>
 (function () {
     var base = <?= json_encode($webBase) ?>;

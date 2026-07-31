@@ -12,6 +12,49 @@ correzioni** lungo la strada.
 
 ---
 
+## 0.3.0
+
+**L'interfaccia funziona senza Internet** ([fase 2](ROADMAP.md) della roadmap).
+
+Prima, aprire una pagina di Fluxus voleva dire chiedere sei file a tre CDN
+diverse: il foglio di stile e il JavaScript di UIkit, le sue icone, Font
+Awesome, il font della firma, il player dell'anteprima. Su una macchina senza
+connessione arrivava una pagina senza stile e senza icone — ed è esattamente la
+condizione in cui si trova un Raspberry Pi appena portato in un posto nuovo,
+cioè quando servirà la pagina di rete della fase 4.
+
+Ora quei file li serve Fluxus, da `app/assets/vendor/`. Sono versionati nel
+repository, non scaricati al momento dell'installazione: installare non deve
+richiedere che una CDN sia raggiungibile, e l'immagine SD della fase 6 deve
+poter funzionare appena accesa.
+
+Nel dettaglio:
+
+- UIkit 3.21.6 (stile, JavaScript e icone), hls.js 1.6.16 e il font *Recursive*
+  serviti in locale; **wavesurfer.js 7.12.11** incluso anche se la pagina che lo
+  usa è in quarantena, così «nessuna dipendenza esterna» resta una proprietà che
+  si verifica con un grep;
+- **Font Awesome eliminato**: serviva per due icone, quella del disco interno e
+  quella del disco esterno, ed erano 106 KB fra foglio di stile e font. Ora sono
+  disegnate in linea da `fmVolumeIcon()`, un solo punto per la pagina
+  Impostazioni e per la barra dei volumi;
+- di hls.js si usa la build `light`: l'anteprima è un flusso HLS a variante
+  singola prodotto in casa, e le tracce audio alternative, i sottotitoli e il
+  DRM che la build completa porta con sé non servono a nulla — 180 KB in meno;
+- del font *Recursive* solo il sottoinsieme latino al peso 700, 23 KB: serve per
+  la firma nel piè di pagina;
+- ogni file porta la versione nel nome e nginx li dichiara immutabili: la cache
+  del browser non può servire il file vecchio dopo un aggiornamento;
+- `packaging/vendor-assets.sh` tiene l'elenco di versioni, indirizzi e impronte
+  `sha256`, e rifà la cartella quando si aggiorna qualcosa.
+
+In tutto circa 950 KB, serviti dalla rete locale una volta sola.
+
+Nessuna modifica alla registrazione, all'estrazione delle clip o allo schema del
+database.
+
+---
+
 ## 0.2.0
 
 **Un solo punto di verità per percorsi e nomi** ([fase 1](ROADMAP.md) della

@@ -190,7 +190,7 @@ include __DIR__ . '/includes/head.php';
 
             <?php // Cerchio dell'icona: blu se ospita l'audio, viola il video, metà e metà se entrambi. ?>
             <span class="fm-vol-badge" uk-tooltip="title: <?= $d['is_root'] ? 'Disco interno (microSD)' : 'Disco esterno' ?>; pos: top">
-                <i class="fa <?= $d['is_root'] ? 'fa-hdd-o' : 'fa-usb' ?>"></i>
+                <?= fmVolumeIcon((bool)$d['is_root']) ?>
             </span>
 
             <?php if ($usable): ?>

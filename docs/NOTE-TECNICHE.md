@@ -30,7 +30,7 @@ disponibili (EDIT è solo per i cue audio).
 
 ## Stack
 
-- Web: nginx (vhost di default, porta 80/443) sul sottopercorso dell'istanza, PHP 8.2-FPM, UIkit 3.21.6 (CDN)
+- Web: nginx (vhost di default, porta 80/443) sul sottopercorso dell'istanza, PHP 8.2-FPM, UIkit 3.21.6 servito da Fluxus
 - DB: SQLite — `<cartella dati>/db/fluxus_media.db`
 - Recording: script bash + ffmpeg
 - RTMP/RTSP: MediaMTX (systemd, porta 1935 RTMP, 8554 RTSP)
@@ -99,6 +99,7 @@ struttura sotto la propria radice — vedi "Archiviazione su più volumi".
   db/schema.sql
   assets/
     style.css
+    vendor/     ← UIkit, hls.js, wavesurfer, il font della firma (0.3.0)
 ```
 
 ⚠️ **Federazione multi-nodo: PENDING/FUTURO, non implementata.** Lo schema DB
@@ -1181,7 +1182,9 @@ originale, mantenuto per riferimento in vista di una futura riattivazione.
 `edit.php`: lista cue con clip_status='ready' da registrazioni con media_type='audio'.
 Identico ad Audio Recorder 1.0 edit.php.
 
-`edit-trim.php`: editor trim audio con WaveSurfer.js v7 (CDN).
+`edit-trim.php`: editor trim audio con WaveSurfer.js 7.12.11, servito da
+`assets/vendor/` come tutto il resto (0.3.0) — riattivare la pagina non
+reintroduce una dipendenza da Internet.
 Identico ad Audio Recorder 1.0 edit-trim.php:
 - Tastiera: Space, I, O, ArrowLeft/Right (50ms, Shift=10s), J/K/L velocità
 - Pulsante 2x, badge velocità
@@ -1373,13 +1376,15 @@ solution`** — dicitura esatta, con la `a` iniziale minuscola: è la formula vo
 dall'utente, non un refuso da "correggere". Vale per tutte le pagine che
 includono `foot.php`.
 
-**"Fabio Ranfi" è reso con il font *Recursive*, peso 700** (Google Fonts),
-racchiuso in `<span class="fm-signature">`; il resto della riga usa il font di
-pagina. Il foglio è caricato in `head.php`, `head_dark.php` e `login.php`
-(`family=Recursive:wght@700&display=swap`): ⚠️ se Google Fonts non è
-raggiungibile — Pi senza uscita su Internet — la firma resta leggibile nel font
-di sistema (fallback `system-ui`) e non sparisce nulla. È la stessa dipendenza da
-CDN che l'app ha già per UIkit e Font Awesome.
+**"Fabio Ranfi" è reso con il font *Recursive*, peso 700**, racchiuso in
+`<span class="fm-signature">`; il resto della riga usa il font di pagina.
+
+Il font arrivava da Google Fonts, e con esso ogni pagina di Fluxus chiedeva
+qualcosa a Internet. **Dalla 0.3.0 è servito da Fluxus**: la regola `@font-face`
+sta in cima ad `assets/style.css`, il file è `assets/vendor/fonts/`, e c'è il
+solo sottoinsieme latino al peso 700 — 23 KB invece del font variabile completo,
+che supera il megabyte. Il ripiego `system-ui` resta dichiarato: se un giorno il
+file mancasse, la firma non sparisce, cambia solo forma.
 
 - L'anno viene da `date('Y')`: non va scritto a mano, altrimenti il 1° gennaio
   la pagina mente.
@@ -1430,8 +1435,14 @@ funzionato** su nessuna sorgente reale — vedi vincolo 17. Non riproporlo.
 - `includes/preview_modal.php`: modale condiviso fra dashboard e recording,
   espone `window.fmOpenPreview(sourceId, name, mediaType)` e
   `window.fmPreviewActive()`. Spinner UIkit con contatore dei secondi durante
-  la connessione, `<video>` per il video e `<audio>` per l'audio, hls.js da
-  CDN con fallback all'HLS nativo di Safari.
+  la connessione, `<video>` per il video e `<audio>` per l'audio, hls.js servito
+  da `assets/vendor/` con fallback all'HLS nativo di Safari.
+
+⚠️ **Di hls.js si usa la build `light`** (0.3.0). Rinuncia a DRM, tracce audio
+alternative e sottotitoli: questo flusso non ne ha nessuno — `preview.sh`
+produce un HLS mpegts a variante singola, un video e un audio — e sono 180 KB in
+meno. Se un giorno l'anteprima dovesse servire flussi con più tracce audio,
+serve la build completa.
 
 **`hls_url` è un path relativo** (`{FM_WEB_BASE}/preview/{id}/index.m3u8`),
 servito da nginx: nessuna porta 8888 da raggiungere, nessun mixed content,
@@ -1746,13 +1757,70 @@ EDIT rimosso dalla navbar (2026-07-26): TRIM/EDIT manuale in quarantena, vedi se
 
 ## Stile UI
 
-- UIkit 3.21.6 da CDN: https://cdn.jsdelivr.net/npm/uikit@3.21.6/dist/
+- UIkit 3.21.6, servito da `assets/vendor/` — vedi la sezione seguente
 - Dark mode: <html class="uk-dark" style="background:#0d0f18">
 - Badge AUDIO: background #1565c0 (blu), testo bianco, font-size 9px
 - Badge VIDEO: background #6a1b9a (viola), testo bianco, font-size 9px
 - Marker: uk-button-primary (blu)
 - Cue: uk-button-default sfondo #1a1a1a bordo #444 testo #e0e0e0
 - Favicon: icons/fluxus-32.png, fluxus-64.png, fluxus-180.png
+
+## Dipendenze dell'interfaccia (0.3.0, 2026-07-31)
+
+Fino alla 0.2.0 ogni pagina chiedeva sei file a tre CDN diverse: stile,
+JavaScript e icone di UIkit, Font Awesome, il font della firma, il player
+dell'anteprima. Su una macchina senza connessione arrivava una pagina senza
+stile e senza icone — che è esattamente la condizione in cui si trova un Pi
+appena portato in un posto nuovo, cioè quando servirà la pagina di rete della
+fase 4. Ora li serve Fluxus, da `app/assets/vendor/`.
+
+### Perché versionati e non scaricati dall'installer
+
+Sono nel repository, circa 950 KB. L'alternativa — scaricarli durante
+l'installazione — è stata scartata: installare non deve dipendere dal fatto che
+una CDN sia raggiungibile in quel momento, l'immagine SD della fase 6 deve
+funzionare appena accesa, e una fase che si dichiara «funziona senza Internet»
+non può avere un passo che Internet lo richiede.
+
+`packaging/vendor-assets.sh` tiene l'elenco di versioni, indirizzi e impronte
+`sha256` e rifà la cartella (`--check` la verifica soltanto). **Non fa parte
+dell'installazione**: serve solo per aggiornare.
+
+### Cosa c'è, e le scelte che non sono ovvie
+
+| | Perché così |
+|---|---|
+| UIkit 3.21.6 | stile, JavaScript, icone: la stessa versione di prima |
+| hls.js 1.6.16 **build `light`** | l'anteprima è a variante singola, vedi la sezione dedicata: 180 KB in meno |
+| wavesurfer.js 7.12.11 | incluso benché `edit-trim.php` sia in quarantena |
+| Recursive 700, solo latino | 23 KB invece di oltre 1 MB del font variabile |
+
+**wavesurfer c'è anche se la pagina che lo usa non è raggiungibile.** Il motivo
+non è la completezza: è che «nessuna risorsa esterna» resta così una proprietà
+verificabile in un colpo solo, e riattivare quella pagina un domani non
+reintroduce di nascosto una chiamata a Internet.
+
+### Nomi con la versione dentro
+
+`uikit-3.21.6.min.css`, non `uikit.min.css`. Il contenuto servito a un certo
+indirizzo non cambia mai, quindi nginx li dichiara `immutable` con scadenza a un
+anno e un aggiornamento non può essere scavalcato dalla cache del browser.
+Cambiare versione vuol dire cambiare il nome del file **e** i riferimenti nelle
+pagine che lo caricano: `includes/head.php`, `includes/head_dark.php`,
+`includes/foot.php`, `includes/preview_modal.php`, `login.php`, `edit-trim.php`.
+
+### La verifica
+
+Che non sia rientrato niente dall'esterno si controlla così:
+
+```bash
+grep -rnE '<(link|script)[^>]+(src|href)="https?://|@import[^;]*https?://|url\(["'"'"']?https?://' app/
+```
+
+⚠️ Un grep di tutti gli `https://` non va bene: restano — legittimi — i link
+`<a href>` alla documentazione di ffmpeg in `sources.php` e a quella di systemd
+in `schedules.php`. Quelli li apre l'utente in una scheda nuova, non sono
+risorse della pagina.
 
 ## Inizializzazione DB e migrazioni (includes/db_init.php)
 
@@ -1957,9 +2025,21 @@ Due trappole già pagate, da non ripetere:
   fra liste diverse, e `detail[1]` è il *placeholder*. Un debounce di 150 ms
   unisce la coppia added+removed in una sola chiamata.
 
-⚠️ Font Awesome 4.7 è caricato da CDN in `head.php` per queste icone: UIkit 3
-non le ha, e le `.uk-icon-*` della documentazione UIkit v2 sono Font Awesome.
-Definisce solo `.fa-*`, non interferisce con UIkit 3.
+⚠️ **Le due icone dei dischi sono disegnate in linea**, non prese da un font di
+icone (0.3.0). Prima erano `fa-hdd-o` e `fa-usb` di Font Awesome 4.7, caricato
+da CDN in `head.php` perché UIkit 3 quelle icone non le ha: 106 KB fra foglio di
+stile e font per due soli glifi, e assenti proprio sulla macchina senza
+connessione. Ora le fa `fmVolumeIcon(bool $interno)` in `includes/helpers.php`,
+in stile Feather (24×24, tratto 2, `currentColor`), e la misura la dà `.fm-icon`
+in `style.css` — larga 1em, così le regole che dimensionavano le icone con
+`font-size` valgono ancora com'erano.
+
+Usata da `settings.php` e, passando da `json_encode`, dal JavaScript della barra
+di stato in `nav.php`: **un disegno solo, in un posto solo.** Se si tocca, si
+tocca lì.
+
+⚠️ Il connettore della chiavetta va tenuto ad angoli vivi: arrotondandolo la
+figura diventa un lucchetto. Provato.
 
 **Barra di stato**: **fino a due volumi si vedono affiancati** direttamente in
 barra (nome, barra, percentuale, GB); **da tre in su** resta solo il primo,

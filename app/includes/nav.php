@@ -106,6 +106,21 @@ $fmNavItems = [
     var tz = <?= json_encode(function_exists('fmTimezone') ? fmTimezone() : 'Europe/Rome') ?>;
     var lastUpdate = null;
 
+    // Le stesse icone della pagina Impostazioni, disegnate una volta sola in
+    // fmVolumeIcon() e passate di qua: se cambiano, cambiano in tutti e due i posti.
+    var iconaVolume = {
+        interno: <?= json_encode(fmVolumeIcon(true)) ?>,
+        esterno: <?= json_encode(fmVolumeIcon(false)) ?>
+    };
+
+    /** <span> con dentro il disegno del disco, interno o esterno. */
+    function volumeIcon(isDefault) {
+        var span = document.createElement('span');
+        span.className = 'fm-vol-icon';
+        span.innerHTML = isDefault ? iconaVolume.interno : iconaVolume.esterno;
+        return span;
+    }
+
     function thresholdColor(pct) {
         if (pct > 85) return '#f0506e';
         if (pct > 70) return '#faa05a';
@@ -125,9 +140,7 @@ $fmNavItems = [
         var wrap = document.createElement('span');
         wrap.className = 'fm-vol-inline-item';
 
-        var icon = document.createElement('i');
-        icon.className = 'fa ' + (v.is_default ? 'fa-hdd-o' : 'fa-usb') + ' fm-vol-icon';
-        wrap.appendChild(icon);
+        wrap.appendChild(volumeIcon(v.is_default));
 
         var label = document.createElement('span');
         label.className = 'fm-sysbar-label';
@@ -195,10 +208,7 @@ $fmNavItems = [
             var row = document.createElement('div');
             row.className = 'fm-vol-row' + (v.online ? '' : ' fm-vol-offline');
 
-            // Stesse icone della pagina Impostazioni: interno vs disco esterno.
-            var icon = document.createElement('i');
-            icon.className = 'fa ' + (v.is_default ? 'fa-hdd-o' : 'fa-usb') + ' fm-vol-icon';
-            row.appendChild(icon);
+            row.appendChild(volumeIcon(v.is_default));
 
             var name = document.createElement('div');
             name.className = 'fm-vol-name';

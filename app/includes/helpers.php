@@ -195,6 +195,40 @@ function fmFormatSlotDuration(?int $sec): string {
     return round($sec / 60) . ' min';
 }
 
+/**
+ * Icona di un volume: disco interno (la microSD di sistema) o disco esterno.
+ *
+ * Disegnata qui invece di arrivare da un font di icone. Prima erano `fa-hdd-o`
+ * e `fa-usb` di Font Awesome 4, cioè 106 KB fra foglio di stile e font per due
+ * soli glifi — e presi da una CDN, quindi assenti proprio sulla macchina senza
+ * connessione. Stesso stile dei disegni già in linea altrove: 24×24, tratto 2,
+ * `currentColor`. La misura la dà `.fm-icon` in `assets/style.css`, che vale
+ * 1em: le regole che dimensionavano le icone con `font-size` continuano a
+ * valere così com'erano.
+ *
+ * Usata anche dal JavaScript della barra di stato (`includes/nav.php`), che se
+ * la fa passare da PHP invece di riscriverla: un disegno solo, un posto solo.
+ */
+function fmVolumeIcon(bool $internal): string {
+    $svg = '<svg class="fm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+         . ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+    if ($internal) {
+        // Disco fisso di traverso, con i due LED: la forma che tutti leggono come "disco".
+        $svg .= '<line x1="22" y1="12" x2="2" y2="12"></line>'
+              . '<path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>'
+              . '<line x1="6" y1="16" x2="6.01" y2="16"></line>'
+              . '<line x1="10" y1="16" x2="10.01" y2="16"></line>';
+    } else {
+        // Chiavetta in piedi: connettore squadrato sopra, corpo sotto. Il
+        // connettore va tenuto ad angoli vivi — arrotondandolo l'insieme
+        // diventa un lucchetto, provato.
+        $svg .= '<rect x="9" y="3" width="6" height="4"></rect>'
+              . '<rect x="6" y="7" width="12" height="14" rx="2"></rect>'
+              . '<line x1="9" y1="12" x2="15" y2="12"></line>';
+    }
+    return $svg . '</svg>';
+}
+
 function fmSlug(string $s): string {
     $s = trim($s);
     $s = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s) ?: $s;

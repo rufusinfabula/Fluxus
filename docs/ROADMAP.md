@@ -15,8 +15,7 @@ Cosa manca oggi, in concreto:
 - **Nessun installer funzionante.** Quello ereditato è fermo a una versione
   molto precedente e non installa nemmeno i file dell'applicazione.
 - ~~**Percorsi cablati nel codice**~~ — risolto dalla fase 1.
-- **Dipendenza da Internet per l'interfaccia**: fogli di stile, icone e player
-  arrivano da CDN esterni.
+- ~~**Dipendenza da Internet per l'interfaccia**~~ — risolto dalla fase 2.
 - **Nessun modo di configurare la rete** se non da riga di comando.
 
 ---
@@ -37,15 +36,21 @@ segnaposto: la fase 3 deve solo renderli. Vedi il
 [changelog](CHANGELOG.md#020) e, per il perché di ogni scelta, la sezione
 *Configurazione dell'istanza* delle [note tecniche](NOTE-TECNICHE.md).
 
-## Fase 2 — L'interfaccia funziona senza Internet → `0.3.0`
+## Fase 2 — L'interfaccia funziona senza Internet → `0.3.0` ✅
 
-Fogli di stile, icone, player e font inclusi nel pacchetto invece che presi da
-CDN esterni. Circa 400 KB.
+**Fatta.** Fogli di stile, icone, player e font sono nel pacchetto e li serve
+Fluxus stesso. Nessuna pagina chiede più niente a nessuno.
 
-Non è una rifinitura: è la fase 4 a dipenderne. Una macchina appena portata in
+Non era una rifinitura: è la fase 4 a dipenderne. Una macchina appena portata in
 un posto nuovo **non ha ancora una connessione** — se la pagina che serve a
-configurare il WiFi prende il foglio di stile da Internet, arriva senza stile e
-senza icone proprio nel momento in cui serve.
+configurare il WiFi prendesse il foglio di stile da Internet, arriverebbe senza
+stile e senza icone proprio nel momento in cui serve.
+
+Sono circa 950 KB, non i 400 preventivati: quella stima valeva per i file
+compressi, e hls.js da solo è più di un terzo del totale. In cambio è sparita
+una dipendenza intera — Font Awesome, 106 KB fra foglio di stile e font per due
+sole icone, ora disegnate in linea. Vedi il [changelog](CHANGELOG.md#030) e
+`app/assets/vendor/README.md`.
 
 ## Fase 3 — Installer e comando di gestione → `0.4.0`
 

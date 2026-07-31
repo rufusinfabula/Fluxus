@@ -23,7 +23,4 @@ config/*.env
 # Scritto dall'installer: dice a quale istanza appartiene questa copia
 app/includes/instance.php
 
-# Dipendenze scaricate dall'installer
-app/assets/vendor/
-
 .DS_Store

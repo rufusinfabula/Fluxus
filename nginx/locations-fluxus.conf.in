@@ -25,6 +25,16 @@
         autoindex off;
         index index.php;
     }
+    # Dipendenze dell'interfaccia (UIkit, hls.js, wavesurfer, il font della
+    # firma). Ogni nome di file contiene la versione: il contenuto servito a un
+    # certo indirizzo non cambia mai, quindi la cache può tenerselo per sempre e
+    # l'interfaccia si riapre senza una richiesta di rete.
+    location @FLUXUS_WEB_BASE@/assets/vendor/ {
+        alias @FLUXUS_WEB_DIR@/assets/vendor/;
+        access_log off;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
     # Registrazioni e clip audio/video (dati privati, fuori dalla radice web)
     location @FLUXUS_WEB_BASE@/recordings/ {
         alias @FLUXUS_DATA_DIR@/recordings/;

@@ -32,7 +32,10 @@ $fmPreviewWebBase = rtrim(FM_WEB_BASE, '/');
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<?php /* Build 'light' di hls.js: senza DRM, tracce audio alternative e sottotitoli,
+         che questo flusso non ha — preview.sh produce un HLS mpegts a variante
+         singola. Servita da Fluxus, non da CDN: assets/vendor/README.md. */ ?>
+<script src="<?= $fmPreviewWebBase ?>/assets/vendor/hls.light-1.6.16.min.js"></script>
 <script>
 (function () {
     var base = <?= json_encode($fmPreviewWebBase) ?>;

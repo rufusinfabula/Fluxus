@@ -98,7 +98,7 @@ Versioni verificate su questo host (Raspberry Pi 5, Debian 12, kernel 6.12):
 | PHP | 8.2.32 FPM, pool condivisa con gli altri siti dell'host |
 | SQLite | 3.40.1, journal in **WAL** |
 | ffmpeg | 5.1.9 (Debian rpt) |
-| UIkit | 3.21.6 da CDN, più Font Awesome 4.7 per le icone dei dischi |
+| UIkit | 3.21.6, servito da Fluxus insieme a hls.js e al font della firma — vedi *Dipendenze dell'interfaccia* |
 | MediaMTX | systemd, RTMP `:1935`, RTSP `:8554`, API `:9997` |
 
 Utente di sistema: **`www-data`**. Non esiste un utente dedicato.
@@ -130,8 +130,30 @@ Codice (webroot):
               trim.php            ← in quarantena
   db/schema.sql
   assets/style.css
+  assets/vendor/       ← UIkit, hls.js, wavesurfer, il font della firma
   icons/
 ```
+
+### Dipendenze dell'interfaccia
+
+Tutto ciò che una pagina carica viene da Fluxus: **nessuna CDN, nessun font
+remoto**. Non è pulizia formale — una macchina appena portata in un posto nuovo
+non ha ancora una connessione, e la prima pagina che serve aprire è quella che
+la rete la configura.
+
+| | |
+|---|---|
+| UIkit 3.21.6 | stile, JavaScript, icone |
+| hls.js 1.6.16 (build `light`) | anteprima live delle sorgenti |
+| wavesurfer.js 7.12.11 | ritaglio dei cue audio (pagina in quarantena) |
+| Recursive 700, latino | la firma nel piè di pagina |
+
+Circa 950 KB. Ogni file porta la versione nel nome e nginx li dichiara
+immutabili. Le icone dei dischi non vengono da un font di icone ma sono
+disegnate in linea da `fmVolumeIcon()` in `includes/helpers.php`.
+
+Si aggiornano con `packaging/vendor-assets.sh`, che tiene versioni, indirizzi e
+impronte `sha256`; il dettaglio è in `app/assets/vendor/README.md`.
 
 Dati (volume interno, radice `FM_BASE`):
 

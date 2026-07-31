@@ -1,5 +1,21 @@
 /* Fluxus-Media — design system custom CSS. Poco e chirurgico: si appoggia a UIkit. */
 
+/* "Recursive" peso 700: la firma nel piè di pagina, e nient'altro. Il file è
+   servito da Fluxus (prima veniva da Google Fonts): l'interfaccia deve reggere
+   su una macchina senza connessione. Solo il sottoinsieme latino, 23 KB.
+   Il percorso è relativo a questo foglio, quindi vale con qualunque
+   sottopercorso web. Vedi vendor/README.md. */
+@font-face {
+    font-family: 'Recursive';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('vendor/fonts/recursive-700-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                   U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                   U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
     --fm-mono: ui-monospace, 'Cascadia Code', monospace;
     --fm-accent: #f0506e;
@@ -463,6 +479,15 @@ h2.fm-page-title {
 .fm-vol-offline-text {
     font-style: italic;
     color: #6b7285;
+}
+
+/* Disegni in linea (fmVolumeIcon() in includes/helpers.php): larghi quanto il
+   testo, così tutto ciò che prima dimensionava le icone con font-size continua
+   a funzionare senza cambiare una riga. */
+.fm-icon {
+    width: 1em;
+    height: 1em;
+    vertical-align: -.125em;
 }
 
 .fm-vol-icon {
@@ -1603,8 +1628,8 @@ body.ed-body .uk-navbar-nav > li.uk-active > a {
     color: #777;
 }
 
-/* Firma: "Recursive" peso 700 (Google Fonts, caricato in head.php). Con
-   display=swap, se il font non arriva resta il testo nel font di sistema. */
+/* Firma: "Recursive" peso 700, dichiarato in cima a questo foglio. Il fallback
+   di sistema resta comunque, per il caso in cui il file mancasse. */
 .fm-signature {
     font-family: 'Recursive', system-ui, sans-serif;
     font-weight: 700;

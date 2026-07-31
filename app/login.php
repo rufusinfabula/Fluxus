@@ -30,10 +30,8 @@ $pageTitle = 'Login';
 <link rel="icon" type="image/png" sizes="32x32" href="<?= $webBase ?>/icons/fluxus-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="<?= $webBase ?>/icons/fluxus-64.png">
 <link rel="apple-touch-icon" sizes="180x180" href="<?= $webBase ?>/icons/fluxus-180.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.6/dist/css/uikit.min.css">
-<?php // "Recursive": firma nel piè di pagina, vedi includes/head.php. ?>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:wght@700&display=swap">
+<?php // Dipendenze servite da Fluxus, non da CDN: vedi includes/head.php. ?>
+<link rel="stylesheet" href="<?= $webBase ?>/assets/vendor/uikit-3.21.6.min.css">
 <link rel="stylesheet" href="<?= $webBase ?>/assets/style.css">
 </head>
 <body class="uk-background-muted">
