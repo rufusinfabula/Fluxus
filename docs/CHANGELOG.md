@@ -17,6 +17,41 @@ nessuna fase copre.
 
 ---
 
+## 0.3.1
+
+Non chiude una fase: tre voci dall'elenco *Prima della 1.0*, tutte lo stesso
+giorno.
+
+- **Licenza: AGPL-3.0.** Le dipendenze vendorizzate (UIkit, hls.js,
+  wavesurfer.js, il font Recursive) restano ciascuna con la propria licenza
+  originale, elencate in `app/assets/vendor/LICENSES/`.
+- **Rotazione dei log, decisa log per log** — non con una politica unica. I
+  numeri reali su un'installazione con una settimana di vita hanno spostato
+  l'attenzione da dove sembrava il problema (i quattro log "di servizio",
+  poche centinaia di KB in tutto) a dove lo era davvero: `fm-record-{id}.log`,
+  mai cancellato, alcuni già a 19 MB.
+  - `fm-record-{id}.log` non ruota: resta finché esiste la registrazione, poi
+    30 giorni di grazia dalla cancellazione — automatica (`retention_cleanup.sh`)
+    o manuale (`api/recordings.php`), tenute allineate apposta.
+  - Gli altri cinque li ruota `logrotate`, di sistema, installato da
+    `install.sh` a partire da `config/logrotate.fluxus.in`. Trovato collaudando
+    e non a vista: un logrotate recente rifiuta di default una cartella di log
+    scrivibile dal gruppo se quel gruppo non è `root` — e la cartella dei log di
+    Fluxus lo è, apposta, perché gli script ci scrivono senza essere root. Senza
+    la direttiva `su`, la rotazione non sarebbe mai partita, in silenzio.
+- **Il repository è pubblico.** Prima, la storia è stata riscritta per togliere
+  un indirizzo di rete locale finito per errore in `docs/MANUALE.md`: non era
+  un segreto, ma la regola del progetto (niente valori di questa macchina nel
+  repository) non fa eccezioni per la cronologia.
+
+Trovato collaudando, non incluso in questa versione: un bug preesistente in
+`retention_cleanup.sh` (una variabile non `local` che, dopo la cancellazione di
+una registrazione, corrompe il ciclo del giro corrente) fa fallire in silenzio
+la pulizia dei cue per quella sorgente nello stesso giro. Già presente prima di
+questa versione, verificato anche sull'installazione in produzione.
+
+---
+
 ## 0.3.0
 
 **Fluxus si installa** ([fase 3](ROADMAP.md) della roadmap).

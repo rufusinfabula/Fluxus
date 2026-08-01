@@ -42,6 +42,15 @@ function fmDeleteRecording(PDO $db, int $id): bool {
 
     // markers e manual_clips vengono rimossi in cascata (ON DELETE CASCADE)
     $db->prepare('DELETE FROM recordings WHERE id = ?')->execute([$id]);
+
+    // Il log non sparisce con lei: resta un mese, come quando la cancella la
+    // retention automatica (scripts/retention_cleanup.sh, stessa logica). Il
+    // tocco segna l'istante della cancellazione, non quello — molto più vecchio
+    // — dell'ultima riga scritta da record.sh: è da lì che deve contare il mese
+    // di grazia prima che cleanup_orphaned_record_logs() lo cancelli davvero.
+    $logFile = FM_LOGS . '/fm-record-' . $id . '.log';
+    if (is_file($logFile)) @touch($logFile);
+
     return true;
 }
 

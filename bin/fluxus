@@ -574,6 +574,8 @@ cmd_uninstall() {
     # 2. Permessi di sudo.
     local sudoers; sudoers=$(dal_manifesto FLUXUS_SUDOERS)
     [[ -n "$sudoers" && -e "$sudoers" ]] && rm -f "$sudoers" && dice "permessi rimossi"
+    local logrotate; logrotate=$(dal_manifesto FLUXUS_LOGROTATE)
+    [[ -n "$logrotate" && -e "$logrotate" ]] && rm -f "$logrotate" && dice "rotazione dei log rimossa"
 
     # 3. Server web: prima l'inclusione dentro il vhost, poi lo snippet. Con
     #    verifica e ricarica, perché il vhost serve anche altri siti.

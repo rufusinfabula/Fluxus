@@ -65,7 +65,34 @@ delete_recording() {
         [[ -n "$TRIMF" ]] && rm -f "$CLIP_DIR/$TRIMF"
     done < <(sq "SELECT r.source_id, m.clip_filename, m.clip_trim_filename FROM markers m JOIN recordings r ON r.id=m.recording_id WHERE m.recording_id=$RID;")
     sqlite3 -cmd ".timeout 5000" "$FM_DB" "DELETE FROM recordings WHERE id=$RID;"
+    # Il suo log non sparisce con lei: resta ancora leggibile per un mese, un
+    # margine per capire cos'è successo a una registrazione che non c'è più. Il
+    # tocco segna l'istante della cancellazione — non quello, molto più vecchio,
+    # dell'ultima riga scritta da record.sh — perché è da lì che deve contare il
+    # mese di grazia. cleanup_orphaned_record_logs() lo cancella davvero quando
+    # scade, e solo per le registrazioni che non esistono più (vedi sotto: non
+    # deve toccare il log di una registrazione ancora nel database, per quanto
+    # vecchio sia il suo ultimo aggiornamento).
+    touch "$FM_LOGS/fm-record-${RID}.log" 2>/dev/null
     echo "  eliminata registrazione #$RID ($FBASE)"
+}
+
+# Un mese dopo la cancellazione (vedi delete_recording), il log smette anche
+# lui di esistere — ma solo se la registrazione a cui appartiene è DAVVERO
+# sparita dal database: un log "vecchio" di una registrazione ancora attiva
+# (magari conservata a lungo su un volume esterno capiente) non va toccato,
+# quale che sia la sua età per mtime.
+cleanup_orphaned_record_logs() {
+    local F ID ESISTE
+    while IFS= read -r -d '' F; do
+        ID=$(basename "$F"); ID="${ID#fm-record-}"; ID="${ID%.log}"
+        [[ "$ID" =~ ^[0-9]+$ ]] || continue
+        ESISTE=$(sq "SELECT 1 FROM recordings WHERE id=$ID;")
+        if [[ -z "$ESISTE" ]]; then
+            rm -f "$F"
+            echo "  rimosso log orfano (registrazione #$ID cancellata da oltre 30 giorni): $(basename "$F")"
+        fi
+    done < <(find "$FM_LOGS" -maxdepth 1 -name 'fm-record-*.log' -mtime +30 -print0 2>/dev/null)
 }
 
 delete_cue() {
@@ -114,5 +141,7 @@ while IFS='|' read -r SRC_ID MAXREC MAXDAYSREC MAXCLIPS MAXDAYSCLIPS; do
         done < <(sq "SELECT m.id, m.clip_filename, m.clip_trim_filename, COALESCE(r.clips_dir,'') FROM markers m JOIN recordings r ON r.id=m.recording_id WHERE r.source_id=$SRC_ID AND m.type='cue' AND m.clip_status='ready' ORDER BY m.created_at DESC LIMIT -1 OFFSET $MAXCLIPS;")
     fi
 done <<< "$SOURCES"
+
+cleanup_orphaned_record_logs
 
 echo "=== fine $(date '+%F %T') ==="

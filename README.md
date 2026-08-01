@@ -124,4 +124,18 @@ VERSION      unica fonte del numero di versione
 
 ## Licenza
 
-Da definire prima della pubblicazione — vedi [roadmap](docs/ROADMAP.md).
+Fluxus — registratore audio e video programmato per Raspberry Pi.
+Copyright © 2026 Fabio Ranfi.
+
+Distribuito secondo i termini della **GNU Affero General Public License v3.0**
+(o, a scelta di chi lo usa, una versione successiva) — testo completo in
+[LICENSE](LICENSE). In breve: si può usare, modificare e ridistribuire
+liberamente; chi fa girare una versione modificata come servizio raggiungibile
+in rete deve mettere a disposizione di chi lo usa il codice sorgente di quella
+versione, comprese le modifiche.
+
+Le dipendenze dell'interfaccia in `app/assets/vendor/` (UIkit, hls.js,
+wavesurfer.js, il font Recursive) restano ciascuna con la propria licenza
+originale — MIT, Apache-2.0, BSD-3-Clause, OFL-1.1 — elencate in
+[app/assets/vendor/LICENSES/](app/assets/vendor/LICENSES/); non fanno parte del
+codice di Fluxus e non passano sotto l'AGPL.

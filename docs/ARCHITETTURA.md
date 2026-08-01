@@ -601,6 +601,23 @@ Cose da cercare: `speed=` sotto `1.0x` significa **frame persi**;
 `moov atom not found` è un MP4 senza `-movflags`;
 `database is locked` è contesa SQLite.
 
+**Rotazione (0.3.1)**, decisa log per log, non con una politica unica:
+
+| Log | Politica |
+|---|---|
+| `fm-record-{id}.log` | non ruota: resta finché esiste la registrazione, poi 30 giorni di grazia dalla cancellazione (automatica o manuale) |
+| `fm-extract-clips.log`, `fm-preview-*.log` | settimanale, 12 copie |
+| `fm-retention.log`, `fm-schedule.log` | settimanale, 26 copie (sono registri d'archivio, non operativi) |
+| `fm-remote-sync.log` | giornaliera, 30 copie, `maxsize 8M` (il più chiacchierone) |
+
+I cinque log "di servizio" li ruota `logrotate`, di sistema, installato da
+`install.sh` come `/etc/logrotate.d/<istanza>` a partire dal modello
+[config/logrotate.fluxus.in](../config/logrotate.fluxus.in) — verificato con
+`logrotate -d` prima di essere messo al suo posto, come `nginx -t`. Il perché
+della direttiva `su` (senza, la rotazione non parte, in silenzio) e del
+meccanismo a due punti (`retention_cleanup.sh` + `api/recordings.php`) per
+`fm-record-{id}.log` stanno in [NOTE-TECNICHE.md](NOTE-TECNICHE.md).
+
 ---
 
 ## Cosa non c'è

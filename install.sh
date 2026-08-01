@@ -416,6 +416,7 @@ NGINX_SNIPPET="/etc/nginx/snippets/$ISTANZA.conf"
 
 SUDOERS_FILE="/etc/sudoers.d/$ISTANZA"
 SUDO_ALIAS=$(printf '%s' "$ISTANZA" | tr 'a-z-' 'A-Z_')
+LOGROTATE_FILE="/etc/logrotate.d/$ISTANZA"
 
 # ── Guardie ───────────────────────────────────────────────────────────────────
 
@@ -517,6 +518,7 @@ if ! (( SILENZIOSO )); then
         'nginx'          "$([[ $NGINX_MODO == auto ]] && echo "$NGINX_VHOST" || echo 'solo snippet')" \
         'PHP-FPM'        "$PHP_FPM_SOCK" \
         'MediaMTX'       "$([[ $MEDIAMTX_MODO == instance ]] && echo "$MEDIAMTX_UNIT — RTMP $RTMP_PORT, API $MEDIAMTX_API_PORT" || echo 'non gestito')" \
+        'rotazione log'  "$LOGROTATE_FILE" \
         'sorgente'       "$SORGENTE ($VERSIONE)"
     (( PROVA )) && printf '\n  (prova a vuoto: non verrà toccato niente)\n'
     if ! conferma "Procedo?"; then muori "annullato"; fi
@@ -532,7 +534,7 @@ else
     # Si installa solo ciò che manca davvero: su una macchina che ospita già
     # un'installazione in servizio, un 'apt install' inutile è un rischio inutile.
     manca=()
-    for pacchetto in nginx php-fpm php-cli php-sqlite3 php-curl sqlite3 ffmpeg rsync; do
+    for pacchetto in nginx php-fpm php-cli php-sqlite3 php-curl sqlite3 ffmpeg rsync logrotate; do
         dpkg-query -W -f='${Status}' "$pacchetto" 2>/dev/null | grep -q '^install ok installed$' \
             || manca+=("$pacchetto")
     done
@@ -771,6 +773,26 @@ else
 fi
 rm -f "$tmp_sudo"
 
+passo "Rotazione dei log"
+
+# logrotate.timer è già attivo di sistema: basta lo stanza in /etc/logrotate.d.
+# -d è la prova a vuoto di logrotate stesso: verifica la sintassi senza ruotare
+# niente, lo stesso spirito di 'nginx -t' e 'visudo -cqf' qui sopra.
+if command -v logrotate >/dev/null; then
+    tmp_logrotate=$(mktemp)
+    rendi "$SORGENTE/config/logrotate.fluxus.in" > "$tmp_logrotate"
+    if logrotate -d "$tmp_logrotate" >/dev/null 2>&1; then
+        scrivi_file "$LOGROTATE_FILE" 0644 root:root < "$tmp_logrotate"
+        fatto "$LOGROTATE_FILE"
+    else
+        segna_avviso "il file di rotazione dei log generato non è valido: non lo installo
+     ($(logrotate -d "$tmp_logrotate" 2>&1 | tail -1))"
+    fi
+    rm -f "$tmp_logrotate"
+else
+    segna_avviso "logrotate non è installato: i log di servizio cresceranno senza limite"
+fi
+
 # ── 7. Server web ─────────────────────────────────────────────────────────────
 
 passo "Server web"
@@ -924,6 +946,7 @@ FLUXUS_NGINX_MODE=$NGINX_MODO
 FLUXUS_NGINX_VHOST=$NGINX_VHOST
 FLUXUS_NGINX_SNIPPET=$NGINX_SNIPPET
 FLUXUS_SUDOERS=$SUDOERS_FILE
+FLUXUS_LOGROTATE=$LOGROTATE_FILE
 FLUXUS_MEDIAMTX_MODE=$MEDIAMTX_MODO
 FLUXUS_MEDIAMTX_UNIT=$MEDIAMTX_UNIT
 FLUXUS_MEDIAMTX_CONF=$MEDIAMTX_CONF

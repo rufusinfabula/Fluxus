@@ -367,6 +367,70 @@ Due dettagli che vengono da guasti già noti:
   fine riaccende quelli e soltanto quelli: un timer spento di proposito deve
   restare spento.
 
+### Rotazione dei log (0.3.1, 2026-08-01)
+
+Prima non c'era: era nell'elenco delle cose da fare prima della 1.0. I numeri
+reali su un'installazione con una settimana di vita hanno chiarito dove sta
+davvero il problema — non dove sembrava a prima vista.
+
+I quattro log "di servizio" (`fm-extract-clips.log`, `fm-retention.log`,
+`fm-remote-sync.log`, `fm-schedule.log`) pesavano insieme meno di 200 KB dopo
+una settimana: `extract_clips.sh` scrive solo quando estrae davvero una clip,
+non a ogni giro del timer. Non erano l'urgenza.
+
+⚠️ **Il vero peso erano i `fm-record-{id}.log`**, mai cancellati: alcuni erano
+già a 19 MB. `retention_cleanup.sh` cancellava il file multimediale di una
+registrazione vecchia insieme alla sua riga nel database, ma non il suo log —
+che restava per sempre, indipendente dai limiti di retention già configurati
+per ogni sorgente.
+
+La soluzione non è quindi una sola, ed è stata decisa log per log — non una
+politica unica calata su tutti:
+
+| Log | Politica | Perché |
+|---|---|---|
+| `fm-record-{id}.log` | resta finché esiste la registrazione, poi **30 giorni di grazia** dalla cancellazione | è un file per registrazione: la sua fine naturale è quella della registrazione, ma un mese in più aiuta a capire cos'è successo a qualcosa che non c'è più |
+| `fm-extract-clips.log` | settimanale, 12 copie | operativo: ~3 mesi bastano |
+| `fm-preview-*.log` | settimanale, 12 copie | stessa natura di extract-clips, anche se il contenuto è già "effimero" per conto suo |
+| `fm-retention.log` | settimanale, **26** copie | è un registro d'archivio — l'unico modo di ricostruire "dove è finito quel file" mesi dopo — non un log operativo: vale la pena tenerlo più a lungo |
+| `fm-schedule.log` | settimanale, **26** copie | stesso ragionamento: chi ha lanciato una registrazione programmata e con quale esito, utile mesi dopo |
+| `fm-remote-sync.log` | **giornaliera, 30 copie, `maxsize 8M`** | il più chiacchierone: interroga ogni 5 secondi se Fluxus Remote è attivo |
+
+**`fm-record-{id}.log` non ruota, ha un ciclo di vita a sé.** Sia
+`retention_cleanup.sh` (cancellazione automatica) sia `api/recordings.php`
+(cancellazione manuale dall'interfaccia) — due punti diversi, tenuti allineati
+apposta — al momento di cancellare una registrazione non toccano più il suo
+log: lo **`touch`ano**. Il tocco segna l'istante della cancellazione, non
+quello — spesso molto più vecchio — dell'ultima riga scritta da `record.sh`: è
+da lì che deve contare il mese di grazia, non da quando la registrazione è
+finita di registrare. Una funzione a parte,
+`cleanup_orphaned_record_logs()` in `retention_cleanup.sh`, cerca ogni giro i
+log più vecchi di 30 giorni **il cui id non esiste più nella tabella
+`recordings`** e solo quelli cancella davvero — un log il cui id esiste ancora
+(magari perché sta su un volume esterno capiente, conservato più a lungo) non
+si tocca, quale che sia la sua età per data di modifica.
+
+**Gli altri cinque ruotano con `logrotate`**, di sistema (il timer c'è già su
+Debian). Il modello è
+[config/logrotate.fluxus.in](../config/logrotate.fluxus.in), reso e installato
+da `install.sh` in `/etc/logrotate.d/<istanza>`, verificato con `logrotate -d`
+prima di essere messo al suo posto — stesso principio di `nginx -t` e
+`visudo -cqf`.
+
+⚠️ **La direttiva `su <utente> <gruppo>` non è decorativa.** Un logrotate
+recente rifiuta di default una cartella di log scrivibile dal gruppo se quel
+gruppo non è `root` ("insecure permissions") — e `<cartella dati>/logs` è
+`0775 <utente-di-Fluxus>:<gruppo>` apposta, perché gli script ci scrivono senza
+essere root. Senza `su`, la rotazione non parte mai, e non lo dice a nessuno:
+fallisce in silenzio, ogni settimana, per sempre. Trovato collaudando
+sull'istanza di prova, non a vista.
+
+La rotazione per rinomina (non `copytruncate`) è sicura perché ogni scrittore
+apre il proprio log in append (`>>`, `O_APPEND`): un processo che tenesse la
+scrittura aperta nell'istante della rotazione — `preview.sh`, l'unico dei
+quattro non a esecuzione breve — continuerebbe a scrivere sul file rinominato
+senza perdere un byte, e riaprirebbe il percorso vero al giro successivo.
+
 ## config.php — Costanti
 
 ```php

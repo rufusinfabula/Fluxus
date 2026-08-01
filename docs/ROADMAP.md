@@ -105,8 +105,10 @@ stessa rete si pestano i piedi.
 
 ## Prima della 1.0
 
-- **Licenza** da scegliere.
-- Rotazione dei log (oggi assente).
+- ~~**Licenza**~~ — AGPL-3.0, fatta il 2026-08-01. Vedi [LICENSE](../LICENSE) e
+  la sezione *Licenza* del [README](../README.md).
+- ~~Rotazione dei log~~ — fatta il 2026-08-01, decisa log per log. Vedi
+  [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Rotazione dei log*.
 - Decidere se il repository diventa pubblico.
 
 ## Più avanti

@@ -1,0 +1,84 @@
+# Fluxus — rotazione dei log di servizio, modello.
+#
+# I segnaposto @NOME@ li sostituisce l'installer, che scrive il file reso in
+# /etc/logrotate.d/<istanza>. Lo esegue il logrotate.timer di sistema, già
+# attivo su Debian: non ne serve uno per istanza.
+#
+# ⚠️ Copre SOLO i log che vivono per tutta la vita dell'installazione. I log
+# per registrazione (fm-record-{id}.log) restano fuori apposta: hanno una
+# politica loro, legata alla registrazione a cui appartengono, non al tempo —
+# vedi "Rotazione dei log" in NOTE-TECNICHE.md.
+#
+# ⚠️ La rotazione per rinomina (senza copytruncate) è sicura qui perché ogni
+# scrittore apre il file in append (>>, O_APPEND): un processo che tenesse la
+# scrittura aperta nell'istante della rotazione continuerebbe a scrivere sul
+# file rinominato, senza perdere un byte, e riaprirebbe il percorso vero al giro
+# successivo. Vale anche per preview.sh, l'unico dei log qui sotto non a
+# esecuzione breve (resta aperto fino a FM_PREVIEW_TTL, 15 minuti).
+#
+# ⚠️ 'su' è necessaria, non decorativa: <cartella dati>/logs è 0775, scrivibile
+# dal gruppo di Fluxus perché gli script ci scrivono. Un logrotate recente
+# rifiuta di default una cartella di log scrivibile da un gruppo diverso da
+# root ("insecure permissions"), a meno di dichiarare esplicitamente con quale
+# utente operare. Senza questa riga la rotazione non parte mai, in silenzio.
+
+# Estrazione clip: una riga per cue estratto (o fallito), poche decine di KB a
+# settimana con l'uso osservato.
+"@FLUXUS_DATA_DIR@/logs/fm-extract-clips.log"
+{
+    su @FLUXUS_USER@ @FLUXUS_GROUP@
+    weekly
+    rotate 12
+    maxsize 5M
+    compress
+    missingok
+    notifempty
+    create 0664 @FLUXUS_USER@ @FLUXUS_GROUP@
+}
+
+# Cosa ha cancellato la retention, e chi ha lanciato ogni registrazione
+# programmata: due registri d'archivio, non operativi — utili a ricostruire
+# "cos'è successo" mesi dopo, non solo "cosa sta succedendo ora". Tenuti più a
+# lungo degli altri apposta; pesano poco (32 KB e 12 KB/settimana misurati).
+"@FLUXUS_DATA_DIR@/logs/fm-retention.log"
+"@FLUXUS_DATA_DIR@/logs/fm-schedule.log"
+{
+    su @FLUXUS_USER@ @FLUXUS_GROUP@
+    weekly
+    rotate 26
+    maxsize 5M
+    compress
+    missingok
+    notifempty
+    create 0664 @FLUXUS_USER@ @FLUXUS_GROUP@
+}
+
+# Dialogo con Fluxus Remote: se attivo interroga ogni 5 secondi, il più
+# chiacchierone di tutti. Rotazione giornaliera invece che settimanale, e un
+# tetto di dimensione più alto per lo stesso motivo.
+"@FLUXUS_DATA_DIR@/logs/fm-remote-sync.log"
+{
+    su @FLUXUS_USER@ @FLUXUS_GROUP@
+    daily
+    rotate 30
+    maxsize 8M
+    compress
+    missingok
+    notifempty
+    create 0664 @FLUXUS_USER@ @FLUXUS_GROUP@
+}
+
+# Relay dell'anteprima live, un file per sorgente riusato a ogni sessione: già
+# "effimero" per natura (segmenti da 2 secondi), ma il file che lo contiene si
+# comporta come gli altri log operativi — stessa politica di extract-clips.
+"@FLUXUS_DATA_DIR@/logs/fm-preview-*.log"
+{
+    su @FLUXUS_USER@ @FLUXUS_GROUP@
+    weekly
+    rotate 12
+    maxsize 5M
+    compress
+    missingok
+    notifempty
+    create 0664 @FLUXUS_USER@ @FLUXUS_GROUP@
+}
