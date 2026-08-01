@@ -57,6 +57,15 @@ delete_recording() {
         return
     fi
     rm -f "$OUTDIR/${FBASE}".* "$OUTDIR/${FBASE}"_[0-9][0-9][0-9].* 2>/dev/null
+    # Le tre variabili del ciclo sono locali apposta: senza, SRC_ID scriverebbe
+    # su quella omonima del ciclo per-sorgente più esterno, che riprende a
+    # scorrere subito dopo che questa funzione ritorna. Bug reale (2026-08-01):
+    # dopo la cancellazione di una registrazione, il SRC_ID esterno restava
+    # svuotato dall'ultima lettura di questo ciclo (vuota o no), e le query
+    # successive per la stessa sorgente (MAXDAYSCLIPS, MAXCLIPS) fallivano in
+    # silenzio con "source_id=" — la retention dei cue si fermava lì, ogni
+    # volta che una registrazione veniva eliminata nello stesso giro.
+    local SRC_ID CLIPF TRIMF
     while IFS='|' read -r SRC_ID CLIPF TRIMF; do
         [[ -z "$SRC_ID" ]] && continue
         local CLIP_DIR
@@ -64,7 +73,14 @@ delete_recording() {
         [[ -n "$CLIPF" ]] && rm -f "$CLIP_DIR/$CLIPF"
         [[ -n "$TRIMF" ]] && rm -f "$CLIP_DIR/$TRIMF"
     done < <(sq "SELECT r.source_id, m.clip_filename, m.clip_trim_filename FROM markers m JOIN recordings r ON r.id=m.recording_id WHERE m.recording_id=$RID;")
-    sqlite3 -cmd ".timeout 5000" "$FM_DB" "DELETE FROM recordings WHERE id=$RID;"
+    # PRAGMA foreign_keys è per connessione, e sqlite3 da riga di comando parte
+    # spenta: senza, la ON DELETE CASCADE dello schema non scatta, e i marker di
+    # questa registrazione restano nel database come righe orfane — il ciclo qui
+    # sopra cancella solo i FILE delle clip, mai le righe. Il lato PHP
+    # (includes/db.php) la accende per ogni connessione da sempre: qui doveva
+    # essere identica e non lo era. Bug reale, trovato collaudando (2026-08-01):
+    # 3 marker orfani già in produzione al momento della scoperta.
+    sqlite3 -cmd "PRAGMA foreign_keys = ON" -cmd ".timeout 5000" "$FM_DB" "DELETE FROM recordings WHERE id=$RID;"
     # Il suo log non sparisce con lei: resta ancora leggibile per un mese, un
     # margine per capire cos'è successo a una registrazione che non c'è più. Il
     # tocco segna l'istante della cancellazione — non quello, molto più vecchio,
@@ -105,7 +121,10 @@ delete_cue() {
     fi
     [[ -n "$CLIPF" ]] && rm -f "$CLIP_DIR/$CLIPF"
     [[ -n "$TRIMF" ]] && rm -f "$CLIP_DIR/$TRIMF"
-    sqlite3 -cmd ".timeout 5000" "$FM_DB" "DELETE FROM markers WHERE id=$MID;"
+    # Stessa pragma di delete_recording(): nessuna cascade dipende da un marker
+    # (manual_clips referenzia recording_id, non un marker), ma resta accesa per
+    # coerenza — bash si comporta come PHP in ogni punto che cancella righe.
+    sqlite3 -cmd "PRAGMA foreign_keys = ON" -cmd ".timeout 5000" "$FM_DB" "DELETE FROM markers WHERE id=$MID;"
     echo "  eliminato cue #$MID"
 }
 

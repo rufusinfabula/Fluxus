@@ -1388,6 +1388,37 @@ I valori sono configurabili per sorgente nel form di `sources.php` (campi
 "Max registrazioni", "Max giorni registrazioni", "Max cue", "Max giorni
 cue"), default 30/45/100/20 rispettivamente (vedi schema `sources`).
 
+### Due bug corretti (0.3.2, 2026-08-01)
+
+Trovati collaudando la rotazione dei log della 0.3.1, non a vista — entrambi
+già presenti in produzione da tempo.
+
+**1. `SRC_ID` non locale, corrompeva il ciclo per-sorgente.** Dentro
+`delete_recording()`, il ciclo che cancella i *file* delle clip di una
+registrazione leggeva in una variabile chiamata `SRC_ID` — la stessa del ciclo
+per-sorgente più esterno, senza `local`. Alla fine del ciclo, l'ultima `read`
+sull'input esaurito svuotava quella variabile, che restava condivisa: dopo la
+cancellazione di *qualunque* registrazione, il `SRC_ID` esterno si ritrovava
+vuoto, e ogni query successiva nello stesso giro per la stessa sorgente
+(`max_days_clips`, `max_clips_per_marker`) falliva in silenzio con
+`source_id= AND ...`. La retention dei cue per quella sorgente si fermava lì,
+ogni volta. Fix: `local SRC_ID CLIPF TRIMF` prima del ciclo.
+
+**2. `PRAGMA foreign_keys` spenta lato bash, accesa lato PHP.**
+`includes/db.php` la accende per ogni connessione PHP — è per questo che
+cancellare una registrazione dall'interfaccia fa sparire in cascata anche i
+suoi marker (`ON DELETE CASCADE` nello schema). `sqlite3` da riga di comando
+parte con quella pragma **spenta**, e `retention_cleanup.sh` non l'accendeva:
+la cancellazione automatica toglieva la riga in `recordings` e i *file* delle
+clip (li cancella esplicitamente), ma non le *righe* in `markers`, che
+restavano orfane — puntavano a una registrazione ormai inesistente. **3 marker
+orfani già trovati in produzione** al momento della scoperta (id 25, 53, 54,
+tutti `type='marker'`, nessun file coinvolto), lasciati lì: sono innocui, non
+compaiono in nessuna pagina perché la registrazione a cui si riferiscono non
+esiste più, e non si tocca il database di produzione per una pulizia che può
+aspettare. Fix: `-cmd "PRAGMA foreign_keys = ON"` su entrambe le `DELETE`
+del bash — bash e PHP tornano a comportarsi allo stesso modo.
+
 ## EDIT — Solo audio — **IN QUARANTENA (2026-07-26)**
 
 ⚠️ Vedi sezione "TRIM/EDIT manuale — in quarantena" più sotto per lo stato

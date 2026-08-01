@@ -17,6 +17,33 @@ nessuna fase copre.
 
 ---
 
+## 0.3.2
+
+Due bug in `scripts/retention_cleanup.sh`, entrambi trovati collaudando la
+rotazione dei log della 0.3.1, non a vista, ed entrambi già presenti in
+produzione.
+
+- **La retention dei cue si fermava dopo ogni cancellazione.** Una variabile
+  non `local` (`SRC_ID`) veniva svuotata dentro `delete_recording()` e
+  corrompeva il ciclo per-sorgente più esterno: dopo aver cancellato una
+  registrazione, ogni query successiva nello stesso giro per la stessa
+  sorgente falliva in silenzio con un errore SQL. Fix: tre variabili rese
+  `local`.
+- **I marker restavano orfani dopo una cancellazione automatica.** Il lato PHP
+  attiva `PRAGMA foreign_keys = ON` per ogni connessione, quindi cancellare
+  una registrazione dall'interfaccia fa sparire in cascata anche i suoi
+  marker. Il bash della retention no: cancellava i file delle clip ma non le
+  righe in `markers`, che restavano nel database senza una registrazione a cui
+  appartenere. Trovati 3 marker orfani già in produzione, lasciati lì — sono
+  innocui e non si scrive nel database di produzione per una pulizia che può
+  aspettare.
+
+Vedi [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Retention automatica*, per
+il dettaglio di entrambi. Nessuna modifica al comportamento visibile
+dall'interfaccia.
+
+---
+
 ## 0.3.1
 
 Non chiude una fase: tre voci dall'elenco *Prima della 1.0*, tutte lo stesso
