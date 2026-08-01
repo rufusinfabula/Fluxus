@@ -6,13 +6,18 @@ progetto proviene: nessuno le ha mai installate come pacchetto, e sono
 conservate qui perché spiegano *perché* il codice è fatto così. Le decisioni
 tecniche che ne derivano stanno in [NOTE-TECNICHE.md](NOTE-TECNICHE.md).
 
-Convenzione, finché si resta sotto l'1.0: **`0.X.0` per un passo importante**
-(tipicamente una fase della [roadmap](ROADMAP.md) conclusa), **`0.1.X` per le
-correzioni** lungo la strada.
+Convenzione, finché si resta sotto l'1.0: **il numero di versione è il numero
+della fase**. La fase 1 della [roadmap](ROADMAP.md) chiude sulla `0.1.0`, la
+fase 2 sulla `0.2.0`, e così via fino alla fase 6 e alla `1.0.0`. Le correzioni
+lungo la strada prendono la terza cifra: `0.2.1`, `0.2.2`.
+
+La `0.0.1` sta fuori dal conteggio: è l'estrazione del sorgente
+dall'installazione unica, il lavoro che ha reso possibile la roadmap ma che
+nessuna fase copre.
 
 ---
 
-## 0.3.0
+## 0.2.0
 
 **L'interfaccia funziona senza Internet** ([fase 2](ROADMAP.md) della roadmap).
 
@@ -55,7 +60,7 @@ database.
 
 ---
 
-## 0.2.0
+## 0.1.0
 
 **Un solo punto di verità per percorsi e nomi** ([fase 1](ROADMAP.md) della
 roadmap).
@@ -98,14 +103,22 @@ con quelli di prima.
 
 ---
 
-## 0.1.0
+## 0.0.1
 
-Primo commit del repository. Il codice dell'applicazione, degli script di
-registrazione, dei servizi e della configurazione, estratto dall'installazione
-esistente e ripulito da tutto ciò che apparteneva a quella macchina: indirizzi,
-etichette dei dischi, chiavi, database.
+Primo commit del repository, **fuori dal conteggio delle fasi**. Il codice
+dell'applicazione, degli script di registrazione, dei servizi e della
+configurazione, estratto dall'installazione esistente e ripulito da tutto ciò
+che apparteneva a quella macchina: indirizzi, etichette dei dischi, chiavi,
+database.
 
 Non è ancora installabile: è il punto di partenza da cui costruire l'installer.
+
+> Questa voce e la successiva sono state **rinumerate a posteriori**, quando si
+> è deciso che numero di fase e numero di versione dovessero coincidere. Prima
+> l'estrazione era la `0.1.0` e ogni fase chiudeva sulla versione successiva al
+> proprio numero, il che rendeva impossibile capire a che punto si fosse
+> guardando un numero di versione da solo. Nessuna versione era stata
+> etichettata né distribuita, quindi non c'era niente da rompere.
 
 ---
 

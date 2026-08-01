@@ -6,7 +6,8 @@ trasformarlo in un pacchetto che chiunque possa installare su un Raspberry Pi
 o un mini-PC, con un comando, anche senza monitor collegato.
 
 Le fasi sono pensate per essere lavorate **una per volta**, ognuna verificabile
-per conto suo.
+per conto suo. **Il numero di fase e quello di versione coincidono**: la fase 1
+chiude sulla `0.1.0`, la fase 6 sulla `0.6.0`, poi la `1.0.0`.
 
 ## Punto di partenza
 
@@ -20,7 +21,7 @@ Cosa manca oggi, in concreto:
 
 ---
 
-## Fase 1 — Un solo punto di verità per percorsi e nomi → `0.2.0` ✅
+## Fase 1 — Un solo punto di verità per percorsi e nomi → `0.1.0` ✅
 
 **Fatta.** Un file di configurazione unico, letto sia dall'applicazione sia
 dagli script, che stabilisce cartella dati, radice web, sottopercorso, utente di
@@ -33,10 +34,10 @@ subito per collaudare il pacchetto accanto a un'installazione in produzione.
 
 Servizi, regole del server web e permessi sono diventati **modelli** con
 segnaposto: la fase 3 deve solo renderli. Vedi il
-[changelog](CHANGELOG.md#020) e, per il perché di ogni scelta, la sezione
+[changelog](CHANGELOG.md#010) e, per il perché di ogni scelta, la sezione
 *Configurazione dell'istanza* delle [note tecniche](NOTE-TECNICHE.md).
 
-## Fase 2 — L'interfaccia funziona senza Internet → `0.3.0` ✅
+## Fase 2 — L'interfaccia funziona senza Internet → `0.2.0` ✅
 
 **Fatta.** Fogli di stile, icone, player e font sono nel pacchetto e li serve
 Fluxus stesso. Nessuna pagina chiede più niente a nessuno.
@@ -49,10 +50,10 @@ stile e senza icone proprio nel momento in cui serve.
 Sono circa 950 KB, non i 400 preventivati: quella stima valeva per i file
 compressi, e hls.js da solo è più di un terzo del totale. In cambio è sparita
 una dipendenza intera — Font Awesome, 106 KB fra foglio di stile e font per due
-sole icone, ora disegnate in linea. Vedi il [changelog](CHANGELOG.md#030) e
+sole icone, ora disegnate in linea. Vedi il [changelog](CHANGELOG.md#020) e
 `app/assets/vendor/README.md`.
 
-## Fase 3 — Installer e comando di gestione → `0.4.0`
+## Fase 3 — Installer e comando di gestione → `0.3.0`
 
 Uno script solo, rieseguibile senza perdere dati, che funziona sia in un
 terminale con monitor sia via SSH su una macchina senza schermo:
@@ -69,7 +70,7 @@ modalità completamente automatica per gli script.
 Accanto, un comando `fluxus` per stato, aggiornamento, backup, ripristino, log
 e disinstallazione.
 
-## Fase 4 — Rete e WiFi dal browser → `0.5.0`
+## Fase 4 — Rete e WiFi dal browser → `0.4.0`
 
 Una pagina Rete: stato della connessione, scansione delle reti WiFi, cambio
 rete, IP fisso o automatico, nome della macchina.
@@ -80,13 +81,13 @@ per configurarla. È ciò che rende utilizzabile un Raspberry Pi senza schermo
 portato in un ufficio nuovo, dove il WiFi è diverso e non c'è nessuno che sappia
 usare un terminale.
 
-## Fase 5 — Configurazione guidata al primo accesso → `0.6.0`
+## Fase 5 — Configurazione guidata al primo accesso → `0.5.0`
 
 Al primo collegamento, cinque passi: nome e fuso orario, rete, password,
 archiviazione, prima sorgente. Riutilizza le parti che già esistono
 (rilevamento dei dischi, verifica di raggiungibilità di una sorgente).
 
-## Fase 6 — Immagine SD pronta → `0.7.0`
+## Fase 6 — Immagine SD pronta → `0.6.0`
 
 Un'immagine da scrivere su microSD con tutto già installato: si accende e si
 configura dal telefono.

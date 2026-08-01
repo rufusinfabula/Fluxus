@@ -9,7 +9,7 @@ angolo che registra da sola, giorno dopo giorno, e a cui si chiede conto dal
 browser. Nessun servizio cloud, nessuna porta aperta verso Internet, nessun
 abbonamento.
 
-> **Stato: in lavorazione (`0.2.0`).**
+> **Stato: in lavorazione (`0.2.0`, due fasi su sei).**
 > Il software funziona ed è in uso quotidiano, ma **non è ancora installabile
 > da questo repository**: l'installer è la voce principale della
 > [roadmap](docs/ROADMAP.md). Fino ad allora questo è il sorgente, non un
@@ -18,7 +18,9 @@ abbonamento.
 > Fatto finora: percorsi, nomi e utente di sistema non sono più scritti nel
 > codice ma vengono da un file di configurazione, uno per installazione — il
 > che permetterà di tenere sulla stessa macchina un'installazione in uso e una
-> di collaudo.
+> di collaudo. E l'interfaccia non chiede più niente a Internet: stile, icone,
+> player e font sono nel pacchetto, perché la macchina che va configurata è
+> proprio quella che una connessione non ce l'ha ancora.
 
 ---
 

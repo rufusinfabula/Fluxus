@@ -8,8 +8,9 @@ cambiare qualcosa in quelle aree, leggere il vincolo corrispondente.
 
 ⚠️ **Le versioni citate qui (2.x) sono la cronologia interna** dell'installazione
 da cui il progetto proviene, dove è maturato tutto ciò che segue. Il pacchetto
-distribuibile riparte da `0.1.0` verso `1.0.0` — vedi `CHANGELOG.md`. I numeri
-2.x restano nel testo perché servono a datare le decisioni fra loro.
+distribuibile riparte da `0.0.1` verso `1.0.0`, **una versione per ogni fase
+della roadmap** — vedi `CHANGELOG.md`. I numeri 2.x restano nel testo perché
+servono a datare le decisioni fra loro.
 
 ⚠️ **`settings.schema_version` non è la versione del prodotto** e non va
 allineata ad essa. È il contatore su cui `db_init.php` decide quali migrazioni
@@ -39,7 +40,7 @@ disponibili (EDIT è solo per i cue audio).
 
 ## Percorsi
 
-⚠️ **Dalla 0.2.0 nessuno di questi percorsi è scritto nel codice**: cartella
+⚠️ **Dalla 0.1.0 nessuno di questi percorsi è scritto nel codice**: cartella
 dati, radice web e sottopercorso arrivano dalla configurazione dell'istanza —
 vedi "Configurazione dell'istanza". Qui sotto sono nella forma che assumono per
 l'istanza `fluxus-media`, cioè quella da cui il progetto proviene, che è anche
@@ -99,7 +100,7 @@ struttura sotto la propria radice — vedi "Archiviazione su più volumi".
   db/schema.sql
   assets/
     style.css
-    vendor/     ← UIkit, hls.js, wavesurfer, il font della firma (0.3.0)
+    vendor/     ← UIkit, hls.js, wavesurfer, il font della firma (0.2.0)
 ```
 
 ⚠️ **Federazione multi-nodo: PENDING/FUTURO, non implementata.** Lo schema DB
@@ -108,9 +109,9 @@ struttura sotto la propria radice — vedi "Archiviazione su più volumi".
 `federation.php` né alcun endpoint `api/federation/*`, e nessuna voce in
 navbar. Vedi sezione dedicata più sotto.
 
-## Configurazione dell'istanza (0.2.0, 2026-07-31)
+## Configurazione dell'istanza (0.1.0, 2026-07-31)
 
-Fino alla 0.1.0 ogni percorso era scritto nel codice, e in più punti: `config.php`
+Fino alla 0.0.1 ogni percorso era scritto nel codice, e in più punti: `config.php`
 dichiarava `FM_BASE`, e poi ognuno dei sei script bash la ridichiarava per conto
 proprio, insieme al nome del database. L'utente di sistema, il sottopercorso web
 e l'indirizzo del server RTMP comparivano a loro volta in una decina di file fra
@@ -617,7 +618,7 @@ Eccezioni fatte finora (su richiesta esplicita):
    `rtmp://127.0.0.1:1935/$SOURCE_ID` ma chiede a MediaMTX su quale percorso
    stia realmente arrivando lo stream (`push_input_url()`) — vedi vincolo 8 e
    la sezione "Percorso di ingresso rtmp-push".
-9. (2026-07-31, 0.2.0) le quattro righe che dichiaravano `FM_BASE`, `FM_DB`,
+9. (2026-07-31, 0.1.0) le quattro righe che dichiaravano `FM_BASE`, `FM_DB`,
    `FM_LOGS` e `FM_TMP` sono state sostituite da un `source` di
    `fluxus-env.sh`, e l'indirizzo del server RTMP arriva dalla configurazione
    invece che dal codice. Nient'altro è cambiato: la logica di registrazione, il
@@ -1062,7 +1063,7 @@ dedicata "Remote" tra Tipo e Cue.
   (base URL del relay) + `FLUXUS_REMOTE_API_KEY` (token condiviso) +
   `FLUXUS_NODE_NAME` (opzionale, max 60 caratteri, testo semplice — se assente
   si usa l'hostname). Se URL/API key vuoti, la feature è disattivata
-  (`remote_sync.php` esce subito, nessuna chiamata di rete). Fino alla 0.1.0
+  (`remote_sync.php` esce subito, nessuna chiamata di rete). Fino alla 0.0.1
   era `/etc/fluxus-remote.env` con le chiavi `FM_*`, uno per macchina anziché
   uno per istanza.
 - `scripts/remote_sync.php`: gira come l'utente di Fluxus via
@@ -1183,7 +1184,7 @@ originale, mantenuto per riferimento in vista di una futura riattivazione.
 Identico ad Audio Recorder 1.0 edit.php.
 
 `edit-trim.php`: editor trim audio con WaveSurfer.js 7.12.11, servito da
-`assets/vendor/` come tutto il resto (0.3.0) — riattivare la pagina non
+`assets/vendor/` come tutto il resto (0.2.0) — riattivare la pagina non
 reintroduce una dipendenza da Internet.
 Identico ad Audio Recorder 1.0 edit-trim.php:
 - Tastiera: Space, I, O, ArrowLeft/Right (50ms, Shift=10s), J/K/L velocità
@@ -1380,7 +1381,7 @@ includono `foot.php`.
 `<span class="fm-signature">`; il resto della riga usa il font di pagina.
 
 Il font arrivava da Google Fonts, e con esso ogni pagina di Fluxus chiedeva
-qualcosa a Internet. **Dalla 0.3.0 è servito da Fluxus**: la regola `@font-face`
+qualcosa a Internet. **Dalla 0.2.0 è servito da Fluxus**: la regola `@font-face`
 sta in cima ad `assets/style.css`, il file è `assets/vendor/fonts/`, e c'è il
 solo sottoinsieme latino al peso 700 — 23 KB invece del font variabile completo,
 che supera il megabyte. Il ripiego `system-ui` resta dichiarato: se un giorno il
@@ -1438,7 +1439,7 @@ funzionato** su nessuna sorgente reale — vedi vincolo 17. Non riproporlo.
   la connessione, `<video>` per il video e `<audio>` per l'audio, hls.js servito
   da `assets/vendor/` con fallback all'HLS nativo di Safari.
 
-⚠️ **Di hls.js si usa la build `light`** (0.3.0). Rinuncia a DRM, tracce audio
+⚠️ **Di hls.js si usa la build `light`** (0.2.0). Rinuncia a DRM, tracce audio
 alternative e sottotitoli: questo flusso non ne ha nessuno — `preview.sh`
 produce un HLS mpegts a variante singola, un video e un audio — e sono 180 KB in
 meno. Se un giorno l'anteprima dovesse servire flussi con più tracce audio,
@@ -1765,9 +1766,9 @@ EDIT rimosso dalla navbar (2026-07-26): TRIM/EDIT manuale in quarantena, vedi se
 - Cue: uk-button-default sfondo #1a1a1a bordo #444 testo #e0e0e0
 - Favicon: icons/fluxus-32.png, fluxus-64.png, fluxus-180.png
 
-## Dipendenze dell'interfaccia (0.3.0, 2026-07-31)
+## Dipendenze dell'interfaccia (0.2.0, 2026-07-31)
 
-Fino alla 0.2.0 ogni pagina chiedeva sei file a tre CDN diverse: stile,
+Fino alla 0.1.0 ogni pagina chiedeva sei file a tre CDN diverse: stile,
 JavaScript e icone di UIkit, Font Awesome, il font della firma, il player
 dell'anteprima. Su una macchina senza connessione arrivava una pagina senza
 stile e senza icone — che è esattamente la condizione in cui si trova un Pi
@@ -2026,7 +2027,7 @@ Due trappole già pagate, da non ripetere:
   unisce la coppia added+removed in una sola chiamata.
 
 ⚠️ **Le due icone dei dischi sono disegnate in linea**, non prese da un font di
-icone (0.3.0). Prima erano `fa-hdd-o` e `fa-usb` di Font Awesome 4.7, caricato
+icone (0.2.0). Prima erano `fa-hdd-o` e `fa-usb` di Font Awesome 4.7, caricato
 da CDN in `head.php` perché UIkit 3 quelle icone non le ha: 106 KB fra foglio di
 stile e font per due soli glifi, e assenti proprio sulla macchina senza
 connessione. Ora le fa `fmVolumeIcon(bool $interno)` in `includes/helpers.php`,
@@ -2342,7 +2343,7 @@ offline → salta, online → cancella file e riga, `clips_dir` NULL → path st
     fanno mai sul DB di produzione con id espliciti**: `sqlite_sequence` non
     torna indietro e da lì in poi i codici reali diventano a cinque cifre. Le
     sandbox usano un file DB separato. Vedi "Numerazione delle registrazioni".
-24. Configurazione dell'istanza (2026-07-31, 0.2.0): vedi la sezione dedicata.
+24. Configurazione dell'istanza (2026-07-31, 0.1.0): vedi la sezione dedicata.
     Regole da non violare:
     (a) **nessun percorso, nome utente o indirizzo di server scritto nel
     codice**. Tutto passa dalle costanti `FM_*` lato PHP e dalle variabili di

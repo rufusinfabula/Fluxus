@@ -18,7 +18,7 @@ Questo documento descrive **com'è fatto**. Per il resto:
 
 ⚠️ I percorsi citati (`/var/www/fluxus-media`, `/var/lib/fluxus-media`, il
 sottopercorso web `/fluxus-media/`) **non sono più scritti nel codice**: dalla
-`0.2.0` arrivano tutti da un file di configurazione, uno per installazione. Qui
+`0.1.0` arrivano tutti da un file di configurazione, uno per installazione. Qui
 compaiono nella forma che assumono per l'istanza `fluxus-media`, cioè quella da
 cui il progetto proviene. Vedi *Configurazione* più sotto.
 
