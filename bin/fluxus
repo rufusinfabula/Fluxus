@@ -1,0 +1,639 @@
+#!/bin/bash
+# Fluxus — comando di gestione di un'installazione.
+#
+#     fluxus status                 come sta
+#     fluxus list                   le istanze installate su questa macchina
+#     fluxus logs [-f] [che cosa]   i log
+#     fluxus update [--from DIR]    aggiorna dal sorgente
+#     fluxus backup [--out FILE]    database, configurazione e segreti
+#     fluxus restore FILE           rimette a posto un backup
+#     fluxus config                 la configurazione, come la vede Fluxus
+#     fluxus uninstall [--purge]    rimuove l'installazione
+#
+# ── Una macchina, più installazioni ───────────────────────────────────────────
+#
+# Il comando è unico per la macchina e conosce tutte le istanze, perché le legge
+# da /etc/fluxus/*.conf. Se ce n'è una sola, lavora su quella. Se sono più
+# d'una e non gliene viene indicata nessuna, **si ferma ed elenca**: non ne
+# indovina mai una, esattamente come fanno conf.php e fluxus-env.sh. Un
+# 'fluxus uninstall' che tira a indovinare cancellerebbe l'installazione
+# sbagliata.
+#
+#     fluxus --instance fluxus-dev status
+#
+# ── Perché non legge il caricatore della cartella dati ────────────────────────
+#
+# Questo comando gira come root, e legge la configurazione con la copia di
+# /usr/local/lib/fluxus/fluxus-env.sh, che è root:root. La copia gemella che sta
+# in <cartella dati>/scripts appartiene all'utente di Fluxus: caricare quella
+# significherebbe che l'utente di Fluxus può riscriverla e ottenere root al
+# primo 'fluxus status' dell'amministratore. È lo stesso motivo per cui
+# fluxus-enable-volume.sh sta in /usr/local/bin e non fra gli script
+# dell'istanza.
+
+set -euo pipefail
+export LC_ALL=C
+# /usr/local/bin serve: è lì che stanno mediamtx e i comandi di Fluxus.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+CONF_DIR=/etc/fluxus
+LETTORE=/usr/local/lib/fluxus/fluxus-env.sh
+
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    C_TIT=$'\033[1m'; C_OK=$'\033[32m'; C_AVV=$'\033[33m'; C_ERR=$'\033[31m'; C_FIN=$'\033[0m'
+else
+    C_TIT=''; C_OK=''; C_AVV=''; C_ERR=''; C_FIN=''
+fi
+
+dice()   { printf '%s\n' "$*"; }
+titolo() { printf '\n%s%s%s\n' "$C_TIT" "$*" "$C_FIN"; }
+voce()   { printf '  %-16s %s\n' "$1" "$2"; }
+avvisa() { printf '  %s⚠%s  %s\n' "$C_AVV" "$C_FIN" "$*" >&2; }
+muori()  { printf '%serrore:%s %s\n' "$C_ERR" "$C_FIN" "$*" >&2; exit 1; }
+serve_root() { [[ $(id -u) -eq 0 ]] || muori "'$1' va lanciato come root:  sudo fluxus ${ISTANZA:+--instance $ISTANZA }$1"; }
+
+aiuto() {
+    cat <<'FINE'
+Fluxus — gestione di un'installazione.
+
+    fluxus [--instance NOME] <comando> [opzioni]
+
+Comandi
+  status              versione, percorsi, servizi, database, spazio, indirizzo
+  list                le istanze installate su questa macchina
+  config              la configurazione dell'istanza, come la vede Fluxus
+  logs [-f] [COSA]    i log dell'istanza. COSA può essere:
+                        (niente)      gli ultimi log applicativi
+                        record ID     il log di una registrazione
+                        services      il giornale dei servizi systemd
+                        NOME          un file in <cartella dati>/logs
+  update [--from DIR] aggiorna dal sorgente (predefinito: quello registrato
+                      all'ultima installazione). Rilancia install.sh
+  backup [opzioni]    database, configurazione e segreti in un archivio
+      --out FILE        dove scriverlo (predefinito: /var/backups/fluxus/…)
+      --with-media      include registrazioni e clip (può essere enorme)
+  restore FILE        rimette a posto un archivio prodotto da 'backup'
+  uninstall           rimuove servizi, permessi, regole del server web e
+                      applicazione. I dati restano
+      --purge           rimuove anche la cartella dati: registrazioni e clip
+      --yes             non chiede conferma
+
+Opzioni generali
+  --instance NOME     su quale installazione lavorare
+  --yes               non fa domande
+  --help              questo testo
+FINE
+}
+
+# ── Istanza ───────────────────────────────────────────────────────────────────
+
+istanze_installate() {
+    local f
+    for f in "$CONF_DIR"/*.conf; do
+        [[ -e "$f" ]] || continue
+        [[ "$f" == *.remote.conf ]] && continue
+        basename "$f" .conf
+    done
+}
+
+ISTANZA=''
+AUTOMATICO=0
+COMANDO=''
+ARGOMENTI=()
+
+while [[ $# -gt 0 ]]; do
+    if [[ "$1" == --*=* ]]; then set -- "${1%%=*}" "${1#*=}" "${@:2}"; fi
+    case "$1" in
+        --instance|-i) ISTANZA="${2-}"; shift 2 ;;
+        --yes|-y)      AUTOMATICO=1; shift ;;
+        --help|-h)     aiuto; exit 0 ;;
+        -*)            if [[ -z "$COMANDO" ]]; then muori "opzione sconosciuta: $1"; fi
+                       ARGOMENTI+=("$1"); shift ;;
+        *)             if [[ -z "$COMANDO" ]]; then COMANDO="$1"; else ARGOMENTI+=("$1"); fi; shift ;;
+    esac
+done
+[[ -n "$COMANDO" ]] || { aiuto; exit 0; }
+
+if [[ "$COMANDO" != list && "$COMANDO" != help ]]; then
+    mapfile -t TUTTE < <(istanze_installate)
+    if [[ -z "$ISTANZA" ]]; then
+        case ${#TUTTE[@]} in
+            0) muori "nessuna installazione di Fluxus su questa macchina ($CONF_DIR è vuota)" ;;
+            1) ISTANZA="${TUTTE[0]}" ;;
+            *) printf '%serrore:%s qui ci sono %d installazioni: indica quale.\n\n' \
+                   "$C_ERR" "$C_FIN" "${#TUTTE[@]}" >&2
+               for i in "${TUTTE[@]}"; do
+                   printf '  fluxus --instance %s %s\n' "$i" "$COMANDO" >&2
+               done
+               exit 1 ;;
+        esac
+    fi
+    CONF_FILE="$CONF_DIR/$ISTANZA.conf"
+    [[ -r "$CONF_FILE" ]] || muori "l'istanza '$ISTANZA' non esiste (${TUTTE[*]:-nessuna installata})"
+
+    # La configurazione si legge con il lettore di sistema, root:root.
+    [[ -r "$LETTORE" ]] || muori "manca $LETTORE: reinstalla con install.sh"
+    export FLUXUS_CONF="$CONF_FILE"
+    # shellcheck source=/dev/null
+    source "$LETTORE"
+
+    MANIFESTO="$CONF_DIR/$ISTANZA.install"
+    REMOTE_FILE="$CONF_DIR/$ISTANZA.remote.conf"
+fi
+
+# Legge una chiave da un file CHIAVE=valore (il manifesto dell'installazione).
+leggi_chiave() {
+    local file="$1" chiave="$2"
+    [[ -r "$file" ]] || return 1
+    sed -n -e 's/\r$//' -e "s/^[[:space:]]*${chiave}[[:space:]]*=//p" "$file" | tail -n 1 \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+dal_manifesto() { leggi_chiave "$MANIFESTO" "$1" 2>/dev/null || true; }
+
+# ⚠️ Il database si apre SEMPRE come utente di Fluxus, nemmeno per leggere: è in
+# modalità WAL, e i file -wal/-shm nascono con il proprietario di chi arriva per
+# primo. Aperto da root, PHP-FPM non riesce più a scrivere. È già successo.
+sql() {
+    [[ -f "$FM_DB" ]] || return 1
+    sudo -u "$FLUXUS_USER" sqlite3 -cmd ".timeout 5000" "$FM_DB" "$1" 2>/dev/null
+}
+
+registrazione_in_corso() {
+    local n
+    n=$(sql "SELECT count(*) FROM recordings WHERE status='recording';") || return 1
+    [[ "${n:-0}" != 0 ]]
+}
+
+conferma() {
+    (( AUTOMATICO )) && return 0
+    local risposta
+    [[ -r /dev/tty ]] || return 0
+    printf '%s [s/N]: ' "$1" > /dev/tty
+    IFS= read -r risposta < /dev/tty || risposta=''
+    [[ "$risposta" =~ ^[SsYy]$ ]]
+}
+
+unit_dell_istanza() {
+    local u
+    for u in $(dal_manifesto FLUXUS_UNITS); do printf '%s\n' "$u"; done
+    # Gli unit del palinsesto li genera l'applicazione, non l'installer: non
+    # stanno nel manifesto e vanno cercati.
+    for u in /etc/systemd/system/"$FM_UNIT_PREFIX"-sched-*.timer \
+             /etc/systemd/system/"$FM_UNIT_PREFIX"-sched-*.service; do
+        [[ -e "$u" ]] && basename "$u"
+    done
+    local mtx; mtx=$(dal_manifesto FLUXUS_MEDIAMTX_UNIT)
+    [[ -n "$mtx" && -e "/etc/systemd/system/$mtx" ]] && printf '%s\n' "$mtx"
+    return 0
+}
+
+versione_installata() {
+    [[ -r "$FLUXUS_WEB_DIR/VERSION" ]] && tr -d '[:space:]' < "$FLUXUS_WEB_DIR/VERSION" || printf 'sconosciuta'
+}
+
+# ── list ──────────────────────────────────────────────────────────────────────
+
+cmd_list() {
+    local i conf web ver stato
+    mapfile -t TUTTE < <(istanze_installate)
+    if [[ ${#TUTTE[@]} -eq 0 ]]; then
+        dice "nessuna installazione di Fluxus su questa macchina."
+        return 0
+    fi
+    printf '%-18s %-9s %-26s %s\n' ISTANZA VERSIONE 'RADICE WEB' STATO
+    for i in "${TUTTE[@]}"; do
+        conf="$CONF_DIR/$i.conf"
+        web=$(sed -n 's/^[[:space:]]*FLUXUS_WEB_DIR[[:space:]]*=[[:space:]]*//p' "$conf" | tail -n 1)
+        [[ -n "$web" ]] || web="/var/www/$i"
+        ver=$([[ -r "$web/VERSION" ]] && tr -d '[:space:]' < "$web/VERSION" || echo '—')
+        if systemctl is-active --quiet "$(sed -n 's/^[[:space:]]*FLUXUS_UNIT_PREFIX[[:space:]]*=[[:space:]]*//p' "$conf" | tail -n 1)-extract-clips.timer" 2>/dev/null; then
+            stato="${C_OK}attiva${C_FIN}"
+        else
+            stato="${C_AVV}timer fermi${C_FIN}"
+        fi
+        printf '%-18s %-9s %-26s %b\n' "$i" "$ver" "$web" "$stato"
+    done
+}
+
+# ── status ────────────────────────────────────────────────────────────────────
+
+cmd_status() {
+    local u stato attivo n_sorgenti n_reg schema dimensione libero codice indirizzo
+
+    titolo "$FLUXUS_APP_NAME $(versione_installata) — istanza $ISTANZA"
+    voce 'configurazione' "$FLUXUS_CONF"
+    voce 'cartella dati'  "$FM_BASE"
+    voce 'radice web'     "$FLUXUS_WEB_DIR"
+    voce 'utente'         "$FLUXUS_USER:$FLUXUS_GROUP"
+    [[ -r "$MANIFESTO" ]] && voce 'installata il' "$(dal_manifesto FLUXUS_INSTALLED_AT)"
+
+    titolo 'Servizi'
+    while read -r u; do
+        [[ -n "$u" ]] || continue
+        [[ "$u" == *.service && -e "/etc/systemd/system/${u%.service}.timer" ]] && continue
+        # is-active e is-enabled escono con stato diverso da zero quando la
+        # risposta è "no": qui interessa la parola, non l'esito.
+        attivo=$(systemctl is-active "$u" 2>/dev/null || true)
+        stato=$(systemctl is-enabled "$u" 2>/dev/null || true)
+        [[ -n "$stato" ]] || stato='—'
+        case "$attivo" in
+            active|activating|waiting) printf '  %s●%s %-34s %s\n' "$C_OK" "$C_FIN" "$u" "$stato" ;;
+            *)                         printf '  %s○%s %-34s %s (%s)\n' "$C_AVV" "$C_FIN" "$u" "$stato" "$attivo" ;;
+        esac
+    done < <(unit_dell_istanza | sort -u)
+
+    titolo 'Database'
+    if [[ -f "$FM_DB" ]]; then
+        schema=$(sql "SELECT value FROM settings WHERE key='schema_version';")
+        n_sorgenti=$(sql "SELECT count(*) FROM sources;")
+        n_reg=$(sql "SELECT count(*) FROM recordings;")
+        dimensione=$(du -h "$FM_DB" 2>/dev/null | cut -f1)
+        voce 'file'      "$FM_DB ($dimensione, schema ${schema:-?})"
+        voce 'contenuto' "${n_sorgenti:-?} sorgenti, ${n_reg:-?} registrazioni"
+        if registrazione_in_corso; then
+            printf '  %sregistrazione in corso:%s\n' "$C_OK" "$C_FIN"
+            sql "SELECT '    · ' || id || '  ' || source_name || '  da ' || started_at FROM recordings WHERE status='recording';"
+        fi
+    else
+        avvisa "il database non esiste ancora: si crea al primo accesso all'interfaccia"
+    fi
+
+    titolo 'Spazio'
+    df -h "$FM_BASE" 2>/dev/null | tail -n 1 | awk '{printf "  %-16s %s usati su %s, %s liberi (%s)\n", "volume interno", $3, $2, $4, $6}'
+    for d in recordings clips; do
+        [[ -d "$FM_BASE/$d" ]] && voce "$d" "$(du -sh "$FM_BASE/$d" 2>/dev/null | cut -f1)"
+    done
+
+    titolo 'Rete'
+    indirizzo="http://$(hostname -I 2>/dev/null | awk '{print $1}')${FLUXUS_WEB_BASE}/"
+    voce 'interfaccia' "$indirizzo"
+    if command -v curl >/dev/null; then
+        codice=$(curl -so /dev/null -w '%{http_code}' --max-time 5 \
+            "http://127.0.0.1${FLUXUS_WEB_BASE}/login.php" 2>/dev/null || echo '000')
+        case "$codice" in
+            200|302) voce 'server web' "${C_OK}risponde${C_FIN} ($codice)" ;;
+            000)     voce 'server web' "${C_ERR}non risponde${C_FIN} — 'nginx -t' e 'systemctl status nginx'" ;;
+            *)       voce 'server web' "${C_AVV}risponde $codice${C_FIN}" ;;
+        esac
+    fi
+    if [[ "$(dal_manifesto FLUXUS_MEDIAMTX_MODE)" == instance ]]; then
+        if curl -so /dev/null --max-time 3 "$FLUXUS_MEDIAMTX_API/v3/paths/list" 2>/dev/null; then
+            voce 'server RTMP' "${C_OK}risponde${C_FIN} — rtmp://…:$FLUXUS_RTMP_PORT/<id-sorgente>"
+        else
+            voce 'server RTMP' "${C_AVV}non risponde${C_FIN} su $FLUXUS_MEDIAMTX_API"
+        fi
+    fi
+    printf '\n'
+}
+
+# ── config ────────────────────────────────────────────────────────────────────
+
+cmd_config() {
+    titolo "Configurazione dell'istanza $ISTANZA"
+    dice "  ($FLUXUS_CONF, più i valori derivati dal nome dell'istanza)"
+    printf '\n'
+    local k
+    for k in FLUXUS_INSTANCE FLUXUS_APP_NAME FLUXUS_DATA_DIR FLUXUS_WEB_DIR FLUXUS_WEB_BASE \
+             FLUXUS_USER FLUXUS_GROUP FLUXUS_UNIT_PREFIX FLUXUS_PHP_FPM_SOCK \
+             FLUXUS_RTMP_HOST FLUXUS_RTMP_PORT FLUXUS_MEDIAMTX_API \
+             FLUXUS_HW_ENCODER FLUXUS_HW_ENCODER_OPTS; do
+        printf '  %-24s %s\n' "$k" "${!k-}"
+    done
+    printf '\n'
+    if [[ -r "$REMOTE_FILE" ]] && [[ -n "$(leggi_chiave "$REMOTE_FILE" FLUXUS_REMOTE_URL 2>/dev/null || true)" ]]; then
+        voce 'Fluxus Remote' "configurato ($REMOTE_FILE)"
+    else
+        voce 'Fluxus Remote' 'non configurato'
+    fi
+    printf '\n'
+}
+
+# ── logs ──────────────────────────────────────────────────────────────────────
+
+cmd_logs() {
+    local segui=0 cosa='' arg
+    for arg in "${ARGOMENTI[@]:-}"; do
+        case "$arg" in
+            -f|--follow) segui=1 ;;
+            '')          ;;
+            *)           cosa+="${cosa:+ }$arg" ;;
+        esac
+    done
+
+    case "$cosa" in
+        services|servizi)
+            local unita=()
+            while read -r u; do [[ -n "$u" ]] && unita+=(-u "$u"); done < <(unit_dell_istanza | sort -u)
+            [[ ${#unita[@]} -gt 0 ]] || muori "nessun servizio installato per '$ISTANZA'"
+            if (( segui )); then journalctl "${unita[@]}" -n 100 -f; else journalctl "${unita[@]}" -n 100 --no-pager; fi
+            ;;
+        record\ *)
+            local id="${cosa#record }" f
+            f="$FM_LOGS/fm-record-$id.log"
+            [[ -r "$f" ]] || muori "non trovo $f"
+            (( segui )) && tail -f "$f" || tail -n 200 "$f"
+            ;;
+        '')
+            # Gli ultimi log toccati, che è quasi sempre ciò che si vuole vedere.
+            local recenti
+            mapfile -t recenti < <(ls -1t "$FM_LOGS"/*.log 2>/dev/null | head -n 5)
+            [[ ${#recenti[@]} -gt 0 ]] || muori "nessun log in $FM_LOGS"
+            if (( segui )); then
+                tail -f "${recenti[@]}"
+            else
+                tail -n 40 "${recenti[@]}"
+            fi
+            ;;
+        *)
+            local f="$FM_LOGS/$cosa"
+            [[ -r "$f" ]] || f="$FM_LOGS/$cosa.log"
+            [[ -r "$f" ]] || muori "non trovo $cosa in $FM_LOGS"
+            (( segui )) && tail -f "$f" || tail -n 200 "$f"
+            ;;
+    esac
+}
+
+# ── update ────────────────────────────────────────────────────────────────────
+
+cmd_update() {
+    serve_root update
+    local sorgente='' arg atteso=0
+    for arg in "${ARGOMENTI[@]:-}"; do
+        if (( atteso )); then sorgente="$arg"; atteso=0; continue; fi
+        case "$arg" in
+            --from) atteso=1 ;;
+            --from=*) sorgente="${arg#--from=}" ;;
+            '') ;;
+            *) muori "update: argomento sconosciuto '$arg'" ;;
+        esac
+    done
+    [[ -n "$sorgente" ]] || sorgente=$(dal_manifesto FLUXUS_SOURCE)
+    [[ -n "$sorgente" ]] || muori "non so da dove aggiornare: indicalo con --from <cartella del sorgente>"
+    [[ -x "$sorgente/install.sh" ]] || muori "in $sorgente non c'è install.sh"
+
+    if registrazione_in_corso; then
+        avvisa "c'è una registrazione in corso su '$ISTANZA'"
+        conferma "Aggiorno lo stesso?" || muori "annullato"
+    fi
+
+    dice "aggiorno '$ISTANZA' da $sorgente ($(cat "$sorgente/VERSION" 2>/dev/null || echo '?'))"
+    local opzioni=()
+    (( AUTOMATICO )) && opzioni+=(--yes)
+    # L'installer è rieseguibile: rilegge da solo dalla configurazione tutto ciò
+    # che non gli viene ripetuto qui.
+    exec "$sorgente/install.sh" --instance "$ISTANZA" --source "$sorgente" "${opzioni[@]}"
+}
+
+# ── backup ────────────────────────────────────────────────────────────────────
+#
+# Nell'archivio ci sono il database, la configurazione e i segreti: contiene
+# abbastanza per rimettere in piedi l'installazione, e abbastanza da non lasciare
+# in giro. Nasce 0600.
+#
+# I media restano fuori se non li si chiede: sono centinaia di gigabyte, e un
+# backup che nessuno lancia perché ci mette due ore non è un backup.
+
+cmd_backup() {
+    serve_root backup
+    local out='' con_media=0 arg atteso=0
+    for arg in "${ARGOMENTI[@]:-}"; do
+        if (( atteso )); then out="$arg"; atteso=0; continue; fi
+        case "$arg" in
+            --out) atteso=1 ;;
+            --out=*) out="${arg#--out=}" ;;
+            --with-media) con_media=1 ;;
+            '') ;;
+            *) muori "backup: argomento sconosciuto '$arg'" ;;
+        esac
+    done
+    [[ -n "$out" ]] || out="/var/backups/fluxus/$ISTANZA-$(date +%Y%m%d-%H%M%S).tar.gz"
+    install -d -m 0700 "$(dirname "$out")"
+
+    local tmp; tmp=$(mktemp -d); trap 'rm -rf "$tmp"' RETURN
+    chmod 0711 "$tmp"                       # l'utente di Fluxus deve poterci passare
+    install -d -m 0755 "$tmp/fluxus-backup"
+    local d="$tmp/fluxus-backup"
+
+    # Il database si copia con .backup di sqlite, non con cp: con cp, un file in
+    # WAL si porta dietro metà di una transazione. E si legge come utente di
+    # Fluxus, mai come root.
+    if [[ -f "$FM_DB" ]]; then
+        install -d -m 0777 "$d/db"
+        sudo -u "$FLUXUS_USER" sqlite3 -cmd ".timeout 10000" "$FM_DB" \
+            ".backup '$d/db/fluxus_media.db'" || muori "non riesco a copiare il database"
+        chmod 0755 "$d/db"; chmod 0644 "$d/db/fluxus_media.db"
+    else
+        avvisa "nessun database da salvare"
+    fi
+
+    install -d -m 0755 "$d/etc"
+    cp -a "$FLUXUS_CONF" "$d/etc/$ISTANZA.conf"
+    [[ -r "$REMOTE_FILE" ]] && cp -a "$REMOTE_FILE" "$d/etc/$ISTANZA.remote.conf"
+    [[ -r "$MANIFESTO" ]]   && cp -a "$MANIFESTO"   "$d/etc/$ISTANZA.install"
+
+    cat > "$d/BACKUP" <<FINE
+istanza=$ISTANZA
+versione=$(versione_installata)
+data=$(date '+%Y-%m-%dT%H:%M:%S%z')
+macchina=$(hostname)
+media=$( (( con_media )) && echo inclusi || echo esclusi )
+FINE
+
+    local sorgenti=(BACKUP etc)
+    [[ -d "$d/db" ]] && sorgenti+=(db)
+    if (( con_media )); then
+        dice "includo registrazioni e clip: può volerci parecchio"
+        cp -a "$FM_RECORDINGS" "$d/recordings" 2>/dev/null || true
+        cp -a "$FM_CLIPS"      "$d/clips"      2>/dev/null || true
+        sorgenti+=(recordings clips)
+    fi
+
+    ( umask 077; tar -czf "$out" -C "$d" "${sorgenti[@]}" )
+    chmod 0600 "$out"
+    dice "backup di '$ISTANZA' in $out ($(du -h "$out" | cut -f1))"
+    (( con_media )) || dice "  (registrazioni e clip non sono inclusi: --with-media per averli)"
+}
+
+# ── restore ───────────────────────────────────────────────────────────────────
+
+cmd_restore() {
+    serve_root restore
+    local archivio="${ARGOMENTI[0]:-}"
+    [[ -n "$archivio" && -r "$archivio" ]] || muori "restore vuole il file da rimettere a posto:  fluxus restore FILE"
+
+    local tmp; tmp=$(mktemp -d); trap 'rm -rf "$tmp"' RETURN
+    tar -xzf "$archivio" -C "$tmp" || muori "l'archivio non si apre"
+    [[ -r "$tmp/BACKUP" ]] || muori "$archivio non è un backup di Fluxus"
+
+    titolo 'Contenuto del backup'
+    sed 's/^/  /' "$tmp/BACKUP"
+    printf '\n'
+
+    local origine; origine=$(sed -n 's/^istanza=//p' "$tmp/BACKUP")
+    if [[ "$origine" != "$ISTANZA" ]]; then
+        avvisa "il backup viene dall'istanza '$origine', la sto rimettendo in '$ISTANZA'"
+    fi
+    if registrazione_in_corso; then
+        muori "c'è una registrazione in corso: rimettere a posto il database adesso la perderebbe"
+    fi
+    conferma "Sovrascrivo il database e la configurazione di '$ISTANZA'?" || muori "annullato"
+
+    # I timer si fermano prima: un'estrazione clip che parte mentre il database
+    # viene sostituito scriverebbe nel file sbagliato. Si segna quali erano in
+    # moto, perché alla fine vanno riaccesi quelli e soltanto quelli: un timer
+    # spento di proposito — remote-sync senza relay, per dire — deve restare spento.
+    local timer=()
+    while read -r u; do
+        [[ "$u" == *.timer ]] || continue
+        systemctl is-active --quiet "$u" && timer+=("$u")
+    done < <(unit_dell_istanza)
+    [[ ${#timer[@]} -gt 0 ]] && systemctl stop "${timer[@]}" || true
+
+    local nuovo="$tmp/db/fluxus_media.db"
+    if [[ -f "$nuovo" ]]; then
+        if [[ -f "$FM_DB" ]]; then
+            cp -a "$FM_DB" "$FM_DB.prima-del-restore-$(date +%Y%m%d-%H%M%S)"
+        fi
+        rm -f "$FM_DB" "$FM_DB-wal" "$FM_DB-shm"
+        install -m 0664 -o "$FLUXUS_USER" -g "$FLUXUS_GROUP" "$nuovo" "$FM_DB"
+        dice "database rimesso a posto (il precedente è accanto, con la data)"
+    fi
+
+    local etc="$tmp/etc"
+    if [[ -d "$etc" ]]; then
+        [[ -r "$etc/$origine.remote.conf" ]] && \
+            install -m 0640 -o root -g "$FLUXUS_GROUP" "$etc/$origine.remote.conf" "$REMOTE_FILE" && \
+            dice "segreti rimessi a posto"
+        # La configurazione non si sovrascrive da sola: l'archivio può venire da
+        # un'altra macchina, con altri percorsi, altre porte, un altro utente.
+        # La si mette accanto a quella viva, perché si possano confrontare.
+        if [[ -r "$etc/$origine.conf" ]] && ! cmp -s "$etc/$origine.conf" "$FLUXUS_CONF"; then
+            install -m 0644 -o root -g root "$etc/$origine.conf" "$FLUXUS_CONF.dal-backup"
+            dice "la configurazione dell'archivio è diversa da questa: l'ho lasciata in"
+            dice "  $FLUXUS_CONF.dal-backup"
+            dice "Non la sovrascrivo da sola: percorsi e porte di questa macchina possono"
+            dice "essere altri. Guarda le differenze con:"
+            dice "  diff $FLUXUS_CONF $FLUXUS_CONF.dal-backup"
+        fi
+    fi
+
+    [[ ${#timer[@]} -gt 0 ]] && systemctl start "${timer[@]}" || true
+    dice "fatto. Un 'fluxus status' per controllare."
+}
+
+# ── uninstall ─────────────────────────────────────────────────────────────────
+
+cmd_uninstall() {
+    serve_root uninstall
+    local purga=0 arg
+    for arg in "${ARGOMENTI[@]:-}"; do
+        case "$arg" in
+            --purge) purga=1 ;;
+            '') ;;
+            *) muori "uninstall: argomento sconosciuto '$arg'" ;;
+        esac
+    done
+
+    titolo "Sto per rimuovere l'istanza '$ISTANZA'"
+    dice "  · servizi:        $(unit_dell_istanza | sort -u | tr '\n' ' ')"
+    dice "  · applicazione:   $FLUXUS_WEB_DIR"
+    dice "  · configurazione: $FLUXUS_CONF (e i segreti)"
+    dice "  · permessi:       $(dal_manifesto FLUXUS_SUDOERS)"
+    dice "  · server web:     $(dal_manifesto FLUXUS_NGINX_SNIPPET)"
+    if (( purga )); then
+        printf '  · %sdati: %s — registrazioni, clip e database%s\n' "$C_ERR" "$FM_BASE" "$C_FIN"
+    else
+        dice "  · i dati in $FM_BASE RESTANO (--purge per rimuovere anche quelli)"
+    fi
+    printf '\n'
+
+    if registrazione_in_corso; then
+        muori "c'è una registrazione in corso su '$ISTANZA': fermala prima"
+    fi
+    if (( purga )) && ! (( AUTOMATICO )); then
+        [[ -r /dev/tty ]] || muori "--purge senza terminale vuole anche --yes"
+        printf "Scrivi il nome dell'istanza per confermare la cancellazione dei dati: " > /dev/tty
+        local scritto; IFS= read -r scritto < /dev/tty || scritto=''
+        [[ "$scritto" == "$ISTANZA" ]] || muori "annullato"
+    else
+        conferma "Procedo?" || muori "annullato"
+    fi
+
+    # 1. Servizi. Prima si fermano, poi si rimuovono: al contrario resterebbero
+    #    in esecuzione senza più un file che li descrive.
+    local unita=(); while read -r u; do [[ -n "$u" ]] && unita+=("$u"); done < <(unit_dell_istanza | sort -u)
+    if [[ ${#unita[@]} -gt 0 ]]; then
+        systemctl disable --now "${unita[@]}" >/dev/null 2>&1 || true
+        local u
+        for u in "${unita[@]}"; do rm -f "/etc/systemd/system/$u"; done
+        systemctl daemon-reload
+        systemctl reset-failed >/dev/null 2>&1 || true
+        dice "servizi rimossi"
+    fi
+
+    # 2. Permessi di sudo.
+    local sudoers; sudoers=$(dal_manifesto FLUXUS_SUDOERS)
+    [[ -n "$sudoers" && -e "$sudoers" ]] && rm -f "$sudoers" && dice "permessi rimossi"
+
+    # 3. Server web: prima l'inclusione dentro il vhost, poi lo snippet. Con
+    #    verifica e ricarica, perché il vhost serve anche altri siti.
+    local vhost snippet
+    vhost=$(dal_manifesto FLUXUS_NGINX_VHOST)
+    snippet=$(dal_manifesto FLUXUS_NGINX_SNIPPET)
+    if [[ -n "$vhost" && -f "$vhost" ]] && grep -qF "fluxus:$ISTANZA" "$vhost"; then
+        cp -a "$vhost" "$vhost.bak-fluxus-$(date +%Y%m%d-%H%M%S)"
+        sed -i "/# >>> fluxus:$ISTANZA/,/# <<< fluxus:$ISTANZA/d" "$vhost"
+        dice "inclusione tolta da $vhost"
+    fi
+    [[ -n "$snippet" && -e "$snippet" ]] && rm -f "$snippet"
+    if nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx || true
+    else
+        avvisa "nginx -t non passa: controlla $vhost (la copia di sicurezza è accanto)"
+    fi
+
+    # 4. Applicazione e configurazione.
+    [[ -d "$FLUXUS_WEB_DIR" ]] && rm -rf "${FLUXUS_WEB_DIR:?}" && dice "applicazione rimossa"
+    local mtxconf; mtxconf=$(dal_manifesto FLUXUS_MEDIAMTX_CONF)
+    [[ -n "$mtxconf" && -e "$mtxconf" ]] && rm -f "$mtxconf"
+    rm -f "$FLUXUS_CONF" "$REMOTE_FILE" "$MANIFESTO"
+    dice "configurazione rimossa"
+
+    # 5. I dati, solo se li si è chiesti esplicitamente.
+    if (( purga )); then
+        rm -rf "${FM_BASE:?}"
+        dice "dati rimossi: $FM_BASE"
+    else
+        # Il collegamento fluxus.conf resta, anche se ora punta a un file che
+        # non c'è più: è la firma che dice a chi appartengono questi dati, ed è
+        # ciò che permette all'installer di riconoscerli e riprenderseli se un
+        # giorno si reinstalla la stessa istanza. Senza, li rifiuterebbe.
+        dice "i dati restano in $FM_BASE, con il collegamento che dice di chi sono:"
+        dice "reinstallando l'istanza '$ISTANZA' li ritrova, database compreso."
+    fi
+
+    # 6. Se non resta nessuna istanza, se ne va anche il comando. Non tocca
+    #    fluxus-enable-volume.sh: è della macchina e può servire ad altri.
+    if [[ -z "$(istanze_installate)" ]]; then
+        rm -rf /usr/local/lib/fluxus
+        rm -f /usr/local/bin/fluxus     # su Linux il file aperto resta valido fino alla fine
+        dice "era l'ultima istanza: rimosso anche il comando 'fluxus'"
+    fi
+    printf '\n'
+}
+
+# ── Smistamento ───────────────────────────────────────────────────────────────
+
+case "$COMANDO" in
+    status)          cmd_status ;;
+    list|ls)         cmd_list ;;
+    config)          cmd_config ;;
+    logs|log)        cmd_logs ;;
+    update)          cmd_update ;;
+    backup)          cmd_backup ;;
+    restore)         cmd_restore ;;
+    uninstall|remove) cmd_uninstall ;;
+    version)         printf '%s\n' "$(versione_installata)" ;;
+    help)            aiuto ;;
+    *)               muori "comando sconosciuto: $COMANDO (fluxus --help)" ;;
+esac
