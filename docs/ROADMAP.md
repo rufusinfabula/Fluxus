@@ -109,7 +109,8 @@ stessa rete si pestano i piedi.
   la sezione *Licenza* del [README](../README.md).
 - ~~Rotazione dei log~~ — fatta il 2026-08-01, decisa log per log. Vedi
   [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Rotazione dei log*.
-- Decidere se il repository diventa pubblico.
+- ~~Decidere se il repository diventa pubblico~~ — pubblico dal 2026-08-01:
+  <https://github.com/rufusinfabula/fluxus>.
 
 ## Più avanti
 
