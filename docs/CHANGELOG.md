@@ -17,6 +17,62 @@ nessuna fase copre.
 
 ---
 
+## 0.3.0
+
+**Fluxus si installa** ([fase 3](ROADMAP.md) della roadmap).
+
+Fino a ieri questo repository era un sorgente e basta: l'installer ereditato era
+fermo a una versione molto precedente e non copiava nemmeno i file
+dell'applicazione, per cui ogni installazione era nata a mano. Soprattutto, non
+c'era modo di **provare** una modifica se non sulla macchina che registra tutti
+i giorni.
+
+Ora ci sono `install.sh` e il comando `fluxus`, e con loro la prima
+installazione di collaudo accanto a una in produzione, sulla stessa macchina,
+senza che si sfiorino.
+
+- **`install.sh`** installa dipendenze, cartelle, applicazione, script,
+  configurazione, servizi, permessi, server web, server RTMP e database, e
+  stampa alla fine l'indirizzo a cui collegarsi. Opzioni per percorsi, utente,
+  sottopercorso, istanza e porte; senza un terminale non fa domande, così
+  funziona anche dentro uno script.
+- **Rilanciarlo è il modo di aggiornare**: i valori non ripetuti si rileggono
+  dalla configurazione esistente, il database non viene mai toccato — se ne
+  occupano l'applicazione e le sue migrazioni — e registrazioni, clip, log e
+  segreti restano dove sono.
+- **`--dry-run`** mostra ogni singola azione senza compierne nessuna. Con
+  un'installazione in servizio a fianco non è un lusso.
+- **Le guardie**: non si scrive dentro una radice web o una cartella dati che
+  non portino la firma di questa istanza, non si toccano servizi con un prefisso
+  altrui (i timer storici `fm-*` sono al sicuro), ci si ferma se c'è una
+  registrazione in corso, e il database si apre solo come utente di Fluxus,
+  mai come root.
+- **Un MediaMTX per istanza**, con porte scelte fra quelle libere e i protocolli
+  che Fluxus non usa spenti: il server RTMP non si può condividere, perché i
+  percorsi di ingresso sono numerati per id di sorgente e due installazioni si
+  sovrapporrebbero.
+- **nginx**: i blocchi `location` vanno in uno snippet per istanza, incluso nel
+  vhost subito dopo `server {` — l'ordine conta, o il timeout lungo
+  dell'estrazione clip non viene applicato. Con copia di sicurezza, `nginx -t` e
+  ripristino automatico se la verifica non passa.
+- **Il comando `fluxus`** — uno per macchina, che conosce tutte le istanze — per
+  `status`, `list`, `config`, `logs`, `update`, `backup`, `restore` e
+  `uninstall`. Con più installazioni e nessuna indicata si ferma ed elenca:
+  un'istanza indovinata, disinstallando, sarebbe quella sbagliata.
+- La disinstallazione conserva i dati (`--purge` per rimuoverli) e li lascia
+  riconoscibili, così reinstallando la stessa istanza li si ritrova.
+
+`config/mediamtx.yml` è diventato il modello `config/mediamtx.yml.in`, e si
+aggiunge `systemd/mediamtx.service.in`. Nessuna modifica alla registrazione,
+all'estrazione delle clip o allo schema del database.
+
+Collaudato sul campo installando `fluxus-dev` accanto all'installazione in
+produzione: registrazione da push RTMP, cue in diretta, clip estratta dal timer,
+aggiornamento, backup, ripristino, disinstallazione e reinstallazione sopra i
+dati conservati. L'installazione in produzione non è stata sfiorata.
+
+---
+
 ## 0.2.0
 
 **L'interfaccia funziona senza Internet** ([fase 2](ROADMAP.md) della roadmap).

@@ -56,11 +56,12 @@ produce un file da scaricare.
 Apri il browser su:
 
 ```
-http://<indirizzo-del-pi>/fluxus-media/
+http://<indirizzo-della-macchina>/<nome-installazione>/
 ```
 
-Su questa installazione l'indirizzo è **`http://<indirizzo-della-macchina>/fluxus-media/`**.
-Funziona da qualunque dispositivo sulla stessa rete: computer, tablet, telefono.
+L'indirizzo esatto lo stampa l'installer quando finisce, e lo si può richiedere
+in ogni momento con `fluxus status` da un terminale sulla macchina. Funziona da
+qualunque dispositivo sulla stessa rete: computer, tablet, telefono.
 
 **Non serve una password**, perché l'autenticazione è attualmente disattivata —
 il sistema si fida della rete locale. Se viene accesa (Impostazioni → Nodo),
@@ -173,7 +174,8 @@ Il box sotto il menù ti mostra la stima aggiornata mentre scegli.
 Tipo media e protocollo vengono impostati da Fluxus. **Salva prima**: l'indirizzo
 su cui far trasmettere l'encoder contiene il numero della sorgente, che esiste
 solo dopo il salvataggio. Fluxus riapre da solo il modale mostrandoti
-l'indirizzo vero (`rtmp://<indirizzo-della-macchina>:1935/17`) con un pulsante **Copia**.
+l'indirizzo vero (`rtmp://<indirizzo-della-macchina>:1935/17`, con il numero
+della porta di questa installazione) e un pulsante **Copia**.
 Quell'indirizzo si vede anche nell'elenco sorgenti.
 
 ### Cancellazione automatica (retention)
@@ -541,7 +543,7 @@ Percorso per collaudare tutto. Serve una sorgente che stia trasmettendo davvero
 
 | | Passo | Cosa deve succedere |
 |---|---|---|
-| 1 | Apri `http://<indirizzo-della-macchina>/fluxus-media/` | la Dashboard si carica, la barra in alto mostra CPU/RAM/Disco |
+| 1 | Apri l'indirizzo dell'installazione (quello stampato dall'installer) | la Dashboard si carica, la barra in alto mostra CPU/RAM/Disco |
 | 2 | Sorgenti → Nuova, tipo **Audio**, protocollo **http**, incolla l'URL di una radio, salva | la sorgente appare in elenco con badge `AUDIO` |
 | 3 | Dashboard → **fulmine** sulla card | riquadro **verde** con i formati |
 | 4 | **icona microfono** (anteprima) | il player parte entro qualche secondo. Chiudi la finestra |
@@ -580,3 +582,22 @@ se riguarda una sola sorgente o tutte.
 > La cosa più utile che puoi fare: **prova il Check prima di segnalare**. Molte
 > segnalazioni si risolvono lì, ed è la differenza fra "Fluxus non funziona" e
 > "la sorgente non stava trasmettendo".
+
+### Se la macchina la gestisci tu
+
+Da un terminale sulla macchina (anche via SSH), tre comandi rispondono a quasi
+tutto. Vogliono `sudo`:
+
+```bash
+sudo fluxus status          # versione, servizi, database, spazio, indirizzo
+sudo fluxus logs -f         # cosa sta succedendo, mentre succede
+sudo fluxus logs record 46  # il diario di una singola registrazione
+```
+
+`fluxus status` dice anche se il server web e il server RTMP rispondono, e
+quante registrazioni sono in corso. Se ci sono due installazioni sulla stessa
+macchina, `fluxus list` le elenca e `--instance <nome>` sceglie quale.
+
+Il backup di ciò che non si può rifare — database, configurazione, chiavi — è
+`sudo fluxus backup`. Le registrazioni e le clip non sono incluse: sono
+tante e pesanti, e per averle si aggiunge `--with-media`.

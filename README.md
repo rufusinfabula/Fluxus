@@ -9,18 +9,17 @@ angolo che registra da sola, giorno dopo giorno, e a cui si chiede conto dal
 browser. Nessun servizio cloud, nessuna porta aperta verso Internet, nessun
 abbonamento.
 
-> **Stato: in lavorazione (`0.2.0`, due fasi su sei).**
-> Il software funziona ed è in uso quotidiano, ma **non è ancora installabile
-> da questo repository**: l'installer è la voce principale della
-> [roadmap](docs/ROADMAP.md). Fino ad allora questo è il sorgente, non un
-> pacchetto pronto.
+> **Stato: in lavorazione (`0.3.0`, tre fasi su sei).**
+> Da questa versione Fluxus **si installa** con un comando, e si può installare
+> due volte sulla stessa macchina senza che le due copie si tocchino. Quel che
+> manca per la 1.0 sta nella [roadmap](docs/ROADMAP.md): configurazione della
+> rete dal browser, procedura guidata al primo accesso, immagine SD pronta.
 >
 > Fatto finora: percorsi, nomi e utente di sistema non sono più scritti nel
-> codice ma vengono da un file di configurazione, uno per installazione — il
-> che permetterà di tenere sulla stessa macchina un'installazione in uso e una
-> di collaudo. E l'interfaccia non chiede più niente a Internet: stile, icone,
-> player e font sono nel pacchetto, perché la macchina che va configurata è
-> proprio quella che una connessione non ce l'ha ancora.
+> codice ma vengono da un file di configurazione, uno per installazione;
+> l'interfaccia non chiede più niente a Internet, perché la macchina che va
+> configurata è proprio quella che una connessione non ce l'ha ancora; e c'è
+> l'installer, con il comando `fluxus` per governare ciò che ha installato.
 
 ---
 
@@ -56,6 +55,43 @@ dischi passano da `/proc/mounts` e `/etc/fstab`, le webcam da v4l2. Su macOS e
 Windows non esiste nulla di tutto questo. Da quelle macchine si usa il browser
 per raggiungere il Pi, che è poi il modo normale di lavorarci.
 
+## Installazione
+
+Da una copia del sorgente, sulla macchina che dovrà registrare:
+
+```bash
+sudo ./install.sh
+```
+
+Installa dipendenze, cartelle, applicazione, servizi, permessi, server web e
+server RTMP, prepara il database e finisce stampando l'indirizzo a cui
+collegarsi. Funziona sia in un terminale con monitor sia via SSH su una macchina
+senza schermo; se un terminale non c'è — dentro uno script, in una pipe — non fa
+domande e prosegue con i valori predefiniti.
+
+Prima di fidarsi, `sudo ./install.sh --dry-run` mostra ogni singola azione senza
+compierne nessuna.
+
+Un'installazione di prova accanto a una già in servizio si fa dandole un nome:
+
+```bash
+sudo ./install.sh --instance fluxus-dev
+```
+
+Da lì in poi la si governa con il comando `fluxus`:
+
+```bash
+sudo fluxus status                       # come sta
+sudo fluxus update                       # riaggiorna dal sorgente
+sudo fluxus backup                       # database, configurazione e segreti
+sudo fluxus logs -f                      # cosa sta succedendo
+sudo fluxus uninstall                    # via tutto, i dati restano
+```
+
+Con più installazioni sulla stessa macchina, `fluxus list` le elenca e
+`--instance <nome>` sceglie su quale lavorare. Le opzioni complete: `--help` su
+entrambi i comandi.
+
 ## Documentazione
 
 | | |
@@ -74,13 +110,14 @@ registrazioni perdute.
 ## Struttura del repository
 
 ```
+install.sh   installer: installa e aggiorna un'istanza
 app/         applicazione web PHP
 scripts/     registrazione, estrazione clip, retention, anteprima
-bin/         comandi di sistema e script privilegiati
-systemd/     modelli dei servizi periodici
+bin/         comandi di sistema: il comando 'fluxus' e lo script privilegiato
+systemd/     modelli dei servizi periodici e del server RTMP
 nginx/       modello della configurazione del server web
 config/      modelli dei file di configurazione
-packaging/   costruzione dell'immagine SD
+packaging/   aggiornamento delle dipendenze dell'interfaccia
 docs/        documentazione
 VERSION      unica fonte del numero di versione
 ```

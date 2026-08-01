@@ -13,8 +13,7 @@ chiude sulla `0.1.0`, la fase 6 sulla `0.6.0`, poi la `1.0.0`.
 
 Cosa manca oggi, in concreto:
 
-- **Nessun installer funzionante.** Quello ereditato è fermo a una versione
-  molto precedente e non installa nemmeno i file dell'applicazione.
+- ~~**Nessun installer funzionante**~~ — risolto dalla fase 3.
 - ~~**Percorsi cablati nel codice**~~ — risolto dalla fase 1.
 - ~~**Dipendenza da Internet per l'interfaccia**~~ — risolto dalla fase 2.
 - **Nessun modo di configurare la rete** se non da riga di comando.
@@ -53,22 +52,28 @@ una dipendenza intera — Font Awesome, 106 KB fra foglio di stile e font per du
 sole icone, ora disegnate in linea. Vedi il [changelog](CHANGELOG.md#020) e
 `app/assets/vendor/README.md`.
 
-## Fase 3 — Installer e comando di gestione → `0.3.0`
+## Fase 3 — Installer e comando di gestione → `0.3.0` ✅
 
-Uno script solo, rieseguibile senza perdere dati, che funziona sia in un
-terminale con monitor sia via SSH su una macchina senza schermo:
+**Fatta.** `install.sh` installa dipendenze, cartelle, applicazione, servizi,
+permessi, server web e server RTMP, inizializza il database e stampa alla fine
+l'indirizzo a cui collegarsi. Rilanciarlo è il modo di aggiornare: i valori non
+ripetuti si rileggono dalla configurazione esistente e i dati non si toccano.
+Con opzioni per percorsi, utente, sottopercorso, istanza e porte, e senza
+domande quando non c'è un terminale.
 
-```
-curl -fsSL .../install.sh | sudo bash
-```
+Accanto, il comando `fluxus` — uno per macchina, che conosce tutte le istanze —
+per stato, aggiornamento, backup, ripristino, log e disinstallazione.
 
-Installa dipendenze, cartelle, applicazione, servizi, permessi, server web e
-server RTMP; inizializza il database; stampa alla fine l'indirizzo a cui
-collegarsi. Con opzioni per percorsi, utente, sottopercorso e istanza, e una
-modalità completamente automatica per gli script.
+È la prima fase **collaudata sul campo e non solo a vista**: l'installazione di
+prova `fluxus-dev` esiste, registra da un push RTMP, estrae le clip dai cue e
+convive con quella in produzione sulla stessa macchina senza sfiorarla. Da qui
+in avanti ogni fase si prova lì.
 
-Accanto, un comando `fluxus` per stato, aggiornamento, backup, ripristino, log
-e disinstallazione.
+La forma `curl -fsSL .../install.sh | sudo bash` resta per quando il repository
+sarà pubblico: oggi non ci sarebbe niente da scaricare senza credenziali, quindi
+l'installer lavora sul sorgente che ha accanto. Vedi il
+[changelog](CHANGELOG.md#030) e la sezione *Installazione* delle
+[note tecniche](NOTE-TECNICHE.md).
 
 ## Fase 4 — Rete e WiFi dal browser → `0.4.0`
 

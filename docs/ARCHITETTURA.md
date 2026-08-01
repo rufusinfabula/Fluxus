@@ -227,6 +227,51 @@ dell'istanza*.
 
 ---
 
+## Installazione e gestione
+
+Due file, entrambi bash:
+
+| | |
+|---|---|
+| [`install.sh`](../install.sh) | installa e aggiorna. Rilanciarlo sulla stessa istanza è il modo normale di aggiornarla |
+| [`bin/fluxus`](../bin/fluxus) | governa ciò che è installato: `status`, `list`, `config`, `logs`, `update`, `backup`, `restore`, `uninstall` |
+
+`install.sh` mette a posto, nell'ordine: pacchetti mancanti, configurazione
+dell'istanza, cartelle dati, applicazione nella radice web, script nella
+cartella dati, comandi di sistema, servizi systemd, permessi di sudo, snippet
+nginx e relativa inclusione nel vhost, servizio MediaMTX dedicato, database,
+avvio dei timer. Alla fine stampa l'indirizzo a cui collegarsi.
+
+```
+sudo ./install.sh --instance fluxus-dev        installa un'istanza di collaudo
+sudo ./install.sh --dry-run                    mostra cosa farebbe, senza fare niente
+sudo fluxus --instance fluxus-dev status       come sta
+sudo fluxus update                             riaggiorna dal sorgente
+```
+
+Ciò che l'installer lascia sulla macchina, oltre alle due cartelle dell'istanza:
+
+```
+/etc/fluxus/<istanza>.conf              la configurazione
+/etc/fluxus/<istanza>.remote.conf       i segreti del relay (root:<gruppo> 0640)
+/etc/fluxus/<istanza>.install           il manifesto: che cosa è stato installato
+/etc/fluxus/<istanza>.mediamtx.yml      la configurazione del suo server RTMP
+/etc/systemd/system/<prefisso>-*        servizi e timer
+/etc/sudoers.d/<istanza>                i permessi minimi dell'utente di Fluxus
+/etc/nginx/snippets/<istanza>.conf      i blocchi location, inclusi nel vhost
+/usr/local/bin/fluxus                   il comando di gestione (uno per macchina)
+/usr/local/lib/fluxus/fluxus-env.sh     copia root:root del lettore, per il comando
+/usr/local/bin/fluxus-enable-volume.sh  script privilegiato (uno per macchina)
+```
+
+⚠️ L'installer **non tocca un'installazione che non sia sua**: si ferma se la
+radice web o la cartella dati esistono e non portano la sua firma, se il
+prefisso dei servizi è di qualcun altro, o se c'è una registrazione in corso. Il
+*perché* di ogni guardia sta in [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione
+*Installazione*.
+
+---
+
 ## Database
 
 SQLite, schema in [db/schema.sql](db/schema.sql), versione corrente **5**.

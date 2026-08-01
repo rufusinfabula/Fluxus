@@ -217,6 +217,156 @@ processo che root non è. È la regola sudo a fissare quegli argomenti ai valori
 dell'istanza; lo script si limita a controllare che siano sensati (nome di
 cartella senza percorsi, utente e gruppo esistenti).
 
+## Installazione (0.3.0, 2026-08-01)
+
+Fino alla 0.2.0 Fluxus non era installabile: l'installer ereditato era fermo a
+una versione molto precedente e non copiava nemmeno i file dell'applicazione.
+Ogni installazione era nata a mano, e non esisteva modo di **provare** una
+modifica se non sulla macchina che registra tutti i giorni.
+
+Ora sono due file: `install.sh`, che installa, e `bin/fluxus`, che governa ciò
+che è installato. Il primo si occupa di pacchetti, cartelle, applicazione,
+script, configurazione, servizi, permessi, server web, server RTMP e database, e
+finisce stampando l'indirizzo a cui collegarsi.
+
+### Rieseguibile, perché aggiornare è reinstallare
+
+Rilanciare `install.sh` sulla stessa istanza è il modo normale di aggiornarla —
+è esattamente ciò che fa `fluxus update`. Perché sia possibile:
+
+- i valori che non vengono ripetuti sulla riga di comando **si rileggono dalla
+  configurazione esistente**, non tornano a quelli di fabbrica. Un aggiornamento
+  che riporta di nascosto la radice web al valore predefinito sposterebbe
+  l'installazione senza dirlo;
+- l'applicazione si copia con `rsync --delete`, così i file di una versione
+  precedente spariscono, ma con due eccezioni: `includes/instance.php` e
+  `VERSION`, che li scrive l'installer e non il sorgente;
+- **il database non si tocca mai.** Non c'è uno schema da applicare a mano: si
+  carica una volta l'applicazione da riga di comando, come utente di Fluxus, e
+  sono `db_init.php` e le sue migrazioni a fare tutto. Un installer che sapesse
+  creare le tabelle per conto suo sarebbe un terzo lettore dello schema da
+  tenere allineato agli altri due;
+- l'inclusione dentro il vhost di nginx è racchiusa fra marcatori e viene
+  aggiunta una volta sola;
+- i segreti del relay (`<istanza>.remote.conf`) si scrivono solo se non ci sono:
+  un aggiornamento non deve poter cancellare una chiave.
+
+### Le guardie
+
+Sono la parte più importante, perché l'installer di collaudo lavora **accanto a
+un'installazione che registra davvero**:
+
+| Guardia | Perché |
+|---|---|
+| radice web e cartella dati devono essere vuote o già di questa istanza | un errore di battitura nel nome dell'istanza non può finire dentro un'installazione in servizio |
+| non si toccano unit systemd con un prefisso non installato da noi | protegge i timer `fm-*` dell'installazione storica: due istanze con lo stesso prefisso si spengono i timer a vicenda |
+| ci si ferma se l'istanza ha una registrazione in corso | riscrivere gli script e riavviare i timer mentre ffmpeg scrive è il modo migliore per perdere una diretta |
+| il database si apre **solo** come utente di Fluxus | è in WAL: aperto da root anche in sola lettura, i file `-wal`/`-shm` nascono di root e PHP-FPM non scrive più. È già successo |
+| nginx: copia di sicurezza, `nginx -t`, ripristino automatico | quel vhost serve anche gli altri siti dell'host; e si ricarica, non si riavvia |
+| `--dry-run` | con un'installazione in servizio a fianco, poter vedere prima ogni singola azione non è un lusso |
+
+Come si riconosce un'installazione propria: la radice web contiene
+`includes/instance.php` che dichiara quel nome, e la cartella dati contiene il
+collegamento `fluxus.conf` che punta a `/etc/fluxus/<istanza>.conf`.
+
+⚠️ **Il collegamento `fluxus.conf` è anche la firma dei dati**, e per questo la
+disinstallazione che conserva i dati **lo lascia dov'è**, benché punti a un file
+che non esiste più. Senza, reinstallando la stessa istanza l'installer non
+riconoscerebbe più come propria quella cartella e si rifiuterebbe di
+riprendersela — cioè il caso per cui i dati erano stati conservati. Per lo
+stesso motivo il collegamento si legge alla lettera (`readlink`) e non si
+risolve.
+
+### L'ordine dentro nginx non è un dettaglio
+
+L'inclusione va inserita **subito dopo la riga `server {`**, non in fondo al
+blocco. nginx valuta le `location` con espressione regolare nell'ordine in cui
+compaiono: se il `location ~ \.php$` generico del vhost venisse prima di quello
+di Fluxus, il `fastcgi_read_timeout 300` non verrebbe applicato e l'estrazione
+di una clip lunga morirebbe a metà. È lo stesso vincolo scritto in cima al
+modello `nginx/locations-fluxus.conf.in`.
+
+### Un MediaMTX per istanza
+
+Il server RTMP non si condivide: i percorsi di ingresso sono numerati per id di
+sorgente, e due installazioni sullo stesso MediaMTX avrebbero la sorgente 3
+dell'una e la 3 dell'altra allo stesso indirizzo. Ogni istanza ha quindi il suo
+servizio `<prefisso>-mediamtx`, la sua configurazione in
+`/etc/fluxus/<istanza>.mediamtx.yml` e le sue porte, scelte dall'installer fra
+quelle libere a partire da 1935 (RTMP) e 9997 (API).
+
+Nella configurazione per istanza **RTSP, HLS, WebRTC e SRT restano spenti**:
+Fluxus non li usa — le sorgenti RTSP le apre ffmpeg per conto suo e l'anteprima
+è un HLS prodotto da `preview.sh` — e ogni protocollo acceso sarebbe un'altra
+porta da far litigare con l'istanza accanto (RTSP ne vuole tre: TCP più RTP e
+RTCP su UDP). L'eseguibile invece è uno solo per la macchina: se manca,
+l'installer lo dice e prosegue, perché tutto il resto di Fluxus funziona lo
+stesso.
+
+### Le due copie del lettore di configurazione
+
+`scripts/fluxus-env.sh` finisce in **due posti diversi**, con proprietari
+diversi:
+
+| Dove | Di chi | Chi lo carica |
+|---|---|---|
+| `<cartella dati>/scripts/fluxus-env.sh` | utente di Fluxus | gli script di registrazione, che girano come lui |
+| `/usr/local/lib/fluxus/fluxus-env.sh` | `root:root` | il comando `fluxus`, che gira come root |
+
+Non è una duplicazione per distrazione: il comando `fluxus` gira come root, e se
+caricasse il file che sta nella cartella dell'utente di Fluxus, quell'utente
+potrebbe riscriverlo e ottenere root al primo `fluxus status` dell'amministratore.
+È lo stesso ragionamento per cui `fluxus-enable-volume.sh` sta in
+`/usr/local/bin` e non fra gli script dell'istanza. Il sorgente resta uno solo.
+
+### Ciò che l'installer non si prende la libertà di fare
+
+- **Non sovrascrive `/usr/local/bin/fluxus-enable-volume.sh` se è diverso**: è
+  unico per la macchina e lo condividono tutte le istanze, quindi sostituirlo
+  cambierebbe il comportamento anche di quelle che non si stanno installando.
+  Avvisa e prosegue; `--volume-helper overwrite` lo sostituisce, con copia di
+  sicurezza, quando si è certi che nessun'altra istanza dipenda dalla versione
+  vecchia.
+- **Non attiva il timer di `remote-sync` se Fluxus Remote non è configurato**:
+  sarebbe un servizio che si sveglia ogni 5 secondi per uscire subito.
+- **Non crea utenti di sistema** (tranne quello di MediaMTX, che non è di
+  nessuna istanza): l'utente di Fluxus deve esistere già.
+- **Non installa pacchetti che ci sono già**: su una macchina che ospita
+  un'installazione in servizio, un `apt install` inutile è un rischio inutile.
+
+### Il manifesto dell'installazione
+
+`/etc/fluxus/<istanza>.install` non è configurazione: è **memoria**. Registra
+versione e data, da quale sorgente si è installato, quali unit sono stati
+scritti, quale vhost è stato toccato, dove sta lo snippet, come si è deciso per
+MediaMTX. Serve a `fluxus update` per sapere da dove aggiornare e a
+`fluxus uninstall` per sapere che cosa disfare, senza andarlo a indovinare.
+
+### `curl … | sudo bash`
+
+La forma della roadmap non è ancora possibile: il repository è privato, e non
+c'è niente da scaricare senza credenziali. `install.sh` lavora quindi sul
+sorgente in cui si trova, o su quello indicato da `--source`. Senza un terminale
+— in una pipe, da uno script, da cron — non fa domande e prosegue con i valori
+predefiniti, che è poi la modalità non interattiva richiesta: quando la forma
+scaricata arriverà, funzionerà già.
+
+### Il comando `fluxus`
+
+Unico per la macchina, conosce tutte le istanze perché le legge da
+`/etc/fluxus/*.conf`. Con una sola installata lavora su quella; **con più d'una
+e nessuna indicata si ferma ed elenca**, non ne indovina una: `fluxus uninstall`
+che tira a indovinare cancella l'installazione sbagliata.
+
+Due dettagli che vengono da guasti già noti:
+
+- il backup del database si fa con `.backup` di sqlite, non con `cp`: un file in
+  WAL copiato con `cp` si porta dietro metà di una transazione. E si legge come
+  utente di Fluxus, come tutto il resto;
+- `restore` si segna **quali timer erano in moto** prima di fermarli, e alla
+  fine riaccende quelli e soltanto quelli: un timer spento di proposito deve
+  restare spento.
+
 ## config.php — Costanti
 
 ```php
@@ -2371,3 +2521,24 @@ offline → salta, online → cancella file e riga, `clips_dir` NULL → path st
     (h) il **nome del file di database** (`fluxus_media.db`) e i nomi dei file
     di **log** (`fm-*`) restano quelli storici: stanno già dentro una cartella
     per istanza e rinominarli non risolve nulla che non sia già risolto.
+25. Installazione (2026-08-01, 0.3.0): vedi la sezione dedicata. Regole da non
+    violare:
+    (a) **l'installer non inizializza il database per conto suo**: carica
+    l'applicazione come utente di Fluxus e lascia fare a `db_init.php`. Uno
+    schema applicato da bash sarebbe un terzo lettore da tenere allineato;
+    (b) **il database non si apre mai come root**, nemmeno per contare le
+    registrazioni in corso: è in WAL (vedi regole d'oro sul DB);
+    (c) **l'inclusione di nginx va subito dopo `server {`**, o il blocco PHP di
+    Fluxus finisce dopo il `location ~ \.php$` generico e le clip lunghe muoiono
+    a metà;
+    (d) la disinstallazione che conserva i dati **lascia il collegamento
+    `fluxus.conf`**: è la firma che permette di reinstallare la stessa istanza
+    sopra i suoi dati;
+    (e) `/usr/local/bin/fluxus-enable-volume.sh` **non si sovrascrive** se è
+    diverso da quello del sorgente: è unico per la macchina e lo condividono
+    tutte le istanze;
+    (f) il comando `fluxus` carica il lettore **root:root** di
+    `/usr/local/lib/fluxus`, mai quello nella cartella dell'utente di Fluxus:
+    gira come root, e quel file sarebbe riscrivibile da chi root non è;
+    (g) **niente istanza indovinata**: con più installazioni e nessuna
+    indicata, il comando si ferma ed elenca.
