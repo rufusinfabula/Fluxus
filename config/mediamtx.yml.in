@@ -1,0 +1,34 @@
+# Configurazione di MediaMTX per un'istanza di Fluxus — modello.
+#
+# I segnaposto @NOME@ li sostituisce l'installer, che scrive il file reso in
+# /etc/fluxus/<istanza>.mediamtx.yml e lo fa leggere al servizio
+# <prefisso>-mediamtx.
+#
+# ⚠️ Ogni istanza ha il SUO server RTMP, con porte sue. Non e' un lusso: i
+# percorsi di ingresso sono numerati per id di sorgente, e due installazioni che
+# condividessero lo stesso MediaMTX si sovrapporrebbero — la sorgente 3 dell'una
+# e la 3 dell'altra sarebbero lo stesso indirizzo.
+#
+# 'api: yes' NON e' opzionale: le sorgenti rtmp-push e il pulsante "Check"
+# interrogano l'API di controllo per sapere su quale percorso stia
+# effettivamente arrivando lo stream. Ascolta solo su 127.0.0.1: la interroga
+# Fluxus dalla stessa macchina, nessun altro deve poterla raggiungere.
+#
+# 'all_others: source: publisher' e' cio' che permette a un encoder esterno di
+# pubblicare su rtmp://<host>:<porta>/<id-sorgente> senza configurazione previa.
+#
+# RTSP, HLS, WebRTC e SRT restano spenti: Fluxus non li usa. Le sorgenti RTSP le
+# apre ffmpeg per conto suo, e l'anteprima in diretta e' un HLS che produce
+# preview.sh. Ogni protocollo acceso qui sarebbe soltanto un'altra porta
+# occupata da far litigare con l'istanza accanto.
+rtmp: yes
+rtmpAddress: :@FLUXUS_RTMP_PORT@
+api: yes
+apiAddress: 127.0.0.1:@FLUXUS_MEDIAMTX_API_PORT@
+rtsp: no
+hls: no
+webrtc: no
+srt: no
+paths:
+  all_others:
+    source: publisher

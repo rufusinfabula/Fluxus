@@ -1,0 +1,18 @@
+[Unit]
+Description=@FLUXUS_APP_NAME@ (@FLUXUS_INSTANCE@) — server RTMP (MediaMTX)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Non gira come l'utente di Fluxus: riceve connessioni dalla rete e non ha
+# nessun motivo di poter scrivere dove stanno le registrazioni.
+User=@FLUXUS_MEDIAMTX_USER@
+Group=@FLUXUS_MEDIAMTX_USER@
+ExecStart=@FLUXUS_MEDIAMTX_BIN@ @FLUXUS_MEDIAMTX_CONF@
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
