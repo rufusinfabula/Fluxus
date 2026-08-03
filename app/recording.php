@@ -24,6 +24,7 @@ if (isset($_GET['partial']) && $_GET['partial'] === 'markers') {
 }
 
 $isVideo = $recording['media_type'] === 'video';
+$isClock = $recording['media_type'] === 'clock';
 $ext = $isVideo ? '.mp4' : '.mp3';
 
 // Multi-file o file singolo si decide da cosa c'è su disco, non da
@@ -121,7 +122,7 @@ include __DIR__ . '/includes/head.php';
                 <div class="fm-dl-label">Sorgente</div>
                 <div class="fm-dl-value">
                     <strong><?= fmH($recording['current_source_name'] ?? $recording['source_name']) ?></strong>
-                    <span class="<?= $isVideo ? 'fm-badge-video' : 'fm-badge-audio' ?>" style="margin-left:6px;"><?= $isVideo ? 'VIDEO' : 'AUDIO' ?></span>
+                    <span class="<?= $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio') ?>" style="margin-left:6px;"><?= $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO') ?></span>
                 </div>
             </div>
             <div class="fm-dl-row">
@@ -163,18 +164,27 @@ include __DIR__ . '/includes/head.php';
         <div class="uk-margin-top" style="padding-top:14px;border-top:1px solid #f2f2f2;">
             <div class="uk-flex" style="gap:8px;flex-wrap:wrap;">
                 <button class="uk-button uk-button-primary uk-button-small fm-on-accent" id="fm-btn-marker">Marker <kbd>M</kbd></button>
+                <?php if ($isClock): ?>
+                <button class="uk-button uk-button-small fm-on-accent" style="background:#1a1a1a;border-color:#444;color:#777;" disabled uk-tooltip="Non disponibile per sorgenti CLOCK"><span uk-icon="icon: nut; ratio: 0.8"></span> Cue <kbd>C</kbd></button>
+                <?php else: ?>
                 <button class="uk-button uk-button-small fm-btn-cue fm-on-accent" style="background:#1a1a1a;border-color:#444;color:#e0e0e0;" id="fm-btn-cue"><span uk-icon="icon: nut; ratio: 0.8"></span> Cue <kbd>C</kbd></button>
+                <?php endif; ?>
                 <button class="uk-button uk-button-danger uk-button-small" id="fm-btn-stop"><span class="fm-rec-dot-btn"></span>Ferma</button>
+                <?php if (!$isClock): ?>
                 <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-btn-preview"
                         data-source-id="<?= (int)$recording['source_id'] ?>"
                         data-source-name="<?= fmH($recording['current_source_name'] ?? $recording['source_name']) ?>"
                         data-media-type="<?= fmH($recording['media_type']) ?>">
                     <span uk-icon="icon: <?= $isVideo ? 'video-camera' : 'microphone' ?>; ratio: 0.8"></span> Anteprima
                 </button>
+                <?php endif; ?>
             </div>
+            <?php if (!$isClock): ?>
             <div class="uk-text-meta" style="font-size:11px;margin-top:6px;">
                 L'anteprima apre un flusso separato verso la sorgente: mostra cosa sta entrando, non tocca la registrazione in corso.
             </div>
+            <?php endif; ?>
+            <?php if (!$isClock): ?>
             <div class="uk-margin-small-top">
                 <div class="fm-progress-row">
                     <span class="fm-progress-elapsed fm-mono" id="fm-progress-elapsed">00:00:00</span>
@@ -182,6 +192,7 @@ include __DIR__ . '/includes/head.php';
                 </div>
                 <progress class="uk-progress fm-progress" id="fm-progress-bar" value="0" max="<?= (int)$recording['slot_duration'] ?: 1 ?>" style="height:4px;margin:4px 0 2px;"></progress>
             </div>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>
@@ -230,7 +241,9 @@ if (!$isRecording) {
         </span>
         <select class="uk-select uk-form-small" id="fm-posthoc-type" style="width:92px;">
             <option value="marker">Marker</option>
+            <?php if (!$isClock): ?>
             <option value="cue">Cue</option>
+            <?php endif; ?>
         </select>
         <input class="uk-input uk-form-small fm-mono" type="text" id="fm-posthoc-at"
                placeholder="h:mm:ss" style="width:96px;" autocomplete="off">
@@ -398,6 +411,17 @@ if (!$isRecording) {
         });
     })();
     </script>
+<?php elseif ($isClock): ?>
+    <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
+        <h3 class="fm-section-title uk-margin-small-bottom">
+            <span uk-icon="icon: clock; ratio: 0.9"></span> CLOCK
+        </h3>
+        <p class="uk-text-meta">
+            Sorgente CLOCK — nessun file audio/video. I marker qui sotto sono
+            l'unico contenuto di questa registrazione.
+        </p>
+        <?= $posthocBox ?>
+    </div>
 <?php else: ?>
     <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
         <?php if (!$isSegmented && !empty($singleFile)): ?>
@@ -455,7 +479,9 @@ if (!$isRecording) {
          non deve stare accanto a ciò che si consulta di continuo. */ ?>
 <div class="uk-card uk-card-default uk-card-body fm-card fm-danger-zone uk-margin-top" style="border-left:3px solid #f0506e;">
     <h3 class="fm-danger-zone-title"><span uk-icon="icon: warning"></span> Zona pericolosa</h3>
-    <p class="uk-text-meta uk-margin-small-bottom">Elimina la registrazione, i file <?= $isVideo ? 'MP4' : 'MP3' ?> e tutti i marker e clip associati.</p>
+    <p class="uk-text-meta uk-margin-small-bottom">
+        Elimina la registrazione<?= $isClock ? '' : ', i file ' . ($isVideo ? 'MP4' : 'MP3') ?> e tutti i marker<?= $isClock ? '' : ' e clip' ?> associati.
+    </p>
     <button class="uk-button uk-button-danger" id="fm-btn-delete-recording">
         <span uk-icon="icon: trash; ratio: 0.8"></span> Elimina registrazione
     </button>
@@ -467,6 +493,7 @@ if (!$isRecording) {
     var base = <?= json_encode($webBase) ?>;
     var recordingId = <?= (int)$id ?>;
     var isRecording = <?= $isRecording ? 'true' : 'false' ?>;
+    var isClock = <?= $isClock ? 'true' : 'false' ?>;
     var startTime = <?= json_encode($recording['start_time']) ?>;
     var slotDuration = <?= (int)$recording['slot_duration'] ?>;
 
@@ -507,7 +534,7 @@ if (!$isRecording) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         if (!isRecording) return;
         if (e.key === 'm' || e.key === 'M') fmOpenMarkerModal(recordingId, 'marker');
-        if (e.key === 'c' || e.key === 'C') fmOpenMarkerModal(recordingId, 'cue');
+        if ((e.key === 'c' || e.key === 'C') && !isClock) fmOpenMarkerModal(recordingId, 'cue');
     });
 
     function refreshMarkersTable() {
@@ -601,7 +628,7 @@ if (!$isRecording) {
 
 <?php /* Script WaveSurfer + estrazione manuale rimossi: TRIM/EDIT manuale in quarantena, vedi docs/NOTE-TECNICHE.md. */ ?>
 
-<?php if ($isRecording): ?>
+<?php if ($isRecording && !$isClock): ?>
 <?php include __DIR__ . '/includes/preview_modal.php'; ?>
 <script>
 document.getElementById('fm-btn-preview').addEventListener('click', function () {

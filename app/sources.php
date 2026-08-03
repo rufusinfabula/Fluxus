@@ -36,7 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0);
     $name = trim($_POST['name'] ?? '');
     $filePrefix = trim($_POST['file_prefix'] ?? '');
-    $mediaType = ($_POST['media_type'] ?? 'audio') === 'video' ? 'video' : 'audio';
+    $mediaType = in_array($_POST['media_type'] ?? 'audio', ['audio', 'video', 'clock'], true)
+        ? $_POST['media_type'] : 'audio';
     $type = $_POST['type'] ?? 'http';
     $url = trim($_POST['url'] ?? '');
     $device = trim($_POST['device'] ?? '');
@@ -62,10 +63,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($name === '') $errors[] = 'Il nome è obbligatorio.';
     if ($filePrefix === '') $errors[] = 'Il prefisso file è obbligatorio.';
-    if ($mediaType === 'audio' && !in_array($type, $validAudioTypes, true)) $errors[] = 'Tipo sorgente non valido per audio.';
-    if ($mediaType === 'video' && !in_array($type, $validVideoTypes, true)) $errors[] = 'Tipo sorgente non valido per video.';
-    if ($type === 'v4l2' && $device === '') $errors[] = 'Il device è obbligatorio per v4l2.';
-    if ($type !== 'v4l2' && $type !== 'rtmp-push' && $url === '') $errors[] = "L'URL è obbligatorio.";
+    if ($mediaType === 'clock') {
+        // Nessun flusso: nessuna delle validazioni su protocollo/url/device si applica.
+        $type = 'clock';
+        $url = '';
+        $device = '';
+    } else {
+        if ($mediaType === 'audio' && !in_array($type, $validAudioTypes, true)) $errors[] = 'Tipo sorgente non valido per audio.';
+        if ($mediaType === 'video' && !in_array($type, $validVideoTypes, true)) $errors[] = 'Tipo sorgente non valido per video.';
+        if ($type === 'v4l2' && $device === '') $errors[] = 'Il device è obbligatorio per v4l2.';
+        if ($type !== 'v4l2' && $type !== 'rtmp-push' && $url === '') $errors[] = "L'URL è obbligatorio.";
+    }
 
     if (empty($errors)) {
         if ($id > 0) {
@@ -142,22 +150,31 @@ include __DIR__ . '/includes/head.php';
     <?php if (empty($sources)): ?>
         <tr><td colspan="8" class="uk-text-meta">Nessuna sorgente configurata.</td></tr>
     <?php endif; ?>
-    <?php foreach ($sources as $s): $isVideo = $s['media_type'] === 'video'; ?>
+    <?php foreach ($sources as $s):
+        $isVideo = $s['media_type'] === 'video';
+        $isClock = $s['media_type'] === 'clock';
+        $badgeClass = $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
+        $badgeLabel = $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
+    ?>
         <tr>
             <td>
                 <strong><?= fmH($s['name']) ?></strong>
-                <span class="<?= $isVideo ? 'fm-badge-video' : 'fm-badge-audio' ?>" style="margin-left:6px;"><?= $isVideo ? 'VIDEO' : 'AUDIO' ?></span>
+                <span class="<?= $badgeClass ?>" style="margin-left:6px;"><?= $badgeLabel ?></span>
             </td>
             <td class="uk-text-truncate fm-mono" style="max-width:320px;font-size:12px;color:#666;">
                 <?php if ($s['type'] === 'rtmp-push'): ?>
                     rtmp://<?= fmH($localIp) ?>:<?= fmH(FM_RTMP_PORT) ?>/<?= (int)$s['id'] ?>
+                <?php elseif ($isClock): ?>
+                    <span class="uk-text-meta">nessun flusso</span>
                 <?php else: ?>
                     <?= fmH($s['url'] ?: $s['device'] ?: '—') ?>
                 <?php endif; ?>
             </td>
             <td><?php if ($s['file_prefix']): ?><span class="fm-prefix-chip"><?= fmH($s['file_prefix']) ?></span><?php else: ?><span class="uk-text-meta">—</span><?php endif; ?></td>
             <td class="fm-mono" style="font-size:12px;color:#666;">
-                <?php if (!$isVideo): ?>
+                <?php if ($isClock): ?>
+                    <span class="uk-text-meta">—</span>
+                <?php elseif (!$isVideo): ?>
                     -q:a <?= fmH($s['audio_quality']) ?>
                 <?php else: $vq = $s['video_quality'] ?: 'copy'; ?>
                     <span uk-tooltip="<?= fmH(($fmVideoQualities[$vq] ?? $fmVideoQualities['copy'])['video']) ?>"><?= fmH($vq) ?></span>
@@ -212,8 +229,20 @@ include __DIR__ . '/includes/head.php';
                         <button type="button" class="uk-button uk-button-default uk-button-small fm-mode-btn" data-mode="push" style="flex:1;">
                             <span uk-icon="icon: upload; ratio: 0.8"></span> Ricevi stream in ingresso (push)
                         </button>
+                        <button type="button" class="uk-button uk-button-default uk-button-small fm-mode-btn" data-mode="clock" style="flex:1;">
+                            <span uk-icon="icon: clock; ratio: 0.8"></span> CLOCK (nessun flusso)
+                        </button>
                     </div>
                     <div class="uk-text-meta" style="font-size:11px;margin-top:4px;" id="fm-mode-hint"></div>
+                </div>
+
+                <div class="uk-width-1-1 fm-field-clock uk-alert-primary" uk-alert style="display:none;">
+                    <p class="uk-margin-remove">
+                        Nessun flusso da registrare: usala per prendere marker con orario reale
+                        anche senza una diretta in corso. Avvia/Ferma crea comunque una
+                        registrazione vera, con inizio/fine/durata ed export dei marker — ma
+                        senza alcun file audio/video, e senza Cue (non c'è nulla da tagliare).
+                    </p>
                 </div>
 
                 <div class="uk-width-1-3@s fm-field-media-type">
@@ -221,6 +250,7 @@ include __DIR__ . '/includes/head.php';
                     <select class="uk-select uk-form-small" name="media_type" id="fm-media-type">
                         <option value="audio">Audio</option>
                         <option value="video">Video</option>
+                        <option value="clock" id="fm-opt-clock" hidden disabled>CLOCK</option>
                     </select>
                 </div>
                 <div class="uk-width-2-3@s fm-field-protocol">
@@ -301,11 +331,11 @@ include __DIR__ . '/includes/head.php';
                     </select>
                 </div>
 
-                <div class="uk-width-1-2@s">
+                <div class="uk-width-1-2@s fm-field-cue-retention">
                     <label class="uk-form-label">Max clip per marker</label>
                     <input class="uk-input uk-form-small" type="number" name="max_clips_per_marker" id="fm-f-max-clips" value="100" min="0">
                 </div>
-                <div class="uk-width-1-2@s">
+                <div class="uk-width-1-2@s fm-field-cue-retention">
                     <label class="uk-form-label">Max giorni clip</label>
                     <input class="uk-input uk-form-small" type="number" name="max_days_clips" id="fm-f-max-days-clips" value="20" min="0">
                 </div>
@@ -331,7 +361,7 @@ include __DIR__ . '/includes/head.php';
                     <div id="fm-quality-info" class="uk-text-meta" style="font-size:11px;margin-top:6px;line-height:1.5;"></div>
                 </div>
 
-                <div class="uk-width-1-1">
+                <div class="uk-width-1-1 fm-field-storage-volume">
                     <label class="uk-form-label">Volume di archiviazione</label>
                     <select class="uk-select uk-form-small" name="storage_volume_id" id="fm-f-storage-volume">
                         <option value="0">Predefinito per tipo media</option>
@@ -381,16 +411,20 @@ include __DIR__ . '/includes/head.php';
     var optsAudio = document.getElementById('fm-opts-audio');
     var optsVideo = document.getElementById('fm-opts-video');
     var optRtmpPush = document.getElementById('fm-opt-rtmp-push');
+    var optClock = document.getElementById('fm-opt-clock');
     var fieldUrl = document.querySelector('.fm-field-url');
     var fieldDevice = document.querySelector('.fm-field-device');
     var fieldRtmpPush = document.querySelector('.fm-field-rtmp-push');
     var fieldMediaType = document.querySelector('.fm-field-media-type');
     var fieldProtocol = document.querySelector('.fm-field-protocol');
     var fieldPushMedia = document.querySelector('.fm-field-push-media');
+    var fieldClockInfo = document.querySelector('.fm-field-clock');
+    var fieldStorageVolume = document.querySelector('.fm-field-storage-volume');
     var audioOnly = document.querySelectorAll('.fm-field-audio-only');
     var videoOnly = document.querySelectorAll('.fm-field-video-only');
     var pushHide = document.querySelectorAll('.fm-field-push-hide');
     var v4l2Only = document.querySelectorAll('.fm-field-v4l2-only');
+    var cueRetention = document.querySelectorAll('.fm-field-cue-retention');
     var qualitySel = document.getElementById('fm-f-video-quality');
     var qualityInfo = document.getElementById('fm-quality-info');
     var qualities = <?= json_encode($fmVideoQualities) ?>;
@@ -432,27 +466,59 @@ include __DIR__ . '/includes/head.php';
             b.classList.toggle('uk-button-default', b.dataset.mode !== mode);
         });
 
+        fieldClockInfo.style.display = mode === 'clock' ? '' : 'none';
+
         if (mode === 'push') {
             modeHint.textContent = 'Il tuo encoder/telecamera invierà lo stream a questo Raspberry Pi (MediaMTX riceve, <?= fmH(FM_APP_NAME) ?> registra).';
             fieldMediaType.style.display = 'none';
             fieldProtocol.style.display = 'none';
             fieldPushMedia.style.display = '';
+            fieldStorageVolume.style.display = '';
+            cueRetention.forEach(function (el) { el.style.display = ''; });
             optRtmpPush.hidden = false;
             optRtmpPush.disabled = false;
+            optClock.hidden = true;
+            optClock.disabled = true;
             mediaTypeSel.value = 'video';
             typeSel.value = 'rtmp-push';
             applyMediaType();
+            applyType();
+        } else if (mode === 'clock') {
+            // Nessun flusso: niente protocollo/url/device/qualità/volume di
+            // archiviazione né retention dei cue (non esistono per questo tipo).
+            modeHint.textContent = 'Nessun flusso da collegare: ogni Avvia/Ferma crea comunque una registrazione vera, ma senza file audio/video.';
+            fieldMediaType.style.display = 'none';
+            fieldProtocol.style.display = 'none';
+            fieldPushMedia.style.display = 'none';
+            fieldUrl.style.display = 'none';
+            fieldDevice.style.display = 'none';
+            fieldRtmpPush.style.display = 'none';
+            fieldStorageVolume.style.display = 'none';
+            audioOnly.forEach(function (el) { el.style.display = 'none'; });
+            videoOnly.forEach(function (el) { el.style.display = 'none'; });
+            v4l2Only.forEach(function (el) { el.style.display = 'none'; });
+            cueRetention.forEach(function (el) { el.style.display = 'none'; });
+            optRtmpPush.hidden = true;
+            optRtmpPush.disabled = true;
+            optClock.hidden = false;
+            optClock.disabled = false;
+            mediaTypeSel.value = 'clock';
         } else {
             modeHint.textContent = '<?= fmH(FM_APP_NAME) ?> si collega lui stesso a uno stream o device già esistente.';
             fieldMediaType.style.display = '';
             fieldProtocol.style.display = '';
             fieldPushMedia.style.display = 'none';
+            fieldStorageVolume.style.display = '';
+            cueRetention.forEach(function (el) { el.style.display = ''; });
             optRtmpPush.hidden = true;
             optRtmpPush.disabled = true;
+            optClock.hidden = true;
+            optClock.disabled = true;
             if (typeSel.value === 'rtmp-push') typeSel.value = lastPullType;
+            if (mediaTypeSel.value === 'clock') mediaTypeSel.value = 'audio';
             applyMediaType();
+            applyType();
         }
-        applyType();
     }
 
     function applyType() {
@@ -523,11 +589,15 @@ include __DIR__ . '/includes/head.php';
 
         optRtmpPush.hidden = false;
         optRtmpPush.disabled = false;
+        optClock.hidden = false;
+        optClock.disabled = false;
         typeSel.value = f.type || 'http';
         optRtmpPush.hidden = true;
         optRtmpPush.disabled = true;
+        optClock.hidden = true;
+        optClock.disabled = true;
 
-        setMode(f.type === 'rtmp-push' ? 'push' : 'pull');
+        setMode(f.media_type === 'clock' ? 'clock' : (f.type === 'rtmp-push' ? 'push' : 'pull'));
 
         UIkit.modal('#fm-source-modal').show();
     };

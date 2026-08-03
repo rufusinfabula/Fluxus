@@ -71,6 +71,16 @@ if [[ -z "$SOURCE_NAME" || "$ACTIVE_SRC" != "1" ]]; then
     exit 0
 fi
 
+# Guardia difensiva: le sorgenti CLOCK non hanno alcun flusso da registrare e
+# non sono schedulabili (il dropdown di schedules.php già le esclude, ma uno
+# schedule esistente può puntare a una sorgente diventata CLOCK dopo la sua
+# creazione). Nessuna registrazione, nessun record.sh.
+if [[ "$MEDIA_TYPE" == "clock" ]]; then
+    echo "Sorgente $SOURCE_ID è di tipo CLOCK, non schedulabile: salto"
+    log "ESITO: sorgente CLOCK, schedulazione non applicabile, nessuna registrazione creata"
+    exit 0
+fi
+
 SLUG_SRC="$FILE_PREFIX"
 [[ -z "$SLUG_SRC" ]] && SLUG_SRC="$SOURCE_NAME"
 SLUG=$(echo "$SLUG_SRC" | iconv -t ascii//TRANSLIT 2>/dev/null | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+|_+$//g')

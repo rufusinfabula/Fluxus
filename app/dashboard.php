@@ -69,6 +69,7 @@ include __DIR__ . '/includes/head.php';
         <button class="uk-button uk-button-small uk-button-primary" data-filter="all">Tutti</button>
         <button class="uk-button uk-button-small uk-button-default" data-filter="audio"><span uk-icon="icon: microphone; ratio: 0.8"></span> Audio</button>
         <button class="uk-button uk-button-small uk-button-default" data-filter="video"><span uk-icon="icon: video-camera; ratio: 0.8"></span> Video</button>
+        <button class="uk-button uk-button-small uk-button-default" data-filter="clock"><span uk-icon="icon: clock; ratio: 0.8"></span> Clock</button>
     </div>
 </div>
 
@@ -78,6 +79,9 @@ include __DIR__ . '/includes/head.php';
 <?php endif; ?>
 <?php foreach ($sources as $s):
     $isVideo = $s['media_type'] === 'video';
+    $isClock = $s['media_type'] === 'clock';
+    $badgeClass = $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
+    $badgeLabel = $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
     $rec = $s['_active_recording'];
     $last = $s['_last_recording'];
 ?>
@@ -86,7 +90,7 @@ include __DIR__ . '/includes/head.php';
             <div class="uk-flex uk-flex-middle uk-flex-between">
                 <h3 class="uk-card-title uk-margin-remove uk-flex uk-flex-middle" style="gap:8px;flex-wrap:wrap;">
                     <?= fmH($s['name']) ?>
-                    <span class="<?= $isVideo ? 'fm-badge-video' : 'fm-badge-audio' ?>"><?= $isVideo ? 'VIDEO' : 'AUDIO' ?></span>
+                    <span class="<?= $badgeClass ?>"><?= $badgeLabel ?></span>
                 </h3>
                 <?php if ($rec): ?>
                 <span class="uk-badge fm-badge-live fm-pulse"><span class="fm-rec-dot" style="background:#fff;"></span>REC</span>
@@ -94,7 +98,7 @@ include __DIR__ . '/includes/head.php';
                 <span class="fm-idle-badge">Idle</span>
                 <?php endif; ?>
             </div>
-            <div class="fm-card-meta uk-margin-small-top fm-mono"><?= fmH($s['url'] ?: $s['device'] ?: '—') ?></div>
+            <div class="fm-card-meta uk-margin-small-top fm-mono"><?= $isClock ? 'Sorgente oraria — nessun flusso' : fmH($s['url'] ?: $s['device'] ?: '—') ?></div>
             <?php if ($last): ?>
             <div class="uk-text-meta" style="font-size:12px;margin-top:6px;">
                 Ultima: <span class="fm-mono"><?= fmH($last['filename_base']) ?></span> · <?= fmH(fmFormatDateTimeShort($last['start_time'])) ?>
@@ -106,14 +110,19 @@ include __DIR__ . '/includes/head.php';
                 <a href="<?= $webBase ?>/recording.php?id=<?= fmRecCode((int)$rec['id'], $s['media_type']) ?>" class="uk-button uk-button-danger uk-button-small fm-pulse">
                     <span class="fm-rec-dot-btn"></span>REC
                 </a>
-                <button class="uk-button uk-button-primary uk-button-small fm-btn-marker" data-recording-id="<?= (int)$rec['id'] ?>">Marker <kbd>M</kbd></button>
+                <button class="uk-button uk-button-primary uk-button-small fm-btn-marker" data-recording-id="<?= (int)$rec['id'] ?>" data-media-type="<?= fmH($s['media_type']) ?>">Marker <kbd>M</kbd></button>
+                <?php if ($isClock): ?>
+                <button class="uk-button uk-button-small" style="background:#1a1a1a;border-color:#444;color:#666;" disabled uk-tooltip="Non disponibile per sorgenti CLOCK"><span uk-icon="icon: nut; ratio: 0.8"></span> Cue <kbd>C</kbd></button>
+                <?php else: ?>
                 <button class="uk-button uk-button-small fm-btn-cue-btn" style="background:#1a1a1a;border-color:#444;color:#e0e0e0;" data-recording-id="<?= (int)$rec['id'] ?>"><span uk-icon="icon: nut; ratio: 0.8"></span> Cue <kbd>C</kbd></button>
+                <?php endif; ?>
                 <?php else: ?>
                 <button class="uk-button uk-button-danger uk-button-small fm-btn-rec" data-source-id="<?= (int)$s['id'] ?>">
                     <span class="fm-rec-dot-btn"></span>REC
                 </button>
                 <?php endif; ?>
 
+                <?php if (!$isClock): ?>
                 <button type="button" class="fm-icon-btn fm-btn-preview"
                         data-source-id="<?= (int)$s['id'] ?>"
                         data-source-name="<?= fmH($s['name']) ?>"
@@ -129,6 +138,7 @@ include __DIR__ . '/includes/head.php';
                 <button type="button" class="fm-icon-btn fm-btn-check" data-source-id="<?= (int)$s['id'] ?>" uk-tooltip="Verifica se la sorgente è raggiungibile">
                     <span uk-icon="icon: bolt; ratio: 0.9"></span>
                 </button>
+                <?php endif; ?>
 
                 <a href="<?= $webBase ?>/recordings.php?source_id=<?= (int)$s['id'] ?>" class="fm-icon-btn" uk-tooltip="Registrazioni">
                     <span uk-icon="icon: album; ratio: 0.9"></span>
@@ -189,10 +199,13 @@ include __DIR__ . '/includes/head.php';
     <?php endif; ?>
     <?php foreach ($recent as $r):
         $isVideo = $r['media_type'] === 'video';
+        $isClk = $r['media_type'] === 'clock';
+        $rBadgeClass = $isClk ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
+        $rBadgeLabel = $isClk ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
         [$statusLabel, $statusColor] = $statusMeta[$r['status']] ?? [$r['status'], '#999'];
     ?>
         <tr data-media-type="<?= $r['media_type'] ?>" class="fm-row-clickable" onclick="location.href='<?= $webBase ?>/recording.php?id=<?= fmRecCode((int)$r['id'], $r['media_type']) ?>'">
-            <td><span class="<?= $isVideo ? 'fm-badge-video' : 'fm-badge-audio' ?>"><?= $isVideo ? 'VIDEO' : 'AUDIO' ?></span></td>
+            <td><span class="<?= $rBadgeClass ?>"><?= $rBadgeLabel ?></span></td>
             <td><?= fmH($r['source_name']) ?></td>
             <td class="fm-date"><?= fmH(fmFormatDateTime($r['start_time'])) ?></td>
             <td class="fm-mono" style="font-size:12px;"><?= fmFormatDuration($r['duration_seconds']) ?></td>
@@ -275,7 +288,7 @@ include __DIR__ . '/includes/head.php';
         if (!first) return;
         var recordingId = first.getAttribute('data-recording-id');
         if (e.key === 'm' || e.key === 'M') fmOpenMarkerModal(recordingId, 'marker');
-        if (e.key === 'c' || e.key === 'C') fmOpenMarkerModal(recordingId, 'cue');
+        if ((e.key === 'c' || e.key === 'C') && first.getAttribute('data-media-type') !== 'clock') fmOpenMarkerModal(recordingId, 'cue');
     });
 
     // --- Verifica raggiungibilità sorgente (pulsante "check") -----------------

@@ -34,10 +34,17 @@ if ($method === 'POST') {
 
     if ($recordingId <= 0) fmError('recording_id mancante');
 
-    $stmt = $db->prepare('SELECT status, start_time, duration_seconds FROM recordings WHERE id = ?');
+    $stmt = $db->prepare('SELECT status, start_time, duration_seconds, media_type FROM recordings WHERE id = ?');
     $stmt->execute([$recordingId]);
     $rec = $stmt->fetch();
     if (!$rec) fmError('Registrazione non trovata', 404);
+
+    // Le sorgenti CLOCK non producono alcun file: non esiste nulla da tagliare.
+    // La guardia server-side è quella che conta (bottone disabilitato e
+    // scorciatoia da tastiera sono solo comodità lato client).
+    if ($rec['media_type'] === 'clock' && $type === 'cue') {
+        fmError('I cue non sono disponibili per le sorgenti CLOCK');
+    }
 
     // Posizione esplicita nella registrazione, in secondi dall'inizio. È la via
     // usata dal recupero a posteriori su una registrazione già conclusa.

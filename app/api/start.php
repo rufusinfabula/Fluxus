@@ -30,19 +30,30 @@ $duration = isset($input['duration']) ? (int)$input['duration'] : 3600;
 if ($duration <= 0) $duration = 3600;
 $segmentDuration = isset($input['segment_duration']) ? (int)$input['segment_duration'] : 0;
 $label = trim((string)($input['label'] ?? ''));
+$isClock = $source['media_type'] === 'clock';
 
-// Volume di destinazione: override della sorgente o default del media_type,
-// con ripiego sul volume interno se quello scelto non è collegato (vincolo 21).
-$storage   = fmResolveStorage($source);
-$outputDir = $storage['recordings_dir'];
-$clipsDir  = $storage['clips_dir'];
-foreach ([$outputDir, $clipsDir] as $dir) {
-    if (!is_dir($dir)) {
-        mkdir($dir, 0775, true);
+if ($isClock) {
+    // Nessun file da scrivere: path storico del volume interno, nessuna
+    // cartella creata su disco (non ci scrive mai nessuno). Con questo path
+    // il resto del codice (fmRecordingVolume/fmRecordingSize/retention...)
+    // tratta la registrazione CLOCK come una normale sul volume interno,
+    // senza bisogno di alcuna eccezione dedicata.
+    $outputDir = FM_RECORDINGS . '/' . $sourceId;
+    $clipsDir  = null;
+} else {
+    // Volume di destinazione: override della sorgente o default del media_type,
+    // con ripiego sul volume interno se quello scelto non è collegato (vincolo 21).
+    $storage   = fmResolveStorage($source);
+    $outputDir = $storage['recordings_dir'];
+    $clipsDir  = $storage['clips_dir'];
+    foreach ([$outputDir, $clipsDir] as $dir) {
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
     }
-}
-if ($storage['fallback']) {
-    $label = trim($label . ' [' . $storage['fallback_reason'] . ': registrazione sul volume interno]');
+    if ($storage['fallback']) {
+        $label = trim($label . ' [' . $storage['fallback_reason'] . ': registrazione sul volume interno]');
+    }
 }
 
 $now = new DateTime('now', new DateTimeZone(fmTimezone()));
@@ -67,16 +78,20 @@ $stmt->execute([
 ]);
 $recordingId = (int)$db->lastInsertId();
 
-$cmd = sprintf(
-    '%snohup %s %d %d %d %d > %s 2>&1 &',
-    fmScriptEnv(),
-    escapeshellarg(FM_SCRIPTS . '/record.sh'),
-    $recordingId,
-    $sourceId,
-    $duration,
-    $segmentDuration,
-    escapeshellarg(FM_LOGS . '/fm-record-' . $recordingId . '.log')
-);
-shell_exec($cmd);
+// Le sorgenti CLOCK non hanno alcun flusso da registrare: nessun record.sh,
+// nessun processo ffmpeg, mai. La riga in recordings basta da sola.
+if (!$isClock) {
+    $cmd = sprintf(
+        '%snohup %s %d %d %d %d > %s 2>&1 &',
+        fmScriptEnv(),
+        escapeshellarg(FM_SCRIPTS . '/record.sh'),
+        $recordingId,
+        $sourceId,
+        $duration,
+        $segmentDuration,
+        escapeshellarg(FM_LOGS . '/fm-record-' . $recordingId . '.log')
+    );
+    shell_exec($cmd);
+}
 
 fmJson(['ok' => true, 'recording_id' => $recordingId, 'recording_code' => fmRecCode($recordingId, $source['media_type'])]);

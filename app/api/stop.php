@@ -17,10 +17,22 @@ if ($recordingId <= 0) {
 }
 
 $db = fmDB();
-$stmt = $db->prepare('SELECT id FROM recordings WHERE id = ? AND status = ?');
+$stmt = $db->prepare('SELECT id, media_type FROM recordings WHERE id = ? AND status = ?');
 $stmt->execute([$recordingId, 'recording']);
-if (!$stmt->fetch()) {
+$rec = $stmt->fetch();
+if (!$rec) {
     fmError('Registrazione non trovata o non attiva', 404);
+}
+
+// Le registrazioni CLOCK non hanno alcun processo ffmpeg da fermare né un
+// record.sh che finalizzi: stop_recording.sh aspetterebbe inutilmente fino a
+// 6s prima di ricadere sul suo fallback. Si finalizza subito qui.
+if ($rec['media_type'] === 'clock') {
+    $upd = $db->prepare("UPDATE recordings SET status='completed', end_time=datetime('now'),
+        duration_seconds=CAST((julianday('now') - julianday(start_time)) * 86400 AS INTEGER)
+        WHERE id = ? AND status = 'recording'");
+    $upd->execute([$recordingId]);
+    fmJson(['ok' => true]);
 }
 
 $cmd = sprintf(

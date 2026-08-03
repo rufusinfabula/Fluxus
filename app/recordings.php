@@ -7,7 +7,7 @@ fmRequireAuth();
 $db = fmDB();
 
 $sourceId = (int)($_GET['source_id'] ?? 0);
-$mediaType = in_array($_GET['media_type'] ?? '', ['audio', 'video'], true) ? $_GET['media_type'] : '';
+$mediaType = in_array($_GET['media_type'] ?? '', ['audio', 'video', 'clock'], true) ? $_GET['media_type'] : '';
 $status = in_array($_GET['status'] ?? '', ['recording', 'completed', 'failed'], true) ? $_GET['status'] : '';
 $date = $_GET['date'] ?? '';
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -83,6 +83,7 @@ include __DIR__ . '/includes/head.php';
                 <option value="">Tutti i tipi</option>
                 <option value="audio" <?= $mediaType === 'audio' ? 'selected' : '' ?>>Audio</option>
                 <option value="video" <?= $mediaType === 'video' ? 'selected' : '' ?>>Video</option>
+                <option value="clock" <?= $mediaType === 'clock' ? 'selected' : '' ?>>Clock</option>
             </optgroup>
         </select>
     </div>
@@ -155,6 +156,9 @@ include __DIR__ . '/includes/head.php';
     <?php endif; ?>
     <?php foreach ($rows as $r):
         $isVideo = $r['media_type'] === 'video';
+        $isClock = $r['media_type'] === 'clock';
+        $badgeClass = $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
+        $badgeLabel = $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
         [$statusLabel, $statusColor] = $statusMeta[$r['status']] ?? [$r['status'], '#999'];
         $clips = $counts[$r['id']]['clips'] ?? 0;
         $markerCnt = $counts[$r['id']]['markers'] ?? 0;
@@ -177,7 +181,7 @@ include __DIR__ . '/includes/head.php';
             <td class="fm-idx fm-mono"><?= fmRecCode((int)$r['id'], $r['media_type']) ?></td>
             <td>
                 <?= fmH($r['source_name']) ?>
-                <span class="<?= $isVideo ? 'fm-badge-video' : 'fm-badge-audio' ?>" style="margin-left:6px;"><?= $isVideo ? 'VIDEO' : 'AUDIO' ?></span>
+                <span class="<?= $badgeClass ?>" style="margin-left:6px;"><?= $badgeLabel ?></span>
             </td>
             <td class="fm-date"><?= fmH(fmFormatDateTime($r['start_time'])) ?></td>
             <td class="fm-filename"><?= fmH($r['filename_base']) ?></td>

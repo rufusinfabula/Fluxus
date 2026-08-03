@@ -787,7 +787,10 @@ function fmRecordingVolumeOffline(array $rec): bool {
 }
 
 function fmRecCode(int $id, string $mediaType): string {
-    return ($mediaType === 'video' ? 'V' : 'A') . str_pad((string)$id, 3, '0', STR_PAD_LEFT);
+    // Prefisso K per CLOCK, non C: si confonderebbe visivamente con il badge
+    // "CUE" già presente nelle stesse tabelle marker/registrazioni.
+    $prefix = $mediaType === 'video' ? 'V' : ($mediaType === 'clock' ? 'K' : 'A');
+    return $prefix . str_pad((string)$id, 3, '0', STR_PAD_LEFT);
 }
 
 function fmParseRecId($raw): int {

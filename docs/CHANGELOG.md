@@ -17,6 +17,23 @@ nessuna fase copre.
 
 ---
 
+## 0.3.3
+
+Nuovo tipo di sorgente **CLOCK** (`sources.media_type='clock'`): nessun
+flusso, nessun file audio/video, nessun Cue — solo un registro di marker con
+orario reale, per annotare eventi anche senza una diretta in corso. Avvio e
+Ferma restano manuali (come le altre sorgenti) e producono comunque una riga
+vera in `recordings`, visibile in `recordings.php` e apribile in
+`recording.php` con inizio/fine/durata reali ed export CSV/TXT/JSON dei
+marker. Le sorgenti CLOCK sono escluse dagli Orari programmati (avvio solo
+manuale) e non compaiono mai come processo `record.sh` in esecuzione.
+
+Nessuna modifica di schema (`media_type` era già testo libero), nessuna riga
+di `record.sh` toccata (non viene mai invocato per questo tipo) — fuori fase
+come già 0.3.1/0.3.2. Codice registrazione con prefisso **`K`** (es. `K007`),
+badge **CLOCK** (ambra). Vedi "Sorgente CLOCK — marker senza flusso" in
+[NOTE-TECNICHE.md](NOTE-TECNICHE.md).
+
 ## 0.3.2
 
 Due bug in `scripts/retention_cleanup.sh`, entrambi trovati collaudando la

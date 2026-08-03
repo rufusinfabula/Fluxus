@@ -112,7 +112,8 @@ $schedules = $db->query("SELECT sc.*, s.name AS source_name, s.media_type
     FROM schedules sc LEFT JOIN sources s ON s.id = sc.source_id
     ORDER BY sc.active DESC, sc.id DESC")->fetchAll();
 
-$sources = $db->query('SELECT id, name, media_type FROM sources WHERE active = 1 ORDER BY name ASC')->fetchAll();
+// Le sorgenti CLOCK non hanno alcun flusso: l'avvio è solo manuale, non schedulabile.
+$sources = $db->query("SELECT id, name, media_type FROM sources WHERE active = 1 AND media_type != 'clock' ORDER BY name ASC")->fetchAll();
 
 // Monitor timer systemd: stato ultimo/prossimo scatto + ultima registrazione generata.
 $monitor = [];

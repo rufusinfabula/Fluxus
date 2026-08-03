@@ -809,7 +809,8 @@ h2.fm-page-title {
 }
 
 .fm-badge-audio,
-.fm-badge-video {
+.fm-badge-video,
+.fm-badge-clock {
     display: inline-block;
     font-size: 10px;
     font-weight: 600;
@@ -830,6 +831,12 @@ h2.fm-page-title {
     background: #f6ecfa;
     color: #a855c9;
     border-color: #e6d3ee;
+}
+
+.fm-badge-clock {
+    background: #fdf1e0;
+    color: #b45309;
+    border-color: #f5dcb3;
 }
 
 .fm-tag {

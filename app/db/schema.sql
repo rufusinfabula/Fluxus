@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS storage_volumes (
 CREATE TABLE IF NOT EXISTS sources (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
     name                  TEXT NOT NULL,
-    media_type            TEXT NOT NULL DEFAULT 'audio',
-    url                   TEXT,
+    media_type            TEXT NOT NULL DEFAULT 'audio',  -- audio | video | clock
+    url                   TEXT,                           -- NULL per v4l2 e per clock
     type                  TEXT NOT NULL,
     device                TEXT,
     file_prefix           TEXT,

@@ -104,7 +104,7 @@ if (!empty($_GET['source_id'])) {
     $where[] = 'r.source_id = ?';
     $params[] = (int)$_GET['source_id'];
 }
-if (!empty($_GET['media_type']) && in_array($_GET['media_type'], ['audio', 'video'], true)) {
+if (!empty($_GET['media_type']) && in_array($_GET['media_type'], ['audio', 'video', 'clock'], true)) {
     $where[] = 'r.media_type = ?';
     $params[] = $_GET['media_type'];
 }

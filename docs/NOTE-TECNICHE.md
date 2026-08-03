@@ -2361,6 +2361,68 @@ apribile a disco staccato con l'avviso e il nome del volume; ordine manuale
 rispettato dalla barra di stato; retention in sandbox nei tre casi (volume
 offline → salta, online → cancella file e riga, `clips_dir` NULL → path storico).
 
+## Sorgente CLOCK — marker senza flusso (0.3.3, 2026-08-03)
+
+Fino alla 0.3.2 un marker esisteva solo dentro una `recordings` reale, che a
+sua volta esisteva solo se c'era una sorgente audio/video con un flusso da
+registrare. Il tipo di sorgente **CLOCK** (`sources.media_type='clock'`)
+copre il caso di voler annotare eventi con orario reale **senza alcuna
+diretta in corso** — nessun flusso, nessun file audio/video, nessun Cue (non
+c'è nulla da tagliare), ma **Avvio/Ferma producono comunque una riga vera in
+`recordings`**, visibile in `recordings.php` e apribile in `recording.php`
+con inizio/fine/durata reali ed export CSV/TXT/JSON dei marker. L'avvio è
+**solo manuale** (come le altre sorgenti): nessuna integrazione con
+Orari/systemd.
+
+Il pezzo chiave: una registrazione CLOCK **non è un caso speciale** se il suo
+`output_dir` è il path storico del volume interno, `FM_RECORDINGS/{source_id}`
+(invece di lasciarlo vuoto o inventarne uno fittizio — la stessa cartella
+"canonica" che userebbe una registrazione normale di quella sorgente sul
+volume interno, anche se lì non scrive mai nessuno). Con quel path,
+`fmRecordingVolumeOffline()`/`fmRecordingVolume()`/`fmMediaBaseUrl()`
+(helpers.php) la riconoscono automaticamente come "volume interno" senza
+alcuna guardia dedicata, e `fmDeleteRecording()`/`fmRecordingSize()`/
+`retention_cleanup.sh` fanno `glob()`/`rm -f` su pattern che semplicemente non
+trovano nulla — **nessuna modifica** a questi punti.
+
+- `api/start.php`: per `media_type='clock'` salta `fmResolveStorage()` (path
+  storico diretto, nessuna cartella creata su disco) e **non lancia
+  `record.sh`** — nessun processo ffmpeg, mai. `record.sh` resta quindi sotto
+  il vincolo "non toccare dopo la creazione iniziale" senza bisogno di alcuna
+  eccezione.
+- `api/stop.php`: per una registrazione clock **non chiama
+  `stop_recording.sh`** (pensato per aspettare fino a 6s che un processo
+  ffmpeg finalizzi, cosa che qui non accade mai) — finalizza subito con una
+  singola `UPDATE ... status='completed', end_time, duration_seconds`,
+  risposta immediata.
+- `api/marker.php`: guardia server-side — `type='cue'` su una registrazione
+  clock è rifiutato esplicitamente (mai una whitelist client-side da sola:
+  bottone disabilitato e scorciatoia da tastiera C sono solo comodità).
+- `sources.php`: terzo bottone "CLOCK (nessun flusso)" nel toggle "Modalità
+  sorgente" (stesso pattern di Push), che nasconde protocollo/URL/device/
+  qualità/volume di archiviazione/retention cue e forza `media_type='clock'`,
+  `type='clock'`, `url`/`device` vuoti — lato server, mai fidandosi del solo
+  client.
+- `dashboard.php`/`recording.php`: badge **CLOCK** (ambra, `.fm-badge-clock`
+  in assets/style.css), pulsanti Anteprima/Check nascosti (nessuno stream),
+  pulsante Cue **visibile ma disabilitato** con tooltip, barra di progresso
+  "obiettivo slot_duration" nascosta (un cronometro aperto non ha un
+  obiettivo). In `recording.php` il blocco file Video/Audio diventa un terzo
+  ramo `elseif ($isClock)` con una card che spiega l'assenza di file.
+- `schedules.php`/`run_schedule.sh`: le sorgenti clock sono escluse dal
+  dropdown "Sorgente" degli Orari (avvio solo manuale, per scelta esplicita);
+  `run_schedule.sh` ha comunque una guardia difensiva che esce senza chiamare
+  `record.sh` se una sorgente risulta `media_type='clock'` (rete di sicurezza
+  se il tipo viene cambiato dopo aver creato lo schedule).
+
+**Prefisso codice `K`, non `C`**: scelta deliberata per non confondersi
+visivamente con il badge "CUE" già presente nelle stesse tabelle
+marker/registrazioni.
+
+Nessuna modifica di schema (`media_type`/`type` erano già testo libero,
+nessun `ALTER TABLE`, nessun bump di `schema_version`) — fuori fase come già
+0.3.1/0.3.2, senza toccare il lavoro in corso sulla fase 4.
+
 ## Vincoli critici
 
 1. Non modificare record.sh dopo la creazione iniziale. Eccezioni fatte finora,
