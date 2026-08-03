@@ -534,6 +534,29 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
+    <h3 class="fm-section-title uk-margin-small-bottom">Rete</h3>
+    <p class="uk-text-meta uk-margin-remove-top">Connessione WiFi, indirizzo IP e nome macchina si gestiscono nella pagina dedicata: scansione e cambio rete, IP fisso o automatico, richiedono un po' più di spazio di una card.</p>
+    <div class="uk-flex uk-flex-middle" style="gap:12px;">
+        <div class="uk-text-meta fm-mono" id="fm-set-net-summary">verifica in corso…</div>
+        <a class="uk-button uk-button-primary uk-button-small" href="<?= rtrim(FM_WEB_BASE, '/') ?>/network.php">Gestisci rete &rarr;</a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('fm-set-net-summary');
+    if (!el) return;
+    fetch(<?= json_encode(FM_WEB_BASE . '/api/network_status.php') ?>)
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            var label = d.ssid || d.connection || d.device || 'non collegato';
+            el.textContent = label + (d.address ? ' · ' + d.address : '');
+        })
+        .catch(function () { el.textContent = 'stato non disponibile'; });
+});
+</script>
+
+<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
     <h3 class="fm-section-title uk-margin-small-bottom">Nodo</h3>
     <form method="post">
         <input type="hidden" name="cue_pre_roll" value="<?= (int)$cuePreRoll ?>">

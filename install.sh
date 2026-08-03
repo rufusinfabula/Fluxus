@@ -189,6 +189,9 @@ Altro
   --volume-helper MODO   keep      non tocca /usr/local/bin/fluxus-enable-volume.sh
                                    se è diverso da quello del sorgente (predefinito)
                          overwrite lo sostituisce, con copia di sicurezza
+  --network-helper MODO  keep      non tocca /usr/local/bin/fluxus-network.sh
+                                   se è diverso da quello del sorgente (predefinito)
+                         overwrite lo sostituisce, con copia di sicurezza
   --no-deps              non installa pacchetti
   --force                prosegue anche con una registrazione in corso
   --dry-run              mostra cosa farebbe, senza toccare niente
@@ -218,6 +221,7 @@ MEDIAMTX_API_PORT=''
 MEDIAMTX_BIN=''
 SORGENTE=''
 VOLUME_HELPER='keep'
+NETWORK_HELPER_MODO='keep'
 NIENTE_PACCHETTI=0
 FORZA=0
 
@@ -249,6 +253,7 @@ while [[ $# -gt 0 ]]; do
         --mediamtx-binary)   MEDIAMTX_BIN=$(valore "$@"); shift 2 ;;
         --source)            SORGENTE=$(valore "$@"); shift 2 ;;
         --volume-helper)     VOLUME_HELPER=$(valore "$@"); shift 2 ;;
+        --network-helper)    NETWORK_HELPER_MODO=$(valore "$@"); shift 2 ;;
         --no-deps)           NIENTE_PACCHETTI=1; shift ;;
         --force)             FORZA=1; shift ;;
         --dry-run)           PROVA=1; shift ;;
@@ -262,6 +267,7 @@ done
 [[ "$NGINX_MODO"     =~ ^(auto|none)$      ]] || muori "--nginx vuole 'auto' o 'none'"
 [[ "$MEDIAMTX_MODO"  =~ ^(instance|none)$  ]] || muori "--mediamtx vuole 'instance' o 'none'"
 [[ "$VOLUME_HELPER"  =~ ^(keep|overwrite)$ ]] || muori "--volume-helper vuole 'keep' o 'overwrite'"
+[[ "$NETWORK_HELPER_MODO" =~ ^(keep|overwrite)$ ]] || muori "--network-helper vuole 'keep' o 'overwrite'"
 
 # ── Preliminari ───────────────────────────────────────────────────────────────
 
@@ -534,7 +540,7 @@ else
     # Si installa solo ciò che manca davvero: su una macchina che ospita già
     # un'installazione in servizio, un 'apt install' inutile è un rischio inutile.
     manca=()
-    for pacchetto in nginx php-fpm php-cli php-sqlite3 php-curl sqlite3 ffmpeg rsync logrotate; do
+    for pacchetto in nginx php-fpm php-cli php-sqlite3 php-curl sqlite3 ffmpeg rsync logrotate network-manager; do
         dpkg-query -W -f='${Status}' "$pacchetto" 2>/dev/null | grep -q '^install ok installed$' \
             || manca+=("$pacchetto")
     done
@@ -698,29 +704,43 @@ esegui install -D -m 0644 -o root -g root "$SORGENTE/scripts/fluxus-env.sh" /usr
 esegui install -D -m 0755 -o root -g root "$SORGENTE/bin/fluxus" /usr/local/bin/fluxus
 fatto "/usr/local/bin/fluxus"
 
-# Lo script privilegiato che abilita un disco esterno è unico per la macchina e
-# lo condividono tutte le istanze: sostituirlo cambia il comportamento anche di
-# quelle che non stiamo installando. Se quello presente è diverso, non lo tocco.
-HELPER=/usr/local/bin/fluxus-enable-volume.sh
-HELPER_STATO='installato'
-if [[ -e "$HELPER" ]] && ! cmp -s "$SORGENTE/bin/fluxus-enable-volume.sh" "$HELPER"; then
-    if [[ "$VOLUME_HELPER" == overwrite ]]; then
-        esegui cp -a "$HELPER" "$HELPER.bak-$(date +%Y%m%d-%H%M%S)"
-        esegui install -m 0755 -o root -g root "$SORGENTE/bin/fluxus-enable-volume.sh" "$HELPER"
-        HELPER_STATO='sostituito (copia di sicurezza accanto)'
-        fatto "$HELPER sostituito"
-    else
-        HELPER_STATO='lasciato com'\''era (diverso da quello del sorgente)'
-        segna_avviso "$HELPER esiste ed è diverso da quello del sorgente: non lo tocco,
-     perché lo usano anche le altre istanze. L'abilitazione dei dischi esterni
+# Script privilegiati unici per la macchina (fluxus-enable-volume.sh per i
+# dischi, fluxus-network.sh per la pagina Rete): li condividono tutte le
+# istanze, sostituirli cambia il comportamento anche di quelle che non
+# stiamo installando. Se quello presente è diverso, per default non si tocca.
+#
+# installa_helper_macchina <sorgente> <destinazione> <modo> <nome-opzione>
+# Stampa nella variabile globale HELPER_STATO l'esito, per il riepilogo finale.
+installa_helper_macchina() {
+    local src="$1" dest="$2" modo="$3" opzione="$4"
+    if [[ -e "$dest" ]] && ! cmp -s "$src" "$dest"; then
+        if [[ "$modo" == overwrite ]]; then
+            esegui cp -a "$dest" "$dest.bak-$(date +%Y%m%d-%H%M%S)"
+            esegui install -m 0755 -o root -g root "$src" "$dest"
+            HELPER_STATO='sostituito (copia di sicurezza accanto)'
+            fatto "$dest sostituito"
+        else
+            HELPER_STATO='lasciato com'\''era (diverso da quello del sorgente)'
+            segna_avviso "$dest esiste ed è diverso da quello del sorgente: non lo tocco,
+     perché lo usano anche le altre istanze. La funzione corrispondente
      dall'interfaccia non funzionerà per '$ISTANZA' finché non lo si aggiorna
-     (--volume-helper overwrite, quando si è certi che nessun'altra istanza
+     ($opzione overwrite, quando si è certi che nessun'altra istanza
      dipenda dalla versione vecchia)."
+        fi
+    else
+        esegui install -D -m 0755 -o root -g root "$src" "$dest"
+        HELPER_STATO='installato'
+        fatto "$dest"
     fi
-else
-    esegui install -D -m 0755 -o root -g root "$SORGENTE/bin/fluxus-enable-volume.sh" "$HELPER"
-    fatto "$HELPER"
-fi
+}
+
+HELPER=/usr/local/bin/fluxus-enable-volume.sh
+installa_helper_macchina "$SORGENTE/bin/fluxus-enable-volume.sh" "$HELPER" "$VOLUME_HELPER" --volume-helper
+VOLUME_HELPER_STATO="$HELPER_STATO"
+
+NETWORK_HELPER=/usr/local/bin/fluxus-network.sh
+installa_helper_macchina "$SORGENTE/bin/fluxus-network.sh" "$NETWORK_HELPER" "$NETWORK_HELPER_MODO" --network-helper
+NETWORK_HELPER_STATO="$HELPER_STATO"
 
 # ── 6. Modelli: servizi, permessi, server web ─────────────────────────────────
 
@@ -881,6 +901,24 @@ else
     fi
 fi
 
+# ── Hotspot di primo avvio ──────────────────────────────────────────────────
+#
+# Unit systemd machine-wide, non per istanza: nessun segnaposto @FLUXUS_...@,
+# non passa da rendi(), non entra in UNIT_INSTALLATI né nel manifesto qui
+# sotto — 'fluxus uninstall' non deve mai spegnerla, stesso motivo per cui
+# non tocca fluxus-enable-volume.sh. Si abilita ma non si avvia (enable,
+# senza --now): scatta solo al prossimo riavvio vero, mai durante questo
+# install.sh, nemmeno su una macchina già in servizio. Vedi
+# docs/NOTE-TECNICHE.md, sezione Rete.
+
+passo "Hotspot di primo avvio"
+
+esegui install -D -m 0644 -o root -g root "$SORGENTE/systemd/fluxus-hotspot-check.service" \
+    /etc/systemd/system/fluxus-hotspot-check.service
+esegui systemctl daemon-reload
+esegui systemctl enable fluxus-hotspot-check.service
+fatto "fluxus-hotspot-check.service (abilitato, scatta al prossimo riavvio)"
+
 # ── 9. Database ───────────────────────────────────────────────────────────────
 #
 # Non c'è uno schema da applicare a mano: lo fa l'applicazione, che sa creare il
@@ -950,7 +988,8 @@ FLUXUS_LOGROTATE=$LOGROTATE_FILE
 FLUXUS_MEDIAMTX_MODE=$MEDIAMTX_MODO
 FLUXUS_MEDIAMTX_UNIT=$MEDIAMTX_UNIT
 FLUXUS_MEDIAMTX_CONF=$MEDIAMTX_CONF
-FLUXUS_VOLUME_HELPER=$HELPER_STATO
+FLUXUS_VOLUME_HELPER=$VOLUME_HELPER_STATO
+FLUXUS_NETWORK_HELPER=$NETWORK_HELPER_STATO
 FINE
 
 # ── Fine ──────────────────────────────────────────────────────────────────────

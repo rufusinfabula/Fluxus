@@ -1,0 +1,19 @@
+[Unit]
+# Non è un modello .in: a differenza delle unit in questa cartella, non è
+# per istanza (nessun segnaposto @FLUXUS_...@) — la scheda WiFi è della
+# macchina, non di un'installazione. installata/abilitata una volta sola,
+# indipendentemente da quante istanze di Fluxus girano qui. Vedi
+# docs/NOTE-TECNICHE.md, sezione Rete.
+Description=Fluxus: hotspot se al boot non c'è nessuna rete nota
+After=NetworkManager-wait-online.service
+Wants=NetworkManager-wait-online.service
+
+[Service]
+Type=oneshot
+# Il default di systemd per un oneshot (90s) non basta: la logica interna
+# di hotspot-check può restare in attesa fino a ~150s prima di decidere.
+TimeoutStartSec=600
+ExecStart=/usr/local/bin/fluxus-network.sh hotspot-check
+
+[Install]
+WantedBy=multi-user.target

@@ -38,3 +38,13 @@ Cmnd_Alias @FLUXUS_SUDO_ALIAS@_VOLUME = \
     /usr/local/bin/fluxus-enable-volume.sh --info *, \
     /usr/local/bin/fluxus-enable-volume.sh * @FLUXUS_INSTANCE@ @FLUXUS_USER@ @FLUXUS_GROUP@
 @FLUXUS_USER@ ALL=(root) NOPASSWD: @FLUXUS_SUDO_ALIAS@_VOLUME
+
+# Pagina Rete (fase 4): stato, scansione WiFi, cambio rete, IP, nome macchina.
+# Anche fluxus-network.sh è unico per la macchina, come lo script del volume,
+# ma qui non c'è nessun valore da fissare nella regola: la rete non è di
+# un'istanza, è della macchina. Chi ha questa regola può riconfigurare la
+# rete di TUTTA la macchina, non solo della propria installazione — lo stesso
+# patto già scritto in cima a questo file per due istanze che condividono
+# l'utente di sistema, esteso qui esplicitamente alla rete.
+Cmnd_Alias @FLUXUS_SUDO_ALIAS@_NETWORK = /usr/local/bin/fluxus-network.sh *
+@FLUXUS_USER@ ALL=(root) NOPASSWD: @FLUXUS_SUDO_ALIAS@_NETWORK

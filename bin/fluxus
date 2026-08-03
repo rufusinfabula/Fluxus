@@ -615,7 +615,9 @@ cmd_uninstall() {
     fi
 
     # 6. Se non resta nessuna istanza, se ne va anche il comando. Non tocca
-    #    fluxus-enable-volume.sh: è della macchina e può servire ad altri.
+    #    fluxus-enable-volume.sh né fluxus-hotspot-check.service: sono della
+    #    macchina (non nel manifesto, non in unit_dell_istanza) e possono
+    #    servire ad altre istanze — vedi docs/NOTE-TECNICHE.md, sezione Rete.
     if [[ -z "$(istanze_installate)" ]]; then
         rm -rf /usr/local/lib/fluxus
         rm -f /usr/local/bin/fluxus     # su Linux il file aperto resta valido fino alla fine

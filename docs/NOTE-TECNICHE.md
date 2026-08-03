@@ -2699,3 +2699,95 @@ nessun `ALTER TABLE`, nessun bump di `schema_version`) — fuori fase come già
     gira come root, e quel file sarebbe riscrivibile da chi root non è;
     (g) **niente istanza indovinata**: con più installazioni e nessuna
     indicata, il comando si ferma ed elenca.
+26. Rete (fase 4): vedi la sezione dedicata. `fluxus-hotspot-check.service`
+    va installato con `systemctl enable` **senza** `--now`: l'hotspot deve
+    scattare solo al riavvio vero, mai durante `install.sh`/`fluxus update`
+    su una macchina già in servizio. `hotspot-check` gira **una volta sola
+    al boot**, non è sorveglianza continua: una caduta di rete durante il
+    funzionamento normale non lo riattiva da sola. `TimeoutStartSec=600`
+    nella unit è obbligatorio: il default di systemd per un `oneshot` (90s)
+    non basta all'attesa interna dello script (fino a ~150s).
+
+## Rete (0.4.0, 2026-08-03)
+
+La pagina Rete (`app/network.php`) e lo script privilegiato che la serve
+(`bin/fluxus-network.sh`) coprono: stato della connessione, scansione e
+cambio WiFi, IP statico/automatico, nome macchina, e l'hotspot di primo
+avvio. Punti di design da non reintrodurre per errore:
+
+**NetworkManager, non dhcpcd/wpa_supplicant.** Tutto passa da `nmcli`: è
+già il gestore di rete attivo di default su Raspberry Pi OS Bookworm (il
+sistema di riferimento del progetto), gestisce nativamente sia il cambio
+rete sia la modalità hotspot/AP (`nmcli device wifi hotspot`, metodo IPv4
+`shared`) senza bisogno di `hostapd` separato — la sua unica dipendenza
+aggiuntiva, `dnsmasq-base`, arriva già da sé come dipendenza transitiva del
+pacchetto. `network-manager` è nell'elenco dipendenze di `install.sh`.
+
+**`fluxus-network.sh` è unico per la macchina**, come `fluxus-enable-
+volume.sh` (vedi sopra): sta in `/usr/local/bin`, root:root 0755, fuori
+dalla cartella scripts dell'istanza (che appartiene a `www-data`) — se
+quella potesse riscriverlo, la regola sudo NOPASSWD darebbe root completo a
+chi non lo è. Non legge configurazione propria: tutto arriva come
+argomenti, validati dentro lo script. La regola sudo in
+`/etc/sudoers.d/<istanza>` è una wildcard (`fluxus-network.sh *`): non fissa
+nessun valore, perché la rete non è di un'istanza, è della macchina — chi ha
+questa regola può riconfigurare la rete di tutta la macchina, non solo della
+propria installazione.
+
+**Snapshot + rollback a tempo per apply-wifi/apply-ip.** Un cambio di rete
+o IP sbagliato può tagliare fuori chi lo sta facendo dalla stessa rete che
+sta cambiando. Prima di applicare, lo script scrive uno snapshot dello
+stato precedente (`/run/fluxus-network/pending.snapshot`); dopo aver
+applicato, arma un rollback a tempo (`ROLLBACK_SECONDS=45`) con
+`systemd-run --unit=fluxus-network-rollback` transiente — se nessuno chiama
+`confirm` entro la scadenza, il ripristino scatta da sé. Se non si riesce
+neppure ad armare il timer, la modifica si disfa **subito**: non deve mai
+restare una modifica rischiosa senza rete di sicurezza.
+
+**Hotspot di primo avvio.** Vive negli stessi comandi di
+`fluxus-network.sh` (non in uno script a parte): il file dichiara già di
+essere l'unico punto di ingresso per tutto ciò che tocca la rete della
+macchina, e la wildcard sudo copre già qualunque nuovo comando ci si
+aggiunga. `hotspot-check` gira una volta al boot (invocato da
+`fluxus-hotspot-check.service`, root, mai da PHP): se non trova nessuna
+rete nota entro una finestra di grazia (breve se non c'è nessun profilo
+salvato, più lunga — fino a ~150s — se ce n'è uno ma non è ancora connesso,
+per non far scattare l'hotspot al primo sguardo su un router lento a
+ripartire dopo un blackout), apre un hotspot proprio. SSID deterministico
+`Fluxus-XXXX` dagli ultimi caratteri del MAC della scheda WiFi, non
+dall'hostname (spesso ancora `raspberrypi` su più unità nella stessa stanza
+durante il provisioning — vedi ROADMAP.md, fase 6). Password fissa e
+documentata (`HOTSPOT_PASSWORD` nello script): non c'è canale per
+comunicarne una diversa per unità a chi non ha ancora rete, e comunque
+un'installazione fresca è già priva di login applicativo di suo
+(`auth_enabled` di default `'0'`) — l'hotspot non introduce una categoria
+di esposizione nuova. Indirizzo fissato esplicitamente a `10.42.0.1/24`
+(non il default implicito di NetworkManager): il manuale può dire "vai su
+`http://10.42.0.1`" con certezza. Nessun captive portal: nginx risponde già
+su qualunque indirizzo (`listen ... default_server; server_name _`).
+
+L'hotspot ha una vita autolimitata: un secondo timer transiente
+(`fluxus-hotspot-timeout`, 900s, separato da quello di apply-wifi/apply-ip)
+lo chiude e lo riapre da capo se nessuno l'ha configurato — nessun limite
+al numero di cicli, ogni ciclo è innocuo, e così la macchina non resta mai
+muta a lungo. Quando invece l'utente sceglie la rete vera dalla pagina
+raggiunta via hotspot, passa comunque da `apply-wifi`: il rollback a 45s
+esistente funziona già a favore (uno `PREV_CONNECTION=fluxus-hotspot`
+riapre l'hotspot da solo se la rete nuova non va bene), ma il timer da 15
+minuti va **disarmato** all'ingresso in `apply-wifi` (altrimenti
+interferisce col rollback a 45s) e **riarmato** solo se è proprio il
+rollback a riportare su l'hotspot; va anche disarmato in modo permanente,
+e il profilo `fluxus-hotspot` eliminato, in `confirm`.
+
+**`fluxus-hotspot-check.service` è la prima unit systemd persistente e
+machine-wide del progetto.** Fino a questo lavoro il pattern "unico per
+macchina" erano solo file statici in `/usr/local/bin` o timer *transienti*
+via `systemd-run` — mai una unit scritta su disco e abilitata in modo
+permanente. Per questo non è un modello `.in` (nessun segnaposto, non passa
+da `rendi()` in `install.sh`, non appartiene a nessuna istanza) e non entra
+né in `UNIT_INSTALLATI` né nel manifesto per-istanza: `fluxus uninstall`
+non deve mai spegnerla, lo stesso motivo per cui non tocca
+`fluxus-enable-volume.sh`. Si installa con `systemctl enable` **senza**
+`--now` (a differenza di `mediamtx.service`): scatta solo al prossimo
+riavvio vero, mai durante un `install.sh`/`fluxus update` dal vivo, nemmeno
+su una macchina già in servizio.

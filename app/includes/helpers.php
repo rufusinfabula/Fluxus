@@ -967,3 +967,54 @@ function fmRtmpUrl(string $path = ''): string
 {
     return 'rtmp://' . FM_RTMP_HOST . ':' . FM_RTMP_PORT . ($path !== '' ? '/' . $path : '');
 }
+
+/**
+ * Invoca /usr/local/bin/fluxus-network.sh via sudo (fase 4, pagina Rete): è
+ * l'unico script che tocca la rete della macchina, root:root, unico per
+ * macchina non per istanza — vedi il file stesso e la regola in
+ * /etc/sudoers.d/<istanza>.
+ *
+ * Ritorna ['ok' => true, 'lines' => righe dopo il primo "OK"] oppure
+ * ['ok' => false, 'error' => messaggio], mai un'eccezione: PHP-FPM non gira
+ * come root e non può fare altro che leggere l'esito dello script.
+ */
+function fmNetworkHelper(array $args): array {
+    $cmd = 'sudo -n /usr/local/bin/fluxus-network.sh';
+    foreach ($args as $a) {
+        $cmd .= ' ' . escapeshellarg((string)$a);
+    }
+    $out = trim((string)@shell_exec($cmd . ' 2>&1'));
+    $lines = $out === '' ? [] : preg_split('/\r?\n/', $out);
+    $first = $lines[0] ?? '';
+
+    if ($first === 'OK') {
+        return ['ok' => true, 'lines' => array_slice($lines, 1)];
+    }
+    if (str_starts_with($first, 'OK ')) {
+        // confirm/rollback rispondono con l'esito su un'unica riga "OK ...".
+        return ['ok' => true, 'lines' => [substr($first, 3)]];
+    }
+    return ['ok' => false, 'error' => $first !== '' ? preg_replace('/^ERR /', '', $first) : 'comando fallito'];
+}
+
+/** Righe "CHIAVE=valore" (l'output di 'status') in un array associativo. */
+function fmNetworkParseKV(array $lines): array {
+    $out = [];
+    foreach ($lines as $line) {
+        $pos = strpos($line, '=');
+        if ($pos === false) continue;
+        $out[substr($line, 0, $pos)] = substr($line, $pos + 1);
+    }
+    return $out;
+}
+
+/**
+ * Una riga "terse" di nmcli (separatore ':', con '\:' e '\\' come escape) in
+ * campi non più escapati. Serve per l'elenco delle reti WiFi di 'scan'.
+ */
+function fmNmcliFields(string $line): array {
+    $fields = preg_split('/(?<!\\\\):/', $line);
+    return array_map(function (string $f): string {
+        return str_replace(['\\:', '\\\\'], [':', '\\'], $f);
+    }, $fields);
+}

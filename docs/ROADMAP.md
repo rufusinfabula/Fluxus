@@ -16,7 +16,8 @@ Cosa manca oggi, in concreto:
 - ~~**Nessun installer funzionante**~~ — risolto dalla fase 3.
 - ~~**Percorsi cablati nel codice**~~ — risolto dalla fase 1.
 - ~~**Dipendenza da Internet per l'interfaccia**~~ — risolto dalla fase 2.
-- **Nessun modo di configurare la rete** se non da riga di comando.
+- ~~**Nessun modo di configurare la rete** se non da riga di comando~~ —
+  risolto dalla fase 4.
 
 ---
 
@@ -75,16 +76,29 @@ l'installer lavora sul sorgente che ha accanto. Vedi il
 [changelog](CHANGELOG.md#030) e la sezione *Installazione* delle
 [note tecniche](NOTE-TECNICHE.md).
 
-## Fase 4 — Rete e WiFi dal browser → `0.4.0`
+## Fase 4 — Rete e WiFi dal browser → `0.4.0` ✅
 
-Una pagina Rete: stato della connessione, scansione delle reti WiFi, cambio
-rete, IP fisso o automatico, nome della macchina.
+**Fatta.** Una pagina Rete: stato della connessione, scansione delle reti
+WiFi, cambio rete, IP fisso o automatico, nome della macchina. Ogni modifica
+rischiosa (cambio WiFi, cambio IP) si applica subito ma con un ripristino
+automatico a tempo se nessuno la conferma — non taglia fuori chi la sta
+facendo dalla stessa rete che sta cambiando.
 
-E soprattutto l'**hotspot di primo avvio**: se all'accensione non trova nessuna
-rete conosciuta, la macchina ne apre una propria a cui collegarsi col telefono
-per configurarla. È ciò che rende utilizzabile un Raspberry Pi senza schermo
-portato in un ufficio nuovo, dove il WiFi è diverso e non c'è nessuno che sappia
-usare un terminale.
+E soprattutto l'**hotspot di primo avvio**: se al boot non trova nessuna rete
+conosciuta, la macchina ne apre una propria a cui collegarsi col telefono per
+configurarla — attivabile anche a mano dalla pagina Rete, per rientrare da
+un router cambiato senza accesso fisico. È ciò che rende utilizzabile un
+Raspberry Pi senza schermo portato in un ufficio nuovo, dove il WiFi è
+diverso e non c'è nessuno che sappia usare un terminale. Vedi il
+[changelog](CHANGELOG.md#040) e la sezione *Rete* delle
+[note tecniche](NOTE-TECNICHE.md).
+
+⚠️ Il collaudo dal vivo dell'attivazione hotspot (portare per davvero la
+scheda WiFi in modalità AP) non è stato ancora fatto su una macchina
+raggiunta via quella stessa rete: con una sola scheda WiFi interromperebbe
+la sessione usata per farlo. Va fatto con un percorso di rientro
+indipendente (cavo Ethernet) prima di considerare la fase collaudata sul
+campo come le precedenti — eventuali correzioni prendono `0.4.1`/`0.4.2`.
 
 ## Fase 5 — Configurazione guidata al primo accesso → `0.5.0`
 

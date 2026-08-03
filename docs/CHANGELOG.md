@@ -17,6 +17,44 @@ nessuna fase copre.
 
 ---
 
+## 0.4.0
+
+**Rete e WiFi dal browser** ([fase 4](ROADMAP.md) della roadmap).
+
+Fino a ieri l'unico modo di configurare la rete era da riga di comando. Ora
+c'è una pagina Rete (raggiungibile dall'icona in navbar, oltre che da
+Impostazioni), servita da un nuovo script privilegiato unico per la
+macchina, `fluxus-network.sh`, invocato via sudo dall'interfaccia.
+
+- **Stato, scansione, cambio rete, IP, nome macchina.** Ogni modifica
+  rischiosa (cambio WiFi, cambio IP) si applica subito ma arma un
+  ripristino automatico a tempo (45s): se nessuno la conferma dalla stessa
+  pagina, torna da sola alla configurazione precedente. Non taglia mai
+  fuori chi la sta facendo dalla stessa rete che sta cambiando.
+- **Hotspot di primo avvio.** Se al boot la macchina non trova nessuna rete
+  nota, ne apre una propria (`Fluxus-XXXX`, dal MAC della scheda) a cui
+  collegarsi col telefono per configurarla — nessun captive portal,
+  basta aprire il browser su `http://10.42.0.1`. Si chiude da sola dopo 15
+  minuti se nessuno la configura, e riprova da capo. Attivabile anche a
+  mano dalla pagina Rete, per rientrare da un router cambiato senza
+  accesso fisico alla macchina.
+- **`network-manager`** è ora fra le dipendenze installate da `install.sh`.
+
+Vedi la sezione *Rete* delle [note tecniche](NOTE-TECNICHE.md) per il
+dettaglio di design (perché NetworkManager, il meccanismo di
+snapshot+rollback, le scelte sull'hotspot).
+
+⚠️ Collaudato su `fluxus-dev`: installazione (con la nuova unit systemd
+abilitata ma mai avviata dall'installer), stato, scansione, nome macchina,
+e la sola logica di rilevamento dell'hotspot (che ha correttamente
+riconosciuto la rete già presente senza attivarsi). **Non ancora collaudata
+dal vivo l'attivazione vera e propria dell'hotspot** — su una macchina con
+una sola scheda WiFi raggiunta proprio via quella rete, andrebbe fatta con
+un percorso di rientro indipendente (cavo Ethernet). Eventuali correzioni
+prendono `0.4.1`/`0.4.2`.
+
+---
+
 ## 0.3.3
 
 Nuovo tipo di sorgente **CLOCK** (`sources.media_type='clock'`): nessun
