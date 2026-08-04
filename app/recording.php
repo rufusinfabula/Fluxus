@@ -27,6 +27,12 @@ $isVideo = $recording['media_type'] === 'video';
 $isClock = $recording['media_type'] === 'clock';
 $ext = $isVideo ? '.mp4' : '.mp3';
 
+// Sorgenti CLOCK non producono alcun file: niente da cercare su disco
+// ($singleFile resta null, ricalcolato più sotto sullo stesso output_dir vuoto).
+if ($isClock) {
+    $isSegmented = false;
+    $partsOnDisk = [];
+} else {
 // Multi-file o file singolo si decide da cosa c'è su disco, non da
 // segment_duration: dal 2026-07-27 anche una registrazione non segmentata può
 // avere più file _NNN, se il supervisore di record.sh l'ha ripresa dopo una
@@ -38,6 +44,7 @@ $isSegmented = $partsOnDisk
     ? true
     : ((int)$recording['segment_duration'] > 0
         && !is_file($recording['output_dir'] . '/' . $recording['filename_base'] . $ext));
+}
 $webBase = rtrim(FM_WEB_BASE, '/');
 // I media possono stare su un volume esterno: l'URL passa dal symlink del volume
 // (vedi fmMediaBaseUrl). Gli export marker restano invece sempre sul volume interno.
@@ -185,7 +192,10 @@ include __DIR__ . '/includes/head.php';
                 <?php endif; ?>
                 <button class="uk-button uk-button-danger uk-button-small" id="fm-btn-stop"><span class="fm-stop-dot-btn"></span>STOP</button>
                 <?php if (!$isClock): ?>
-                <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-btn-preview">
+                <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-btn-preview"
+                        data-source-id="<?= (int)$recording['source_id'] ?>"
+                        data-source-name="<?= fmH($recording['current_source_name'] ?? $recording['source_name']) ?>"
+                        data-media-type="<?= fmH($recording['media_type']) ?>">
                     <span uk-icon="icon: <?= $isVideo ? 'video-camera' : 'microphone' ?>; ratio: 0.8"></span> Anteprima
                 </button>
                 <?php endif; ?>
@@ -457,7 +467,6 @@ if (!$isRecording) {
                 <input type="file" id="fm-clock-file" accept="audio/*" class="uk-input uk-form-small" style="max-width:240px;">
                 <input type="datetime-local" id="fm-clock-start" class="uk-input uk-form-small fm-mono" style="width:200px;" step="1">
                 <button type="button" class="uk-button uk-button-primary uk-button-small" id="fm-clock-upload-btn">Carica e collega audio</button>
-                <span uk-spinner="ratio: 0.6" id="fm-clock-upload-spinner" style="display:none;"></span>
             </div>
             <div class="uk-text-small" id="fm-clock-upload-msg" style="margin-top:6px;display:none;"></div>
         </div>
@@ -466,12 +475,24 @@ if (!$isRecording) {
     </div>
 <?php else: ?>
     <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
-        <?php if (!$isSegmented && !empty($singleFile)): ?>
+        <?php if (!$isSegmented && !empty($singleFile)):
+            $singlePath = $recording['output_dir'] . '/' . $singleFile;
+            $singleUrl = $mediaBaseUrl . rawurlencode($singleFile);
+            $singleSize = @filesize($singlePath);
+            $singleDur = fmProbeDuration($singlePath);
+        ?>
             <h3 class="fm-section-title uk-margin-small-bottom">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
                 Audio
             </h3>
-            <audio controls preload="none" style="width:100%;" src="<?= fmH($mediaBaseUrl . rawurlencode($singleFile)) ?>"></audio>
+            <div class="fm-segplayer-row">
+                <audio controls preload="none" class="fm-inline-audio" style="flex:1;min-width:0;" src="<?= fmH($singleUrl) ?>"></audio>
+                <div class="fm-segplayer-actions">
+                    <a href="<?= fmH($singleUrl) ?>" class="fm-action-icon" uk-icon="icon: download; ratio: 0.8" uk-tooltip="Scarica" download></a>
+                </div>
+                <span class="fm-segplayer-dur" uk-tooltip="Durata"><?= $singleDur ? fmH(fmFormatDuration((int)round($singleDur))) : '—' ?></span>
+                <span class="fm-segplayer-size"><?= fmH(fmFormatBytes($singleSize ?: 0)) ?></span>
+            </div>
         <?php elseif ($isSegmented && $segmentFiles): ?>
             <h3 class="uk-margin-remove-bottom uk-flex uk-flex-middle" style="gap:8px;font-size:22px;font-weight:600;color:#333;">
                 <span uk-icon="icon: list; ratio: 1.1"></span> Segmenti (<?= count($segmentFiles) ?>)
@@ -658,6 +679,8 @@ if (!$isRecording) {
         // file scelto meno la durata letta al volo. Resta sempre modificabile a
         // mano, e il server ricalcola comunque la durata reale via ffprobe — non
         // ci si fida mai di questo suggerimento per la logica di posizionamento.
+        // Non sovrascrive un orario già inserito a mano: la stima client-side
+        // non deve rubare la mano a una correzione dell'operatore.
         clockFileInput.addEventListener('change', function () {
             var file = clockFileInput.files[0];
             if (!file) return;
@@ -668,7 +691,7 @@ if (!$isRecording) {
             probe.addEventListener('loadedmetadata', function () {
                 var durSec = probe.duration || 0;
                 var startMs = file.lastModified - durSec * 1000;
-                if (startMs > 0 && isFinite(startMs)) {
+                if (!clockStartInput.value && startMs > 0 && isFinite(startMs)) {
                     var d = new Date(startMs);
                     function pad(n) { return String(n).padStart(2, '0'); }
                     clockStartInput.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
@@ -684,7 +707,6 @@ if (!$isRecording) {
         clockUploadBtn.addEventListener('click', function () {
             var file = clockFileInput.files[0];
             var msgEl = document.getElementById('fm-clock-upload-msg');
-            var spinner = document.getElementById('fm-clock-upload-spinner');
 
             function showMsg(text, ok) {
                 msgEl.style.display = '';
@@ -702,22 +724,26 @@ if (!$isRecording) {
             fd.append('audio', file);
 
             clockUploadBtn.disabled = true;
-            spinner.style.display = '';
-            msgEl.style.display = 'none';
+            showMsg('Caricamento in corso…', true);
 
             fetch(base + '/api/clock_upload.php', { method: 'POST', body: fd })
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    spinner.style.display = 'none';
-                    if (d.ok) {
-                        showMsg('Audio collegato — durata ' + (d.duration_hms || '') + '. Ricarico…', true);
+                .then(function (r) {
+                    return r.json().then(function (d) { return { status: r.status, body: d }; });
+                })
+                .then(function (res) {
+                    if (res.status === 401) {
+                        clockUploadBtn.disabled = false;
+                        window.fmSessionExpired('Il file audio non è stato caricato.', null);
+                        return;
+                    }
+                    if (res.body && res.body.ok) {
+                        showMsg('Audio collegato — durata ' + (res.body.duration_hms || '') + '. Ricarico…', true);
                         setTimeout(function () { location.reload(); }, 1200);
                     } else {
                         clockUploadBtn.disabled = false;
-                        showMsg(d.error || 'Errore durante il caricamento', false);
+                        showMsg((res.body && res.body.error) || 'Errore durante il caricamento', false);
                     }
                 }).catch(function () {
-                    spinner.style.display = 'none';
                     clockUploadBtn.disabled = false;
                     showMsg('Errore di rete', false);
                 });
