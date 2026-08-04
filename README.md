@@ -40,6 +40,10 @@ abbonamento.
 - **Resiliente per costruzione**: riprende da sola se lo stream cade, se ne
   accorge se si congela, non perde ciò che ha già scritto.
 
+**In arrivo** (`2.0`, vedi [roadmap](docs/ROADMAP.md#più-avanti)): una sezione
+EDIT unica per ritagliare clip da cue, segmenti e file audio unici, con editor
+a forma d'onda direttamente dal browser.
+
 ## Requisiti
 
 - **Raspberry Pi 5** (consigliato), Pi 4 o Pi 3 — oppure un qualsiasi PC o

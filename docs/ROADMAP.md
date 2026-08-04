@@ -131,7 +131,13 @@ stessa rete si pestano i piedi.
 - **Federazione multi-nodo**: lo schema del database la prevede già (tabelle
   dei nodi remoti e relativo registro), ma non esiste alcuna interfaccia né
   alcun endpoint. Da riprendere solo se serve davvero.
-- **Ritaglio manuale delle clip**: funzionalità completa ma disattivata, si
-  riattiva da punti precisi documentati nelle note tecniche.
+- **EDIT/TRIM per cue, segmenti e file unici** → `2.0`: una sezione EDIT unica
+  con tre schede — Segmenti, File unici, Cue — da cui ritagliare una porzione
+  di qualunque registrazione audio e salvarla come nuova clip, con editor a
+  forma d'onda (punti IN/OUT, zoom, scorciatoie da tastiera). Riprende ed
+  estende il ritaglio manuale già scritto ma disattivato — copre oggi solo i
+  cue audio via `edit.php`/`edit-trim.php` — allargandolo anche ai segmenti e
+  ai file audio unici in un'unica vista. Vedi la sezione *TRIM/EDIT manuale —
+  in quarantena* in [NOTE-TECNICHE.md](NOTE-TECNICHE.md).
 - **Bitrate garantito** al posto della qualità costante, se un giorno servisse
   un tetto di spazio prevedibile per slot.
