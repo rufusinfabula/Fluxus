@@ -17,6 +17,39 @@ nessuna fase copre.
 
 ---
 
+## 0.4.4
+
+Tre funzionalità già presenti nell'installazione di produzione, portate nel
+sorgente e adattate alle sue convenzioni.
+
+- **Dashboard**: le card con una registrazione attiva mostrano ora tempo
+  trascorso e barra di avanzamento, aggiornati ogni secondo — piena verso
+  l'obiettivo (`slot_duration`) per le sorgenti normali, a righe oblique
+  animate e senza obiettivo per le sorgenti CLOCK (che non ne hanno mai, a
+  prescindere dal valore in database).
+- **`recording.php`**: guardia CLOCK sulla ricerca file su disco (mai
+  eseguita per una sorgente che non ne produce), player audio singolo
+  ridisegnato nello stesso stile a riga già usato per i segmenti, pulsante
+  Anteprima con gli attributi `data-source-*` che gli servono, e upload
+  audio CLOCK a posteriori con esito inline (niente più spinner separato),
+  gestione esplicita della sessione scaduta (401 da `api/clock_upload.php`)
+  e precompilazione dell'orario che non sovrascrive più un valore già
+  inserito a mano.
+- **Esportazione FCPXML**: le registrazioni audio/video concluse (mai
+  quelle in corso, mai le CLOCK non ancora passate ad audio, mai a volume
+  scollegato) possono ora esportare marker e cue in un file `.fcpxml`
+  importabile in Final Cut Pro X o DaVinci Resolve, con un asset-clip per
+  ogni file su disco e i marker posizionati con la stessa logica di
+  `content_position()` in `extract_clips.sh`. Vedi
+  [NOTE-TECNICHE.md](NOTE-TECNICHE.md) per i vincoli sui timecode allineati
+  ai frame.
+- Tolta dalla navbar l'icona Rete: usava `signal`, l'unica icona del set
+  UIkit 3 vendorizzato vagamente in tema, ma visivamente è un fumetto di
+  conversazione — fuorviante. La pagina Rete resta raggiungibile da
+  Impostazioni.
+
+Nessuna modifica di schema.
+
 ## 0.4.3
 
 Quattro ritocchi estetici alla lista sorgenti (`sources.php`).

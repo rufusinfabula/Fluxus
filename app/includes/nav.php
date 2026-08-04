@@ -42,9 +42,6 @@ $fmNavItems = [
                 </div>
             </li>
             <li>
-                <a href="<?= $fmWebBase ?>/network.php" uk-icon="icon: signal" uk-tooltip="title: Rete; pos: bottom"></a>
-            </li>
-            <li>
                 <a href="<?= $fmWebBase ?>/settings.php" uk-icon="icon: settings" uk-tooltip="title: Impostazioni; pos: bottom"></a>
             </li>
             <?php if (function_exists('fmAuthEnabled') && fmAuthEnabled()): ?>
