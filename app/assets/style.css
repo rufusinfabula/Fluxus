@@ -1054,6 +1054,27 @@ kbd {
     color: #999;
 }
 
+/* Registrazione senza obiettivo (es. CLOCK): barra rossa a righe oblique
+   in scorrimento, al posto di un riempimento percentuale che non avrebbe
+   senso senza una durata prevista. */
+.fm-progress-unbounded {
+    background-color: #fdf0f2;
+    background-image: repeating-linear-gradient(
+        45deg,
+        var(--fm-accent) 0,
+        var(--fm-accent) 8px,
+        transparent 8px,
+        transparent 16px
+    );
+    background-size: 32px 32px;
+    animation: fm-progress-stripes 1s linear infinite;
+}
+
+@keyframes fm-progress-stripes {
+    from { background-position: 32px 0; }
+    to   { background-position: 0 0; }
+}
+
 /* ── Modal: larghezza generosa su tutte le finestre modali ─────────── */
 .uk-modal-dialog.fm-modal-wide {
     width: 70%;

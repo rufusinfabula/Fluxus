@@ -9,7 +9,7 @@ $webBase = rtrim(FM_WEB_BASE, '/');
 
 $sources = $db->query("SELECT * FROM sources WHERE active = 1 ORDER BY name ASC")->fetchAll();
 
-$activeStmt = $db->prepare("SELECT id, start_time FROM recordings WHERE source_id = ? AND status = 'recording' ORDER BY id DESC LIMIT 1");
+$activeStmt = $db->prepare("SELECT id, start_time, slot_duration FROM recordings WHERE source_id = ? AND status = 'recording' ORDER BY id DESC LIMIT 1");
 $lastStmt = $db->prepare("SELECT filename_base, start_time, status FROM recordings WHERE source_id = ? ORDER BY id DESC LIMIT 1");
 $schedStmt = $db->prepare("SELECT id, label, on_calendar, active FROM schedules WHERE source_id = ? ORDER BY id ASC");
 
@@ -145,6 +145,26 @@ include __DIR__ . '/includes/head.php';
                     <span uk-icon="icon: album; ratio: 0.9"></span>
                 </a>
             </div>
+
+            <?php if ($rec):
+                // Un cronometro CLOCK non ha un obiettivo (nessuno slot_duration
+                // sensato da rispettare): trattato come "durata non prevista"
+                // a prescindere dal valore in DB, come già in recording.php.
+                $recSlot = (int)($rec['slot_duration'] ?? 0);
+                $hasTarget = !$isClock && $recSlot > 0;
+            ?>
+            <div class="uk-margin-small-top">
+                <div class="fm-progress-row">
+                    <span class="fm-progress-elapsed fm-mono fm-live-elapsed" data-start="<?= fmH($rec['start_time']) ?>">00:00:00</span>
+                    <span class="fm-progress-filename"><?= $hasTarget ? 'obiettivo ' . fmH(fmFormatDuration($recSlot)) : 'durata non prevista' ?></span>
+                </div>
+                <?php if ($hasTarget): ?>
+                <progress class="uk-progress fm-progress fm-live-bar" value="0" max="<?= $recSlot ?>" style="height:4px;margin:4px 0 2px;"></progress>
+                <?php else: ?>
+                <div class="uk-progress fm-progress fm-progress-unbounded" style="height:4px;margin:4px 0 2px;"></div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
 
             <div class="fm-check-result" style="display:none;margin-top:8px;font-size:12px;line-height:1.4;"></div>
 
@@ -529,6 +549,28 @@ include __DIR__ . '/includes/head.php';
           });
     }
 
+
+    function fmtDur(sec) {
+        sec = Math.max(0, sec | 0);
+        var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+        function p(n) { return n.toString().padStart(2, '0'); }
+        return p(h) + ':' + p(m) + ':' + p(s);
+    }
+
+    function fmUpdateLiveProgress() {
+        document.querySelectorAll('.fm-live-elapsed[data-start]').forEach(function (el) {
+            var startMs = new Date(el.getAttribute('data-start').replace(' ', 'T') + 'Z').getTime();
+            var elapsed = (Date.now() - startMs) / 1000;
+            el.textContent = fmtDur(elapsed);
+            var bar = el.closest('.uk-margin-small-top').querySelector('.fm-live-bar');
+            if (bar) bar.value = Math.min(parseInt(bar.max, 10) || 0, elapsed);
+        });
+    }
+
+    if (document.querySelector('.fm-live-elapsed')) {
+        fmUpdateLiveProgress();
+        setInterval(fmUpdateLiveProgress, 1000);
+    }
 
     function pollStatus() {
         // Un reload mentre l'anteprima è aperta la ammazzerebbe a metà.
