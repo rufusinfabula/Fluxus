@@ -17,6 +17,15 @@ nessuna fase copre.
 
 ---
 
+## 0.4.5
+
+Dashboard: nella sezione "Prossime registrazioni attese", quando non c'è
+nessun orario programmato, non venivano più mostrate le ultime due
+registrazioni come ripiego — comparivano identiche subito sotto, in "Ultime
+registrazioni". Resta solo il messaggio "Nessuna registrazione in programma."
+
+Nessuna modifica di schema.
+
 ## 0.4.4
 
 Tre funzionalità già presenti nell'installazione di produzione, portate nel

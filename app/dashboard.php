@@ -220,33 +220,6 @@ include __DIR__ . '/includes/head.php';
 <?php else: ?>
 <div class="uk-margin-bottom">
     <p class="uk-text-meta uk-margin-remove-bottom">Nessuna registrazione in programma.</p>
-    <?php $recentTwo = array_slice($recent, 0, 2); ?>
-    <?php if ($recentTwo): ?>
-    <div class="uk-overflow-auto uk-margin-small-top">
-    <table class="uk-table uk-table-small uk-table-middle fm-table">
-    <tbody>
-    <?php foreach ($recentTwo as $u):
-        [$uStatusLabel, $uStatusColor] = $statusMeta[$u['status']] ?? [$u['status'], '#999'];
-    ?>
-        <tr class="fm-row-clickable" onclick="location.href='<?= $webBase ?>/recording.php?id=<?= fmRecCode((int)$u['id'], $u['media_type']) ?>'">
-            <td>
-                <?= fmH($u['source_name']) ?>
-                <span style="margin-left:6px;"><?= fmMediaTypeBadge($u['media_type'], true) ?></span>
-            </td>
-            <td class="fm-date"><?= fmH(fmFormatDateTime($u['start_time'])) ?></td>
-            <td>
-                <span class="fm-status-dot" style="background:<?= $uStatusColor ?>;"></span>
-                <span class="fm-status-text" style="color:<?= $uStatusColor ?>;"><?= fmH($uStatusLabel) ?></span>
-            </td>
-            <td><span class="fm-chevron" uk-icon="icon: chevron-right; ratio: 0.9"></span></td>
-        </tr>
-    <?php endforeach; ?>
-    </tbody>
-    </table>
-    </div>
-    <?php else: ?>
-    <p class="uk-text-meta">Nessuna registrazione presente in memoria.</p>
-    <?php endif; ?>
 </div>
 <?php endif; ?>
 
