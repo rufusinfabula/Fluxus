@@ -114,4 +114,30 @@ if ($method === 'DELETE') {
     fmJson(['ok' => true]);
 }
 
+if ($method === 'PATCH') {
+    parse_str($_SERVER['QUERY_STRING'] ?? '', $q);
+    $id = (int)($q['id'] ?? ($_GET['id'] ?? 0));
+    if ($id <= 0) fmError('id mancante');
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = is_array($input) ? ($input['action'] ?? '') : '';
+    if ($action !== 'promote') fmError('Azione non valida');
+
+    $stmt = $db->prepare('SELECT m.type, r.media_type FROM markers m
+        JOIN recordings r ON r.id = m.recording_id WHERE m.id = ?');
+    $stmt->execute([$id]);
+    $marker = $stmt->fetch();
+    if (!$marker) fmError('Marker non trovato', 404);
+
+    if ($marker['type'] !== 'marker') fmError('Solo un marker può essere promosso a cue.');
+    // Le sorgenti CLOCK non producono alcun file: non c'è nulla da tagliare,
+    // qualunque sia lo stato della registrazione (stessa guardia di sopra).
+    if ($marker['media_type'] === 'clock') {
+        fmError('Non disponibile per le registrazioni CLOCK: nessun file da tagliare.');
+    }
+
+    $db->prepare("UPDATE markers SET type = 'cue', clip_status = 'pending' WHERE id = ?")->execute([$id]);
+    fmJson(['ok' => true]);
+}
+
 fmError('Metodo non consentito', 405);

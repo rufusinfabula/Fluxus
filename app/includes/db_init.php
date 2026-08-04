@@ -42,7 +42,7 @@ if ($_fm_needs_init) {
 }
 
 // Migrazioni incrementali per DB già esistenti (aggiunta colonne senza perdere dati).
-$_fm_schema_version = 5;
+$_fm_schema_version = 6;
 try {
     $_fm_mdb = new PDO('sqlite:' . FM_DB);
     $_fm_mdb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -109,6 +109,18 @@ try {
         $_fm_mdb->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('storage_volume_video', '1')");
         $_fm_mdb->exec("INSERT INTO settings (key, value) VALUES ('schema_version', '5')
             ON CONFLICT(key) DO UPDATE SET value = '5'");
+    }
+    if ($_fm_cur < 6) {
+        // Upload audio a posteriori su una sessione CLOCK conclusa: la riga
+        // recordings passa da media_type 'clock' ad 'audio' (vedi api/clock_upload.php),
+        // e questa colonna serve solo a mostrare un badge secondario "da CLOCK" —
+        // nessuna logica applicativa ne dipende.
+        $_fm_cols = array_column($_fm_mdb->query("PRAGMA table_info(recordings)")->fetchAll(PDO::FETCH_ASSOC), 'name');
+        if (!in_array('clock_origin', $_fm_cols, true)) {
+            $_fm_mdb->exec("ALTER TABLE recordings ADD COLUMN clock_origin INTEGER DEFAULT 0");
+        }
+        $_fm_mdb->exec("INSERT INTO settings (key, value) VALUES ('schema_version', '6')
+            ON CONFLICT(key) DO UPDATE SET value = '6'");
     }
 
     unset($_fm_mdb, $_fm_cur, $_fm_cols, $_fm_add, $_fm_col, $_fm_sql);

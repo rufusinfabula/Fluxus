@@ -797,6 +797,27 @@ function fmParseRecId($raw): int {
     return (int)preg_replace('/[^0-9]/', '', (string)$raw);
 }
 
+/** Classe badge, testo ed icona UIkit per un media_type (audio|video|clock). */
+function fmMediaTypeMeta(string $mediaType): array {
+    $isClock = $mediaType === 'clock';
+    $isVideo = $mediaType === 'video';
+    return [
+        'class' => $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio'),
+        'label' => $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO'),
+        'icon'  => $isClock ? 'clock' : ($isVideo ? 'video-camera' : 'microphone'),
+    ];
+}
+
+/** Badge media_type completo di icona: $withText true = icona+testo (dashboard), false = sola icona con tooltip (liste). */
+function fmMediaTypeBadge(string $mediaType, bool $withText): string {
+    $m = fmMediaTypeMeta($mediaType);
+    $icon = '<span uk-icon="icon: ' . $m['icon'] . '; ratio: 0.7"></span>';
+    if ($withText) {
+        return '<span class="' . $m['class'] . '"><span class="uk-flex uk-flex-middle" style="gap:4px;display:inline-flex;">' . $icon . $m['label'] . '</span></span>';
+    }
+    return '<span class="' . $m['class'] . ' fm-badge-icon-only" uk-tooltip="' . $m['label'] . '">' . $icon . '</span>';
+}
+
 /**
  * Crea un marker/cue per una registrazione. $when, se passato, è l'istante
  * (UTC) da usare per calcolare elapsed_seconds al posto di "adesso" — usato

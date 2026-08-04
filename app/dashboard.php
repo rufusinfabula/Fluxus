@@ -80,17 +80,18 @@ include __DIR__ . '/includes/head.php';
 <?php foreach ($sources as $s):
     $isVideo = $s['media_type'] === 'video';
     $isClock = $s['media_type'] === 'clock';
-    $badgeClass = $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
-    $badgeLabel = $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
     $rec = $s['_active_recording'];
     $last = $s['_last_recording'];
+    $cardNavUrl = $rec
+        ? $webBase . '/recording.php?id=' . fmRecCode((int)$rec['id'], $s['media_type'])
+        : $webBase . '/recordings.php?source_id=' . (int)$s['id'];
 ?>
-    <div class="fm-source-card" data-media-type="<?= $s['media_type'] ?>">
+    <div class="fm-source-card" data-media-type="<?= $s['media_type'] ?>" data-nav-url="<?= fmH($cardNavUrl) ?>">
         <div class="uk-card uk-card-default uk-card-body fm-card<?= $rec ? ' fm-card-active' : '' ?>">
             <div class="uk-flex uk-flex-middle uk-flex-between">
                 <h3 class="uk-card-title uk-margin-remove uk-flex uk-flex-middle" style="gap:8px;flex-wrap:wrap;">
                     <?= fmH($s['name']) ?>
-                    <span class="<?= $badgeClass ?>"><?= $badgeLabel ?></span>
+                    <?= fmMediaTypeBadge($s['media_type'], true) ?>
                 </h3>
                 <?php if ($rec): ?>
                 <span class="uk-badge fm-badge-live fm-pulse"><span class="fm-rec-dot" style="background:#fff;"></span>REC</span>
@@ -107,9 +108,9 @@ include __DIR__ . '/includes/head.php';
 
             <div class="uk-flex uk-flex-middle uk-margin-top" style="gap:8px;flex-wrap:wrap;">
                 <?php if ($rec): ?>
-                <a href="<?= $webBase ?>/recording.php?id=<?= fmRecCode((int)$rec['id'], $s['media_type']) ?>" class="uk-button uk-button-danger uk-button-small fm-pulse">
-                    <span class="fm-rec-dot-btn"></span>REC
-                </a>
+                <button type="button" class="uk-button uk-button-danger uk-button-small fm-pulse fm-btn-stop-rec" data-recording-id="<?= (int)$rec['id'] ?>">
+                    <span class="fm-stop-dot-btn"></span>STOP
+                </button>
                 <button class="uk-button uk-button-primary uk-button-small fm-btn-marker" data-recording-id="<?= (int)$rec['id'] ?>" data-media-type="<?= fmH($s['media_type']) ?>">Marker <kbd>M</kbd></button>
                 <?php if ($isClock): ?>
                 <button class="uk-button uk-button-small" style="background:#1a1a1a;border-color:#444;color:#666;" disabled uk-tooltip="Non disponibile per sorgenti CLOCK"><span uk-icon="icon: nut; ratio: 0.8"></span> Cue <kbd>C</kbd></button>
@@ -147,6 +148,18 @@ include __DIR__ . '/includes/head.php';
 
             <div class="fm-check-result" style="display:none;margin-top:8px;font-size:12px;line-height:1.4;"></div>
 
+            <?php if (!$isClock): ?>
+            <div class="fm-preview-inline" id="fm-preview-<?= (int)$s['id'] ?>" hidden>
+                <div class="fm-preview-inline-loading">
+                    <span uk-spinner="ratio: 1"></span>
+                    <span class="fm-preview-inline-loading-text">Connessione alla sorgente… <span class="fm-preview-inline-secs">0</span>s</span>
+                </div>
+                <div class="fm-preview-inline-error uk-alert uk-alert-danger" style="display:none;font-size:12px;"></div>
+                <video class="fm-preview-inline-video" style="display:none;" controls playsinline></video>
+                <audio class="fm-preview-inline-audio" style="display:none;width:100%;" controls></audio>
+            </div>
+            <?php endif; ?>
+
             <?php if ($s['_schedules']): ?>
             <div class="fm-card-subsection">
                 <div class="fm-section-title">Orari programmati</div>
@@ -165,18 +178,16 @@ include __DIR__ . '/includes/head.php';
 </div>
 
 <h3 class="fm-section-title uk-margin-small-bottom">Prossime registrazioni attese</h3>
+<?php if (!empty($upcoming)): ?>
 <div class="uk-overflow-auto uk-margin-bottom">
 <table class="uk-table uk-table-small uk-table-middle fm-table">
     <thead><tr><th>Sorgente</th><th>Etichetta</th><th>OnCalendar</th><th style="width:150px;">Prossima</th></tr></thead>
     <tbody>
-    <?php if (empty($upcoming)): ?>
-        <tr><td colspan="4" class="uk-text-meta">Nessun orario attivo in programma.</td></tr>
-    <?php endif; ?>
-    <?php foreach ($upcoming as $u): $isV = $u['media_type'] === 'video'; ?>
+    <?php foreach ($upcoming as $u): ?>
         <tr>
             <td>
                 <?= fmH($u['source_name']) ?>
-                <span class="<?= $isV ? 'fm-badge-video' : 'fm-badge-audio' ?>" style="margin-left:6px;"><?= $isV ? 'VIDEO' : 'AUDIO' ?></span>
+                <span style="margin-left:6px;"><?= fmMediaTypeBadge($u['media_type'], true) ?></span>
             </td>
             <td><?= fmH($u['label'] ?: '—') ?></td>
             <td><span class="fm-prefix-chip"><?= fmH($u['on_calendar']) ?></span></td>
@@ -186,6 +197,38 @@ include __DIR__ . '/includes/head.php';
     </tbody>
 </table>
 </div>
+<?php else: ?>
+<div class="uk-margin-bottom">
+    <p class="uk-text-meta uk-margin-remove-bottom">Nessuna registrazione in programma.</p>
+    <?php $recentTwo = array_slice($recent, 0, 2); ?>
+    <?php if ($recentTwo): ?>
+    <div class="uk-overflow-auto uk-margin-small-top">
+    <table class="uk-table uk-table-small uk-table-middle fm-table">
+    <tbody>
+    <?php foreach ($recentTwo as $u):
+        [$uStatusLabel, $uStatusColor] = $statusMeta[$u['status']] ?? [$u['status'], '#999'];
+    ?>
+        <tr class="fm-row-clickable" onclick="location.href='<?= $webBase ?>/recording.php?id=<?= fmRecCode((int)$u['id'], $u['media_type']) ?>'">
+            <td>
+                <?= fmH($u['source_name']) ?>
+                <span style="margin-left:6px;"><?= fmMediaTypeBadge($u['media_type'], true) ?></span>
+            </td>
+            <td class="fm-date"><?= fmH(fmFormatDateTime($u['start_time'])) ?></td>
+            <td>
+                <span class="fm-status-dot" style="background:<?= $uStatusColor ?>;"></span>
+                <span class="fm-status-text" style="color:<?= $uStatusColor ?>;"><?= fmH($uStatusLabel) ?></span>
+            </td>
+            <td><span class="fm-chevron" uk-icon="icon: chevron-right; ratio: 0.9"></span></td>
+        </tr>
+    <?php endforeach; ?>
+    </tbody>
+    </table>
+    </div>
+    <?php else: ?>
+    <p class="uk-text-meta">Nessuna registrazione presente in memoria.</p>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <h3 class="fm-section-title uk-margin-small-bottom">Ultime registrazioni</h3>
 <div class="uk-overflow-auto">
@@ -198,14 +241,10 @@ include __DIR__ . '/includes/head.php';
         <tr><td colspan="6" class="uk-text-meta">Nessuna registrazione.</td></tr>
     <?php endif; ?>
     <?php foreach ($recent as $r):
-        $isVideo = $r['media_type'] === 'video';
-        $isClk = $r['media_type'] === 'clock';
-        $rBadgeClass = $isClk ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
-        $rBadgeLabel = $isClk ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
         [$statusLabel, $statusColor] = $statusMeta[$r['status']] ?? [$r['status'], '#999'];
     ?>
         <tr data-media-type="<?= $r['media_type'] ?>" class="fm-row-clickable" onclick="location.href='<?= $webBase ?>/recording.php?id=<?= fmRecCode((int)$r['id'], $r['media_type']) ?>'">
-            <td><span class="<?= $rBadgeClass ?>"><?= $rBadgeLabel ?></span></td>
+            <td><?= fmMediaTypeBadge($r['media_type'], true) ?></td>
             <td><?= fmH($r['source_name']) ?></td>
             <td class="fm-date"><?= fmH(fmFormatDateTime($r['start_time'])) ?></td>
             <td class="fm-mono" style="font-size:12px;"><?= fmFormatDuration($r['duration_seconds']) ?></td>
@@ -258,17 +297,32 @@ include __DIR__ . '/includes/head.php';
           }).catch(function () { btn.disabled = false; alert('Errore di rete'); });
     }
 
+    function fmStopRecording(recordingId, btn) {
+        if (!confirm('Fermare questa registrazione?')) return;
+        btn.disabled = true;
+        fetch(base + '/api/stop.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recording_id: recordingId })
+        }).then(function () { setTimeout(function () { location.reload(); }, 1000); })
+          .catch(function () { btn.disabled = false; alert('Errore di rete'); });
+    }
+
     document.addEventListener('click', function (e) {
         var recBtn = e.target.closest('.fm-btn-rec');
         if (recBtn) { fmStartRecording(recBtn.getAttribute('data-source-id'), recBtn); return; }
 
+        var stopBtn = e.target.closest('.fm-btn-stop-rec');
+        if (stopBtn) { fmStopRecording(stopBtn.getAttribute('data-recording-id'), stopBtn); return; }
+
         var prevBtn = e.target.closest('.fm-btn-preview');
         if (prevBtn) {
-            window.fmOpenPreview(
-                prevBtn.getAttribute('data-source-id'),
-                prevBtn.getAttribute('data-source-name'),
-                prevBtn.getAttribute('data-media-type')
-            );
+            var sid = prevBtn.getAttribute('data-source-id');
+            if (fmOpenPreviews[sid]) {
+                fmCloseInlinePreview(sid);
+            } else {
+                fmOpenInlinePreview(sid, prevBtn.getAttribute('data-media-type'));
+            }
             return;
         }
 
@@ -279,6 +333,158 @@ include __DIR__ . '/includes/head.php';
         if (mBtn) { fmOpenMarkerModal(mBtn.getAttribute('data-recording-id'), 'marker'); return; }
         var cBtn = e.target.closest('.fm-btn-cue-btn');
         if (cBtn) { fmOpenMarkerModal(cBtn.getAttribute('data-recording-id'), 'cue'); return; }
+    });
+
+    // Card sorgente cliccabile: naviga verso la registrazione attiva (o l'elenco
+    // filtrato) SOLO se il click non è su un pulsante/link interno. Niente
+    // stopPropagation qui: i pulsanti della card sono gestiti dal listener
+    // delegato su document qui sopra, e stopPropagation a metà albero DOM
+    // impedirebbe all'evento di risalire fino a lì, disattivando tutti i
+    // pulsanti della card (bug già preso in produzione).
+    document.querySelectorAll('.fm-source-card[data-nav-url]').forEach(function (card) {
+        card.addEventListener('click', function (e) {
+            if (e.target.closest('button, a')) return;
+            var url = card.getAttribute('data-nav-url');
+            if (url) location.href = url;
+        });
+    });
+
+    // --- Anteprima live inline nella card (audio e video) ---------------------
+    var fmOpenPreviews = {}; // source_id -> { tick, hls }
+
+    function fmPreviewBox(sourceId) {
+        var wrap = document.getElementById('fm-preview-' + sourceId);
+        if (!wrap) return null;
+        return {
+            wrap: wrap,
+            loading: wrap.querySelector('.fm-preview-inline-loading'),
+            secs: wrap.querySelector('.fm-preview-inline-secs'),
+            error: wrap.querySelector('.fm-preview-inline-error'),
+            video: wrap.querySelector('.fm-preview-inline-video'),
+            audio: wrap.querySelector('.fm-preview-inline-audio')
+        };
+    }
+
+    function fmCloseInlinePreview(sourceId, useBeacon) {
+        var state = fmOpenPreviews[sourceId];
+        if (!state) return;
+        if (state.tick) clearInterval(state.tick);
+        if (state.hls) state.hls.destroy();
+        delete fmOpenPreviews[sourceId];
+
+        var box = fmPreviewBox(sourceId);
+        if (box) {
+            [box.video, box.audio].forEach(function (p) {
+                p.pause();
+                p.removeAttribute('src');
+                p.load();
+                p.style.display = 'none';
+            });
+            box.error.style.display = 'none';
+            box.loading.style.display = '';
+            box.wrap.hidden = true;
+        }
+
+        var payload = JSON.stringify({ source_id: sourceId });
+        if (useBeacon && navigator.sendBeacon) {
+            navigator.sendBeacon(base + '/api/preview_stop.php', new Blob([payload], { type: 'application/json' }));
+        } else {
+            fetch(base + '/api/preview_stop.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+        }
+    }
+
+    function fmOpenInlinePreview(sourceId, mediaType) {
+        var box = fmPreviewBox(sourceId);
+        if (!box) return;
+        var isVideo = mediaType === 'video';
+
+        fmOpenPreviews[sourceId] = {};
+        box.wrap.hidden = false;
+        box.error.style.display = 'none';
+        box.video.style.display = 'none';
+        box.audio.style.display = 'none';
+        box.loading.style.display = '';
+        var secs = 0;
+        box.secs.textContent = secs;
+        fmOpenPreviews[sourceId].tick = setInterval(function () {
+            secs++;
+            box.secs.textContent = secs;
+        }, 1000);
+
+        fetch(base + '/api/preview_start.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source_id: sourceId })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) {
+              var state = fmOpenPreviews[sourceId];
+              if (!state) return; // chiusa nel frattempo
+
+              if (!d.ok) {
+                  clearInterval(state.tick);
+                  box.loading.style.display = 'none';
+                  box.error.style.display = '';
+                  box.error.textContent = d.error || 'Anteprima non disponibile';
+                  delete fmOpenPreviews[sourceId];
+                  return;
+              }
+
+              var player = isVideo ? box.video : box.audio;
+
+              function onReady() {
+                  var s = fmOpenPreviews[sourceId];
+                  if (s && s.tick) { clearInterval(s.tick); s.tick = null; }
+                  box.loading.style.display = 'none';
+                  player.style.display = '';
+                  var p = player.play();
+                  if (p && p.catch) p.catch(function () {});
+              }
+
+              if (window.Hls && Hls.isSupported()) {
+                  var hls = new Hls({ liveDurationInfinity: true });
+                  state.hls = hls;
+                  hls.loadSource(d.hls_url);
+                  hls.attachMedia(player);
+                  hls.on(Hls.Events.MANIFEST_PARSED, onReady);
+                  hls.on(Hls.Events.ERROR, function (evt, data) {
+                      if (!data.fatal) return;
+                      box.loading.style.display = 'none';
+                      box.error.style.display = '';
+                      box.error.textContent = 'Errore di riproduzione HLS: ' + data.type;
+                  });
+              } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+                  player.src = d.hls_url;
+                  player.addEventListener('loadedmetadata', onReady, { once: true });
+                  player.addEventListener('error', function () {
+                      box.loading.style.display = 'none';
+                      box.error.style.display = '';
+                      box.error.textContent = 'Il player non è riuscito ad aprire il flusso HLS.';
+                  }, { once: true });
+              } else {
+                  clearInterval(state.tick);
+                  box.loading.style.display = 'none';
+                  box.error.style.display = '';
+                  box.error.textContent = 'Il browser non supporta la riproduzione HLS.';
+              }
+          }).catch(function () {
+              var state = fmOpenPreviews[sourceId];
+              if (!state) return;
+              clearInterval(state.tick);
+              box.loading.style.display = 'none';
+              box.error.style.display = '';
+              box.error.textContent = 'Errore di rete';
+              delete fmOpenPreviews[sourceId];
+          });
+    }
+
+    // Più anteprime insieme sono ammesse: qui basta sapere se ce n'è ALMENO una,
+    // per sospendere il polling che ricaricherebbe la pagina a metà.
+    window.fmPreviewActive = function () {
+        return Object.keys(fmOpenPreviews).length > 0;
+    };
+
+    window.addEventListener('pagehide', function () {
+        Object.keys(fmOpenPreviews).forEach(function (sid) { fmCloseInlinePreview(sid, true); });
     });
 
     // Tasti M/C collegati alla prima registrazione attiva in pagina
@@ -352,7 +558,9 @@ include __DIR__ . '/includes/head.php';
 })();
 </script>
 
-<?php include __DIR__ . '/includes/preview_modal.php'; ?>
+<?php /* Anteprima inline nella card, non più un modale condiviso: vedi lo script
+         qui sopra. hls.js resta lo stesso build 'light' servito da preview_modal.php. */ ?>
+<script src="<?= $webBase ?>/assets/vendor/hls.light-1.6.16.min.js"></script>
 <?php include __DIR__ . '/includes/session_modal.php'; ?>
 <?php include __DIR__ . '/includes/marker_modal.php'; ?>
 <?php include __DIR__ . '/includes/foot.php'; ?>

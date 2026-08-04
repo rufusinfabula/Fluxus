@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS recordings (
     fps_actual       INTEGER,
     ffmpeg_pid       INTEGER,
     notes            TEXT,
+    clock_origin     INTEGER DEFAULT 0,  -- 1 = audio caricato a posteriori su una sessione CLOCK
     created_at       TEXT DEFAULT (datetime('now'))
 );
 

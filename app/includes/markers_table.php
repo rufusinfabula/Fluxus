@@ -50,7 +50,12 @@ $fmCuePlaySvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentCo
             </td>
             <td>
             <?php if (!$isCue): ?>
+                <?php if (($recording['media_type'] ?? '') !== 'clock'): ?>
+                <a href="#" class="fm-action-icon" uk-icon="icon: arrow-up; ratio: 0.8" uk-tooltip="Promuovi a cue (ritaglia una clip)"
+                   onclick="fmPromoteMarker(<?= (int)$m['id'] ?>);return false;"></a>
+                <?php else: ?>
                 <span class="uk-text-meta">—</span>
+                <?php endif; ?>
             <?php elseif ($m['clip_status'] === 'pending'): ?>
                 <span class="uk-text-meta" uk-icon="icon: clock; ratio: 0.8"></span> <span class="uk-text-meta">in estrazione&hellip;</span>
             <?php elseif ($m['clip_status'] === 'failed'): ?>
@@ -87,6 +92,32 @@ $fmCuePlaySvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentCo
 </div>
 
 <script>
+var fmMarkersRecordingId = <?= (int)($recording['id'] ?? 0) ?>;
+
+function fmRefreshMarkersTable() {
+    var wrap = document.getElementById('fm-markers-wrap');
+    if (!wrap || !fmMarkersRecordingId) return;
+    fetch(<?= json_encode($fmWebBase) ?> + '/recording.php?id=' + fmMarkersRecordingId + '&partial=markers')
+        .then(function (r) { return r.text(); })
+        .then(function (html) { wrap.innerHTML = html; });
+}
+
+function fmPromoteMarker(id) {
+    if (!confirm('Promuovere questo marker a cue? Verrà tagliata una clip.')) return;
+    fetch(<?= json_encode($fmWebBase) ?> + '/api/marker.php?id=' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'promote' })
+    }).then(function (r) { return r.json(); })
+      .then(function (d) {
+          if (d.ok) {
+              fmRefreshMarkersTable();
+          } else {
+              alert(d.error || 'Errore durante la promozione');
+          }
+      }).catch(function () { alert('Errore di rete'); });
+}
+
 function fmDeleteMarker(id) {
     if (!confirm('Eliminare questo marker/cue?')) return;
     fetch(<?= json_encode($fmWebBase) ?> + '/api/marker.php?id=' + id, { method: 'DELETE' })

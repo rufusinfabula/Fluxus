@@ -153,13 +153,13 @@ include __DIR__ . '/includes/head.php';
     <?php foreach ($sources as $s):
         $isVideo = $s['media_type'] === 'video';
         $isClock = $s['media_type'] === 'clock';
-        $badgeClass = $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
-        $badgeLabel = $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
+        // Tinta di riga: colore accento della sua etichetta media_type, ~30% opacità.
+        $rowTint = $isClock ? 'rgba(180,83,9,.3)' : ($isVideo ? 'rgba(168,85,201,.3)' : 'rgba(30,135,240,.3)');
     ?>
-        <tr>
+        <tr style="background:<?= $rowTint ?>;">
             <td>
                 <strong><?= fmH($s['name']) ?></strong>
-                <span class="<?= $badgeClass ?>" style="margin-left:6px;"><?= $badgeLabel ?></span>
+                <span style="margin-left:6px;"><?= fmMediaTypeBadge($s['media_type'], false) ?></span>
             </td>
             <td class="uk-text-truncate fm-mono" style="max-width:320px;font-size:12px;color:#666;">
                 <?php if ($s['type'] === 'rtmp-push'): ?>

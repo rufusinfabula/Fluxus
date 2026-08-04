@@ -155,10 +155,6 @@ include __DIR__ . '/includes/head.php';
         <tr><td colspan="11" class="uk-text-meta">Nessuna registrazione trovata con i filtri selezionati.</td></tr>
     <?php endif; ?>
     <?php foreach ($rows as $r):
-        $isVideo = $r['media_type'] === 'video';
-        $isClock = $r['media_type'] === 'clock';
-        $badgeClass = $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio');
-        $badgeLabel = $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO');
         [$statusLabel, $statusColor] = $statusMeta[$r['status']] ?? [$r['status'], '#999'];
         $clips = $counts[$r['id']]['clips'] ?? 0;
         $markerCnt = $counts[$r['id']]['markers'] ?? 0;
@@ -181,7 +177,11 @@ include __DIR__ . '/includes/head.php';
             <td class="fm-idx fm-mono"><?= fmRecCode((int)$r['id'], $r['media_type']) ?></td>
             <td>
                 <?= fmH($r['source_name']) ?>
-                <span class="<?= $badgeClass ?>" style="margin-left:6px;"><?= $badgeLabel ?></span>
+                <span style="margin-left:6px;"><?= fmMediaTypeBadge($r['media_type'], false) ?></span>
+                <?php if (!empty($r['clock_origin'])): ?>
+                <span class="uk-badge" style="background:#fdf1e0;color:#b45309;font-size:9px;margin-left:4px;"
+                      uk-tooltip="Audio caricato a posteriori da un registratore CLOCK esterno">da CLOCK</span>
+                <?php endif; ?>
             </td>
             <td class="fm-date"><?= fmH(fmFormatDateTime($r['start_time'])) ?></td>
             <td class="fm-filename"><?= fmH($r['filename_base']) ?></td>

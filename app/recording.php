@@ -122,7 +122,11 @@ include __DIR__ . '/includes/head.php';
                 <div class="fm-dl-label">Sorgente</div>
                 <div class="fm-dl-value">
                     <strong><?= fmH($recording['current_source_name'] ?? $recording['source_name']) ?></strong>
-                    <span class="<?= $isClock ? 'fm-badge-clock' : ($isVideo ? 'fm-badge-video' : 'fm-badge-audio') ?>" style="margin-left:6px;"><?= $isClock ? 'CLOCK' : ($isVideo ? 'VIDEO' : 'AUDIO') ?></span>
+                    <span style="margin-left:6px;"><?= fmMediaTypeBadge($recording['media_type'], true) ?></span>
+                    <?php if (!empty($recording['clock_origin'])): ?>
+                    <span class="uk-badge" style="background:#fdf1e0;color:#b45309;font-size:9px;margin-left:4px;"
+                          uk-tooltip="Audio caricato a posteriori da un registratore CLOCK esterno">da CLOCK</span>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="fm-dl-row">
@@ -169,7 +173,7 @@ include __DIR__ . '/includes/head.php';
                 <?php else: ?>
                 <button class="uk-button uk-button-small fm-btn-cue fm-on-accent" style="background:#1a1a1a;border-color:#444;color:#e0e0e0;" id="fm-btn-cue"><span uk-icon="icon: nut; ratio: 0.8"></span> Cue <kbd>C</kbd></button>
                 <?php endif; ?>
-                <button class="uk-button uk-button-danger uk-button-small" id="fm-btn-stop"><span class="fm-rec-dot-btn"></span>Ferma</button>
+                <button class="uk-button uk-button-danger uk-button-small" id="fm-btn-stop"><span class="fm-stop-dot-btn"></span>STOP</button>
                 <?php if (!$isClock): ?>
                 <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-btn-preview"
                         data-source-id="<?= (int)$recording['source_id'] ?>"
@@ -420,6 +424,22 @@ if (!$isRecording) {
             Sorgente CLOCK — nessun file audio/video. I marker qui sotto sono
             l'unico contenuto di questa registrazione.
         </p>
+        <?php if (!$isRecording): ?>
+        <div class="uk-margin-top" style="border-top:1px solid #f2f2f2;padding-top:12px;">
+            <div class="uk-text-meta" style="font-size:12px;margin-bottom:8px;">
+                Puoi collegare a questa sessione l'audio registrato nel frattempo da un
+                dispositivo esterno: i marker verranno posizionati rispetto a questo file.
+                Un solo caricamento per registrazione — non è prevista sostituzione.
+            </div>
+            <div class="uk-flex uk-flex-middle" style="gap:8px;flex-wrap:wrap;">
+                <input type="file" id="fm-clock-file" accept="audio/*" class="uk-input uk-form-small" style="max-width:240px;">
+                <input type="datetime-local" id="fm-clock-start" class="uk-input uk-form-small fm-mono" style="width:200px;" step="1">
+                <button type="button" class="uk-button uk-button-primary uk-button-small" id="fm-clock-upload-btn">Carica e collega audio</button>
+                <span uk-spinner="ratio: 0.6" id="fm-clock-upload-spinner" style="display:none;"></span>
+            </div>
+            <div class="uk-text-small" id="fm-clock-upload-msg" style="margin-top:6px;display:none;"></div>
+        </div>
+        <?php endif; ?>
         <?= $posthocBox ?>
     </div>
 <?php else: ?>
@@ -605,6 +625,80 @@ if (!$isRecording) {
                 }
                 posthocMsg('NON salvato — ' + (err && err.message ? err.message : 'errore sconosciuto'), false);
             });
+        });
+    }
+
+    // --- CLOCK: upload audio a posteriori -------------------------------------
+    var clockFileInput = document.getElementById('fm-clock-file');
+    var clockStartInput = document.getElementById('fm-clock-start');
+    if (clockFileInput && clockStartInput) {
+        // Precompilazione lato client SENZA alcuna richiesta di rete: mtime del
+        // file scelto meno la durata letta al volo. Resta sempre modificabile a
+        // mano, e il server ricalcola comunque la durata reale via ffprobe — non
+        // ci si fida mai di questo suggerimento per la logica di posizionamento.
+        clockFileInput.addEventListener('change', function () {
+            var file = clockFileInput.files[0];
+            if (!file) return;
+            var probe = document.createElement('audio');
+            probe.preload = 'metadata';
+            var url = URL.createObjectURL(file);
+            probe.src = url;
+            probe.addEventListener('loadedmetadata', function () {
+                var durSec = probe.duration || 0;
+                var startMs = file.lastModified - durSec * 1000;
+                if (startMs > 0 && isFinite(startMs)) {
+                    var d = new Date(startMs);
+                    function pad(n) { return String(n).padStart(2, '0'); }
+                    clockStartInput.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+                        + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+                }
+                URL.revokeObjectURL(url);
+            });
+        });
+    }
+
+    var clockUploadBtn = document.getElementById('fm-clock-upload-btn');
+    if (clockUploadBtn) {
+        clockUploadBtn.addEventListener('click', function () {
+            var file = clockFileInput.files[0];
+            var msgEl = document.getElementById('fm-clock-upload-msg');
+            var spinner = document.getElementById('fm-clock-upload-spinner');
+
+            function showMsg(text, ok) {
+                msgEl.style.display = '';
+                msgEl.style.color = ok ? '#32d296' : '#f0506e';
+                msgEl.textContent = text;
+            }
+
+            if (!file) { showMsg('Seleziona un file audio.', false); return; }
+            if (!clockStartInput.value) { showMsg("Indica l'orario di inizio.", false); return; }
+            if (!confirm('Caricare questo file come contenuto della sessione CLOCK? Non sarà possibile sostituirlo in seguito.')) return;
+
+            var fd = new FormData();
+            fd.append('recording_id', recordingId);
+            fd.append('start_time', clockStartInput.value);
+            fd.append('audio', file);
+
+            clockUploadBtn.disabled = true;
+            spinner.style.display = '';
+            msgEl.style.display = 'none';
+
+            fetch(base + '/api/clock_upload.php', { method: 'POST', body: fd })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    spinner.style.display = 'none';
+                    if (d.ok) {
+                        showMsg('Audio collegato — durata ' + (d.duration_hms || '') + '. Ricarico…', true);
+                        setTimeout(function () { location.reload(); }, 1200);
+                    } else {
+                        clockUploadBtn.disabled = false;
+                        showMsg(d.error || 'Errore durante il caricamento', false);
+                    }
+                }).catch(function () {
+                    spinner.style.display = 'none';
+                    clockUploadBtn.disabled = false;
+                    showMsg('Errore di rete', false);
+                });
         });
     }
 
