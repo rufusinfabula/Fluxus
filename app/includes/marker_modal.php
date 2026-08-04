@@ -165,5 +165,18 @@ $fmMarkerAutosaveSeconds = (int)fmSetting('marker_autosave_seconds', '8');
     document.getElementById('fm-marker-label-input').addEventListener('keydown', function (e) {
         if (e.key === 'Enter') { e.preventDefault(); doSave(); }
     });
+
+    // Il campo resta con il focus attivo anche a modale chiuso (nascosto ma
+    // non sfocato): senza blur(), il tasto M/C successivo lo trova come
+    // e.target e il listener globale lo scambia per "sto scrivendo in un
+    // campo vero", lasciando passare la lettera invece di riaprire il modale.
+    // Evento nativo `hidden` (bubbla da UIkit a fine animazione di chiusura),
+    // non UIkit.util.on: questo script gira prima che foot.php carichi UIkit
+    // (stessa trappola del box volumi).
+    document.addEventListener('hidden', function (e) {
+        if (e.target && e.target.id === 'fm-marker-modal') {
+            document.getElementById('fm-marker-label-input').blur();
+        }
+    }, true);
 })();
 </script>

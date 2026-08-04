@@ -175,10 +175,7 @@ include __DIR__ . '/includes/head.php';
                 <?php endif; ?>
                 <button class="uk-button uk-button-danger uk-button-small" id="fm-btn-stop"><span class="fm-stop-dot-btn"></span>STOP</button>
                 <?php if (!$isClock): ?>
-                <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-btn-preview"
-                        data-source-id="<?= (int)$recording['source_id'] ?>"
-                        data-source-name="<?= fmH($recording['current_source_name'] ?? $recording['source_name']) ?>"
-                        data-media-type="<?= fmH($recording['media_type']) ?>">
+                <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-btn-preview">
                     <span uk-icon="icon: <?= $isVideo ? 'video-camera' : 'microphone' ?>; ratio: 0.8"></span> Anteprima
                 </button>
                 <?php endif; ?>
@@ -186,6 +183,15 @@ include __DIR__ . '/includes/head.php';
             <?php if (!$isClock): ?>
             <div class="uk-text-meta" style="font-size:11px;margin-top:6px;">
                 L'anteprima apre un flusso separato verso la sorgente: mostra cosa sta entrando, non tocca la registrazione in corso.
+            </div>
+            <div class="fm-preview-inline" id="fm-preview-inline" hidden>
+                <div class="fm-preview-inline-loading">
+                    <span uk-spinner="ratio: 1"></span>
+                    <span class="fm-preview-inline-loading-text">Connessione alla sorgente… <span class="fm-preview-inline-secs">0</span>s</span>
+                </div>
+                <div class="fm-preview-inline-error uk-alert uk-alert-danger" style="display:none;font-size:12px;"></div>
+                <video class="fm-preview-inline-video" style="display:none;" controls playsinline></video>
+                <audio class="fm-preview-inline-audio" style="display:none;width:100%;" controls></audio>
             </div>
             <?php endif; ?>
             <?php if (!$isClock): ?>
@@ -723,15 +729,149 @@ if (!$isRecording) {
 <?php /* Script WaveSurfer + estrazione manuale rimossi: TRIM/EDIT manuale in quarantena, vedi docs/NOTE-TECNICHE.md. */ ?>
 
 <?php if ($isRecording && !$isClock): ?>
-<?php include __DIR__ . '/includes/preview_modal.php'; ?>
+<?php /* Anteprima inline nella card informazioni, non più un modale: stesso
+         pattern introdotto in dashboard.php dalla 0.4.1. Qui c'è una sola
+         sorgente per pagina, quindi un solo stato basta (niente mappa
+         indicizzata per source_id come in dashboard.php). hls.js resta lo
+         stesso build 'light' già usato lì. */ ?>
+<script src="<?= $webBase ?>/assets/vendor/hls.light-1.6.16.min.js"></script>
 <script>
-document.getElementById('fm-btn-preview').addEventListener('click', function () {
-    window.fmOpenPreview(
-        this.getAttribute('data-source-id'),
-        this.getAttribute('data-source-name'),
-        this.getAttribute('data-media-type')
-    );
-});
+(function () {
+    var base = <?= json_encode($webBase) ?>;
+    var sourceId = <?= (int)$recording['source_id'] ?>;
+    var isVideo = <?= $isVideo ? 'true' : 'false' ?>;
+    var state = null; // { tick, hls }
+
+    function box() {
+        var wrap = document.getElementById('fm-preview-inline');
+        if (!wrap) return null;
+        return {
+            wrap: wrap,
+            loading: wrap.querySelector('.fm-preview-inline-loading'),
+            secs: wrap.querySelector('.fm-preview-inline-secs'),
+            error: wrap.querySelector('.fm-preview-inline-error'),
+            video: wrap.querySelector('.fm-preview-inline-video'),
+            audio: wrap.querySelector('.fm-preview-inline-audio')
+        };
+    }
+
+    function closePreview(useBeacon) {
+        if (!state) return;
+        if (state.tick) clearInterval(state.tick);
+        if (state.hls) state.hls.destroy();
+        state = null;
+
+        var b = box();
+        if (b) {
+            [b.video, b.audio].forEach(function (p) {
+                p.pause();
+                p.removeAttribute('src');
+                p.load();
+                p.style.display = 'none';
+            });
+            b.error.style.display = 'none';
+            b.loading.style.display = '';
+            b.wrap.hidden = true;
+        }
+
+        var payload = JSON.stringify({ source_id: sourceId });
+        if (useBeacon && navigator.sendBeacon) {
+            navigator.sendBeacon(base + '/api/preview_stop.php', new Blob([payload], { type: 'application/json' }));
+        } else {
+            fetch(base + '/api/preview_stop.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+        }
+    }
+
+    function openPreview() {
+        var b = box();
+        if (!b) return;
+
+        state = {};
+        b.wrap.hidden = false;
+        b.error.style.display = 'none';
+        b.video.style.display = 'none';
+        b.audio.style.display = 'none';
+        b.loading.style.display = '';
+        var secs = 0;
+        b.secs.textContent = secs;
+        state.tick = setInterval(function () {
+            secs++;
+            b.secs.textContent = secs;
+        }, 1000);
+
+        fetch(base + '/api/preview_start.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source_id: sourceId })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) {
+              if (!state) return; // chiusa nel frattempo
+
+              if (!d.ok) {
+                  clearInterval(state.tick);
+                  b.loading.style.display = 'none';
+                  b.error.style.display = '';
+                  b.error.textContent = d.error || 'Anteprima non disponibile';
+                  state = null;
+                  return;
+              }
+
+              var player = isVideo ? b.video : b.audio;
+
+              function onReady() {
+                  if (state && state.tick) { clearInterval(state.tick); state.tick = null; }
+                  b.loading.style.display = 'none';
+                  player.style.display = '';
+                  var p = player.play();
+                  if (p && p.catch) p.catch(function () {});
+              }
+
+              if (window.Hls && Hls.isSupported()) {
+                  var hls = new Hls({ liveDurationInfinity: true });
+                  state.hls = hls;
+                  hls.loadSource(d.hls_url);
+                  hls.attachMedia(player);
+                  hls.on(Hls.Events.MANIFEST_PARSED, onReady);
+                  hls.on(Hls.Events.ERROR, function (evt, data) {
+                      if (!data.fatal) return;
+                      b.loading.style.display = 'none';
+                      b.error.style.display = '';
+                      b.error.textContent = 'Errore di riproduzione HLS: ' + data.type;
+                  });
+              } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+                  player.src = d.hls_url;
+                  player.addEventListener('loadedmetadata', onReady, { once: true });
+                  player.addEventListener('error', function () {
+                      b.loading.style.display = 'none';
+                      b.error.style.display = '';
+                      b.error.textContent = 'Il player non è riuscito ad aprire il flusso HLS.';
+                  }, { once: true });
+              } else {
+                  clearInterval(state.tick);
+                  b.loading.style.display = 'none';
+                  b.error.style.display = '';
+                  b.error.textContent = 'Il browser non supporta la riproduzione HLS.';
+              }
+          }).catch(function () {
+              if (!state) return;
+              clearInterval(state.tick);
+              b.loading.style.display = 'none';
+              b.error.style.display = '';
+              b.error.textContent = 'Errore di rete';
+              state = null;
+          });
+    }
+
+    document.getElementById('fm-btn-preview').addEventListener('click', function () {
+        if (state) {
+            closePreview();
+        } else {
+            openPreview();
+        }
+    });
+
+    window.addEventListener('pagehide', function () { closePreview(true); });
+})();
 </script>
 <?php endif; ?>
 

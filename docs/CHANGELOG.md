@@ -17,6 +17,38 @@ nessuna fase copre.
 
 ---
 
+## 0.4.3
+
+Quattro ritocchi estetici alla lista sorgenti (`sources.php`).
+
+- La tinta di riga per tipo di media (audio/video/CLOCK) era troppo
+  marcata: opacità portata dal 30% all'8%.
+- Ogni riga ha ora un bordo sinistro di 3px a tinta piena, con lo stesso
+  colore già usato dal badge del tipo di media.
+- Più distanza fra il nome della sorgente e il bordo della tabella.
+- L'icona del tipo di media nella riga si è spostata prima del nome
+  invece che dopo.
+
+Solo CSS/markup: nessuna modifica di schema o di API.
+
+## 0.4.2
+
+Due correzioni piccole su recording.php e sul modale Marker/Cue.
+
+- **L'anteprima live di recording.php apriva un modale a sé**, diverso dal
+  player inline già introdotto in dashboard.php dalla 0.4.1. Ora
+  recording.php usa lo stesso pattern: il player nasce nella card, sotto il
+  pulsante Anteprima.
+- **La scorciatoia da tastiera per marker/cue lasciava una lettera residua
+  nel campo etichetta** dal secondo marker in poi: il campo del modale
+  precedente restava con il focus attivo dopo la chiusura, e il tasto
+  premuto per il marker successivo (M o C) veniva digitato lì invece di
+  riaprire il modale. Fix: il campo perde il focus alla chiusura del
+  modale.
+
+Vedi [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Anteprima live*, per il
+dettaglio del primo. Nessuna modifica di schema o di API.
+
 ## 0.4.0
 
 **Rete e WiFi dal browser** ([fase 4](ROADMAP.md) della roadmap).

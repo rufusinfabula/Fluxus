@@ -137,7 +137,7 @@ include __DIR__ . '/includes/head.php';
 <div class="uk-overflow-auto">
 <table class="uk-table uk-table-small uk-table-middle fm-table">
     <thead><tr>
-        <th>Nome</th>
+        <th style="padding-left:10px;">Nome</th>
         <th>URL stream</th>
         <th style="width:80px;">Prefisso</th>
         <th style="width:80px;">Qualità</th>
@@ -153,13 +153,15 @@ include __DIR__ . '/includes/head.php';
     <?php foreach ($sources as $s):
         $isVideo = $s['media_type'] === 'video';
         $isClock = $s['media_type'] === 'clock';
-        // Tinta di riga: colore accento della sua etichetta media_type, ~30% opacità.
-        $rowTint = $isClock ? 'rgba(180,83,9,.3)' : ($isVideo ? 'rgba(168,85,201,.3)' : 'rgba(30,135,240,.3)');
+        // Tinta di riga: colore accento della sua etichetta media_type, appena percettibile.
+        // Lo stesso colore, a piena opacità, va sul bordo sinistro della riga (vedi $rowAccent).
+        $rowTint = $isClock ? 'rgba(180,83,9,.08)' : ($isVideo ? 'rgba(168,85,201,.08)' : 'rgba(30,135,240,.08)');
+        $rowAccent = $isClock ? '#b45309' : ($isVideo ? '#a855c9' : '#1e87f0');
     ?>
         <tr style="background:<?= $rowTint ?>;">
-            <td>
+            <td style="padding-left:10px;box-shadow:inset 3px 0 0 <?= $rowAccent ?>;">
+                <span style="margin-right:6px;"><?= fmMediaTypeBadge($s['media_type'], false) ?></span>
                 <strong><?= fmH($s['name']) ?></strong>
-                <span style="margin-left:6px;"><?= fmMediaTypeBadge($s['media_type'], false) ?></span>
             </td>
             <td class="uk-text-truncate fm-mono" style="max-width:320px;font-size:12px;color:#666;">
                 <?php if ($s['type'] === 'rtmp-push'): ?>

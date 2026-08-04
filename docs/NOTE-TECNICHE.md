@@ -1650,12 +1650,22 @@ file mancasse, la firma non sparisce, cambia solo forma.
 - Ultime 10 registrazioni completate (miste audio e video)
 - Polling status ogni 5s
 
-### Anteprima live — audio e video (v2.4.1, 2026-07-27)
+### Anteprima live — audio e video (v2.4.1, 2026-07-27; inline dalla 0.4.1/0.4.2)
 
 Pulsante "Anteprima" su ogni card sorgente della dashboard **e** nella barra
 comandi di `recording.php` mentre la registrazione è in corso (lì risponde a
 "non so cosa stia registrando": apre un flusso separato verso la sorgente e
 non tocca la registrazione).
+
+Il player nasce **dentro la card**, non in un modale: `dashboard.php`
+(0.4.1) e `recording.php` (0.4.2) hanno ciascuno il proprio blocco
+`.fm-preview-inline` (loading/errore/video/audio) subito sotto il pulsante
+"Anteprima", e il proprio script che chiama `api/preview_start.php` /
+`api/preview_stop.php`. Non c'è più un modale condiviso fra le due pagine:
+`includes/preview_modal.php` resta nel repository ma non è incluso da
+nessuna pagina. `dashboard.php` tiene una mappa `source_id → stato` perché
+più card possono avere l'anteprima aperta insieme; `recording.php` mostra
+una sola sorgente per pagina, quindi usa un singolo stato.
 
 ⚠️ **Il meccanismo precedente, basato sul muxer HLS di MediaMTX, non ha mai
 funzionato** su nessuna sorgente reale — vedi vincolo 17. Non riproporlo.
@@ -1677,12 +1687,15 @@ funzionato** su nessuna sorgente reale — vedi vincolo 17. Non riproporlo.
   prima, esce subito e allega la coda del log all'errore. Risposta:
   `{ok:true, source_id, media_type, hls_url}`.
 - `api/preview_stop.php` (POST `{source_id}`): uccide il relay e cancella la
-  dir. Chiamato alla chiusura del modale, anche via `sendBeacon`.
-- `includes/preview_modal.php`: modale condiviso fra dashboard e recording,
-  espone `window.fmOpenPreview(sourceId, name, mediaType)` e
-  `window.fmPreviewActive()`. Spinner UIkit con contatore dei secondi durante
-  la connessione, `<video>` per il video e `<audio>` per l'audio, hls.js servito
-  da `assets/vendor/` con fallback all'HLS nativo di Safari.
+  dir. Chiamato alla chiusura del player inline, anche via `sendBeacon`
+  (`pagehide`).
+- Player inline (blocco `.fm-preview-inline`, script nella pagina stessa):
+  spinner con contatore dei secondi durante la connessione, `<video>` per il
+  video e `<audio>` per l'audio, hls.js servito da `assets/vendor/` con
+  fallback all'HLS nativo di Safari. `dashboard.php` espone
+  `window.fmPreviewActive()` (usata dal suo polling per non ricaricare la
+  pagina a metà anteprima); `recording.php` non ne ha bisogno, perché lì
+  nessuno script fa `location.reload()` mentre la registrazione è in corso.
 
 ⚠️ **Di hls.js si usa la build `light`** (0.2.0). Rinuncia a DRM, tracce audio
 alternative e sottotitoli: questo flusso non ne ha nessuno — `preview.sh`
@@ -2053,7 +2066,7 @@ indirizzo non cambia mai, quindi nginx li dichiara `immutable` con scadenza a un
 anno e un aggiornamento non può essere scavalcato dalla cache del browser.
 Cambiare versione vuol dire cambiare il nome del file **e** i riferimenti nelle
 pagine che lo caricano: `includes/head.php`, `includes/head_dark.php`,
-`includes/foot.php`, `includes/preview_modal.php`, `login.php`, `edit-trim.php`.
+`includes/foot.php`, `dashboard.php`, `recording.php`, `login.php`, `edit-trim.php`.
 
 ### La verifica
 
