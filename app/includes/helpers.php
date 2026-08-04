@@ -126,6 +126,214 @@ function fmGenerateMarkersFiles(int $recordingId): array {
     return ['csv' => $csvPath, 'txt' => $txtPath, 'json' => $jsonPath];
 }
 
+/**
+ * Converte secondi in un timecode FCPXML allineato a un frame ("N/{fps}s").
+ * $roundDown va usato per le DURATE dei media (asset/clip/sequenza): arrotondare
+ * per eccesso può dichiarare 1 frame in più di quanto il file contenga davvero
+ * (es. 761.424s -> 761.44s), e FCPX rifiuta poi il relink con "the new file is
+ * not long enough" — verificato importando in FCPX reale. Per le posizioni dei
+ * marker l'arrotondamento normale va bene, non è mai un limite superiore.
+ */
+function fmFcpTime(float $seconds, int $fps, bool $roundDown = false): string {
+    $seconds = max(0.0, $seconds);
+    $frames = $roundDown ? (int)floor($seconds * $fps) : (int)round($seconds * $fps);
+    return $frames . '/' . $fps . 's';
+}
+
+/** Escape testo per un attributo XML. */
+function fmXmlEsc(string $s): string {
+    return htmlspecialchars($s, ENT_QUOTES | ENT_XML1, 'UTF-8');
+}
+
+/** URI file:// da un path assoluto locale, con encoding dei singoli segmenti. */
+function fmFileUri(string $absPath): string {
+    $segments = explode('/', $absPath);
+    return 'file://' . implode('/', array_map('rawurlencode', $segments));
+}
+
+/**
+ * Individua in quale file (fra quelli su disco di una registrazione, in ordine
+ * cronologico) cade l'istante assoluto $clickTs, e a quale offset locale dentro
+ * quel file. Stessa logica di content_position() in extract_clips.sh (basata su
+ * mtime - durata di ciascun file), riscritta in PHP perché qui serve anche sapere
+ * QUALE file, non solo la posizione nel contenuto complessivo — nell'FCPXML ogni
+ * marker va agganciato all'asset-clip giusto con un offset relativo a quel clip.
+ * $files: lista ordinata di ['duration' => float, 'fstart' => int epoch].
+ */
+function fmLocateMarkerInFiles(int $clickTs, array $files): array {
+    $cum = 0.0;
+    foreach ($files as $i => $f) {
+        if ($clickTs < $f['fstart']) {
+            return ['index' => $i, 'localOffset' => 0.0];
+        }
+        $fend = $f['fstart'] + $f['duration'];
+        if ($clickTs <= $fend) {
+            return ['index' => $i, 'localOffset' => (float)($clickTs - $f['fstart'])];
+        }
+        $cum += $f['duration'];
+    }
+    $lastIdx = count($files) - 1;
+    return ['index' => $lastIdx, 'localOffset' => $files[$lastIdx]['duration']];
+}
+
+/**
+ * Genera un FCPXML (Final Cut Pro X, importabile anche in DaVinci Resolve) con
+ * marker e cue posizionati sul contenuto reale — stessa correzione di
+ * content_position() per registrazioni con buchi o riprese. Una registrazione
+ * segmentata produce più <asset-clip> in sequenza nella stessa timeline, non un
+ * file per progetto: si apre come un'unica timeline continua.
+ *
+ * Ritorna il path del file generato, o null se non c'è nulla da esportare
+ * (nessun file su disco, registrazione in corso, volume esterno scollegato,
+ * o media_type diverso da audio/video — es. clock senza upload).
+ */
+function fmGenerateFCPXML(int $recordingId): ?string {
+    $db = fmDB();
+    $stmt = $db->prepare('SELECT * FROM recordings WHERE id = ?');
+    $stmt->execute([$recordingId]);
+    $rec = $stmt->fetch();
+    if (!$rec) return null;
+    if (!in_array($rec['media_type'], ['audio', 'video'], true)) return null;
+    if ($rec['status'] === 'recording') return null;
+    if (fmRecordingVolumeOffline($rec)) return null;
+
+    $isVideo = $rec['media_type'] === 'video';
+    $ext = $isVideo ? 'mp4' : 'mp3';
+    $dir = rtrim((string)$rec['output_dir'], '/');
+    $base = $rec['filename_base'];
+
+    // Stesso criterio di recording.php/extract_clips.sh: file singolo se esiste,
+    // più eventuali segmenti _NNN — mai dedotto da segment_duration.
+    $paths = [];
+    $single = $dir . '/' . $base . '.' . $ext;
+    if (is_file($single)) $paths[] = $single;
+    $parts = glob($dir . '/' . $base . '_[0-9][0-9][0-9].' . $ext) ?: [];
+    sort($parts);
+    $paths = array_merge($paths, $parts);
+    if (!$paths) return null;
+
+    $files = [];
+    foreach ($paths as $p) {
+        $mtime = @filemtime($p);
+        $duration = $isVideo ? (fmProbeVideoFile($p)['duration'] ?? null) : fmProbeDuration($p);
+        if ($mtime === false || !$duration || $duration <= 0) continue;
+        $files[] = ['path' => $p, 'duration' => (float)$duration, 'fstart' => (int)round($mtime - $duration)];
+    }
+    if (!$files) return null;
+
+    $vw = (int)($rec['width'] ?: 0);
+    $vh = (int)($rec['height'] ?: 0);
+    $vfps = (int)($rec['fps_actual'] ?: 0);
+    if ($isVideo && (!$vw || !$vh || !$vfps)) {
+        $probe = fmProbeVideoFile($files[0]['path']);
+        $vw = $vw ?: (int)($probe['width'] ?? 1920);
+        $vh = $vh ?: (int)($probe['height'] ?? 1080);
+        $vfps = $vfps ?: (int)round($probe['fps'] ?? 25);
+    }
+    $fps = $isVideo ? max(1, $vfps ?: 25) : 25;
+
+    $startTs = null;
+    if (!empty($rec['start_time'])) {
+        try {
+            $startTs = (new DateTime($rec['start_time'], new DateTimeZone('UTC')))->getTimestamp();
+        } catch (Exception $e) {
+            $startTs = null;
+        }
+    }
+
+    $stmt = $db->prepare('SELECT * FROM markers WHERE recording_id = ? ORDER BY elapsed_seconds ASC');
+    $stmt->execute([$recordingId]);
+    $markers = $stmt->fetchAll();
+
+    $markersByFile = [];
+    foreach ($markers as $m) {
+        $clickTs = $startTs !== null ? $startTs + (int)$m['elapsed_seconds'] : null;
+        $loc = $clickTs !== null
+            ? fmLocateMarkerInFiles($clickTs, $files)
+            : ['index' => 0, 'localOffset' => (float)$m['elapsed_seconds']];
+        $markersByFile[$loc['index']][] = [
+            'localOffset' => max(0.0, $loc['localOffset']),
+            'label'       => trim((string)($m['label'] ?? '')),
+            'isCue'       => $m['type'] === 'cue',
+        ];
+    }
+
+    // Gli export marker restano SEMPRE sul volume interno (stessa regola di
+    // fmGenerateMarkersFiles), anche quando i media stanno su un disco esterno.
+    $outDir = FM_RECORDINGS . '/' . $rec['source_id'];
+    if (!is_dir($outDir)) mkdir($outDir, 0775, true);
+    $fcpxmlPath = $outDir . '/' . $base . '_markers.fcpxml';
+
+    $frameDuration = '1/' . $fps . 's';
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    $xml .= "<!DOCTYPE fcpxml>\n";
+    $xml .= '<fcpxml version="1.10">' . "\n";
+    $xml .= "  <resources>\n";
+    if ($isVideo) {
+        $xml .= sprintf("    <format id=\"r1\" name=\"FFVideoFormatFluxus\" frameDuration=\"%s\" width=\"%d\" height=\"%d\"/>\n", $frameDuration, $vw, $vh);
+    } else {
+        $xml .= sprintf("    <format id=\"r1\" name=\"FFAudioFormatFluxus\" frameDuration=\"%s\"/>\n", $frameDuration);
+    }
+    $assetIds = [];
+    foreach ($files as $i => $f) {
+        $aid = 'a' . ($i + 1);
+        $assetIds[$i] = $aid;
+        // Dallo schema FCPXML 1.6+ il path del media non è più l'attributo src
+        // di <asset>, ma sta dentro un <media-rep> figlio — src su <asset>
+        // fa fallire la validazione DTD in FCPX ("No declaration for attribute
+        // src of element asset"), verificato importando in FCPX reale.
+        $xml .= sprintf(
+            "    <asset id=\"%s\" name=\"%s\" start=\"0s\" duration=\"%s\" hasAudio=\"1\" hasVideo=\"%d\" format=\"r1\">\n" .
+            "      <media-rep kind=\"original-media\" src=\"%s\"/>\n" .
+            "    </asset>\n",
+            $aid, fmXmlEsc(basename($f['path'])), fmFcpTime($f['duration'], $fps, true), $isVideo ? 1 : 0, fmFileUri($f['path'])
+        );
+    }
+    $xml .= "  </resources>\n";
+    $xml .= "  <library>\n";
+    $xml .= sprintf("    <event name=\"%s\">\n", fmXmlEsc($rec['source_name'] . ' — Fluxus'));
+    $xml .= sprintf("      <project name=\"%s\">\n", fmXmlEsc($base));
+    $total = array_sum(array_column($files, 'duration'));
+    $xml .= sprintf("        <sequence format=\"r1\" duration=\"%s\" tcStart=\"0s\" tcFormat=\"NDF\">\n", fmFcpTime($total, $fps, true));
+    $xml .= "          <spine>\n";
+    $cum = 0.0;
+    foreach ($files as $i => $f) {
+        // Un marker deve restare (con la sua durata di 1 frame) dentro la
+        // durata dichiarata del clip, altrimenti sporgerebbe oltre il bordo
+        // arrotondato per difetto — clamp all'ultimo frame utile.
+        $maxOffset = max(0.0, floor($f['duration'] * $fps) / $fps - 1 / $fps);
+        $xml .= sprintf(
+            "            <asset-clip ref=\"%s\" offset=\"%s\" name=\"%s\" start=\"0s\" duration=\"%s\" format=\"r1\">\n",
+            $assetIds[$i], fmFcpTime($cum, $fps), fmXmlEsc(basename($f['path'])), fmFcpTime($f['duration'], $fps, true)
+        );
+        foreach ($markersByFile[$i] ?? [] as $m) {
+            $mStart = fmFcpTime(min($m['localOffset'], $maxOffset), $fps);
+            $mDur = fmFcpTime(1 / $fps, $fps);
+            $mValue = fmXmlEsc($m['label']);
+            // Marker -> chapter-marker (arancione); cue -> to-do marker sempre
+            // incompleto (rosso, completed="0") — scelta esplicita dell'utente,
+            // non riflette clip_status: una volta in FCP lo stato di estrazione
+            // di Fluxus non conta più, il cue va comunque rivisto in montaggio.
+            if ($m['isCue']) {
+                $xml .= sprintf("              <marker start=\"%s\" duration=\"%s\" value=\"%s\" completed=\"0\"/>\n", $mStart, $mDur, $mValue);
+            } else {
+                $xml .= sprintf("              <chapter-marker start=\"%s\" duration=\"%s\" value=\"%s\"/>\n", $mStart, $mDur, $mValue);
+            }
+        }
+        $xml .= "            </asset-clip>\n";
+        $cum += $f['duration'];
+    }
+    $xml .= "          </spine>\n";
+    $xml .= "        </sequence>\n";
+    $xml .= "      </project>\n";
+    $xml .= "    </event>\n";
+    $xml .= "  </library>\n";
+    $xml .= "</fcpxml>\n";
+
+    file_put_contents($fcpxmlPath, $xml);
+    return $fcpxmlPath;
+}
+
 /** Prefisso usato per i nomi file: file_prefix esplicito se impostato, altrimenti slug del nome sorgente. */
 function fmFilenamePrefix(array $source): string {
     $prefix = trim((string)($source['file_prefix'] ?? ''));

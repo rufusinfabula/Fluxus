@@ -75,6 +75,16 @@ foreach ($markersFiles as $fmt => $path) {
     $markersUrls[$fmt] = $markersBaseUrl . rawurlencode(basename($path));
 }
 
+// FCPXML: richiede file reali su disco, quindi solo a registrazione conclusa,
+// non-clock (o clock già passata ad audio via upload) e volume non scollegato.
+$fcpxmlUrl = null;
+if ($recording['status'] !== 'recording' && !$recVolumeOffline && in_array($recording['media_type'], ['audio', 'video'], true)) {
+    $fcpxmlPath = fmGenerateFCPXML($id);
+    if ($fcpxmlPath) {
+        $fcpxmlUrl = $markersBaseUrl . rawurlencode(basename($fcpxmlPath));
+    }
+}
+
 $statusMeta = [
     'completed' => ['Completata', '#32d296'],
     'failed'    => ['Fallita',    '#f0506e'],
@@ -226,6 +236,12 @@ include __DIR__ . '/includes/head.php';
                 <span class="fm-dl-icon" uk-icon="icon: code; ratio: 1.1" style="color:#f0506e;"></span>
                 <div><div class="fm-download-title"><strong>JSON</strong> marker</div><div class="fm-download-desc">Strutturato, con clip</div></div>
             </a>
+            <?php if ($fcpxmlUrl): ?>
+            <a class="fm-download-row uk-link-reset" style="display:flex;" href="<?= fmH($fcpxmlUrl) ?>" download>
+                <span class="fm-dl-icon" uk-icon="icon: video-camera; ratio: 1.1" style="color:#0abfbf;"></span>
+                <div><div class="fm-download-title"><strong>FCPXML</strong> marker</div><div class="fm-download-desc">Final Cut Pro, Resolve</div></div>
+            </a>
+            <?php endif; ?>
         </div>
     </div>
 
