@@ -1031,9 +1031,12 @@ function fmMediaTypeBadge(string $mediaType, bool $withText): string {
  * (UTC) da usare per calcolare elapsed_seconds al posto di "adesso" — usato
  * da scripts/remote_sync.php per ricreare marker/cue con il timestamp del
  * click sulla pulsantiera remota, indipendentemente da quando il Pi lo
- * processa. $origin distingue i marker creati da Fluxus Remote nella UI.
+ * processa. $origin distingue i marker creati da Fluxus Remote/Connect nella
+ * UI. $originLabel è un'etichetta opzionale sulla provenienza (es. il nome
+ * della console che ha inviato il comando via Fluxus Connect) — mai usato
+ * per logica applicativa, solo per il badge in markers_table.php.
  */
-function fmCreateMarker(int $recordingId, string $type, string $label, ?DateTime $when = null, string $origin = 'local', ?int $elapsedOverride = null): array {
+function fmCreateMarker(int $recordingId, string $type, string $label, ?DateTime $when = null, string $origin = 'local', ?int $elapsedOverride = null, ?string $originLabel = null): array {
     $db = fmDB();
     $type = $type === 'marker' ? 'marker' : 'cue';
     $label = trim($label);
@@ -1071,11 +1074,11 @@ function fmCreateMarker(int $recordingId, string $type, string $label, ?DateTime
     $clipStatus = $type === 'cue' ? 'pending' : 'n/a';
 
     $stmt = $db->prepare('INSERT INTO markers
-        (recording_id, elapsed_seconds, elapsed_hms, absolute_time, label, type, clip_status, origin)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        (recording_id, elapsed_seconds, elapsed_hms, absolute_time, label, type, clip_status, origin, origin_label)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([
         $recordingId, $elapsed, $elapsedHms, $now->format('Y-m-d H:i:s'),
-        $label, $type, $clipStatus, $origin,
+        $label, $type, $clipStatus, $origin, $originLabel,
     ]);
     $markerId = (int)$db->lastInsertId();
 

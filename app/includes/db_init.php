@@ -123,6 +123,18 @@ try {
             ON CONFLICT(key) DO UPDATE SET value = '6'");
     }
 
+    if ($_fm_cur < 7) {
+        // Nome della console che ha creato un marker via Fluxus Connect (arriva
+        // come subkey_name dalla coda comandi) — solo un'etichetta per il badge
+        // in markers_table.php, nessuna logica applicativa ne dipende.
+        $_fm_cols = array_column($_fm_mdb->query("PRAGMA table_info(markers)")->fetchAll(PDO::FETCH_ASSOC), 'name');
+        if (!in_array('origin_label', $_fm_cols, true)) {
+            $_fm_mdb->exec("ALTER TABLE markers ADD COLUMN origin_label TEXT");
+        }
+        $_fm_mdb->exec("INSERT INTO settings (key, value) VALUES ('schema_version', '7')
+            ON CONFLICT(key) DO UPDATE SET value = '7'");
+    }
+
     unset($_fm_mdb, $_fm_cur, $_fm_cols, $_fm_add, $_fm_col, $_fm_sql);
 } catch (Exception $e) {
     // silenzioso: se la migrazione fallisce, le pagine che usano le nuove colonne segnaleranno l'errore

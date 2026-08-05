@@ -297,7 +297,7 @@ if [[ -z "$ISTANZA" ]]; then
     esistenti=()
     for f in "$CONF_DIR"/*.conf; do
         [[ -e "$f" ]] || continue
-        [[ "$f" == *.remote.conf ]] && continue
+        [[ "$f" == *.remote.conf || "$f" == *.connect.conf ]] && continue
         esistenti+=("$(basename "$f" .conf)")
     done
     if [[ ${#esistenti[@]} -eq 1 ]]; then
@@ -312,6 +312,7 @@ fi
 
 CONF_FILE="$CONF_DIR/$ISTANZA.conf"
 REMOTE_FILE="$CONF_DIR/$ISTANZA.remote.conf"
+CONNECT_FILE="$CONF_DIR/$ISTANZA.connect.conf"
 MANIFESTO="$CONF_DIR/$ISTANZA.install"
 
 # Legge una chiave da un file CHIAVE=valore, con le stesse regole dei due
@@ -641,6 +642,29 @@ if [[ -n "$(leggi_chiave "$REMOTE_FILE" FLUXUS_REMOTE_URL 2>/dev/null || true)" 
     REMOTE_ATTIVO=1
 fi
 
+# Stesso trattamento, stesso file a parte, per il token di Fluxus Connect.
+if [[ ! -e "$CONNECT_FILE" ]]; then
+    scrivi_file "$CONNECT_FILE" 0640 "root:$GRUPPO" <<FINE
+# Fluxus — segreti dell'istanza '$ISTANZA' per Fluxus Connect. Sta a parte
+# dalla configurazione principale, che è leggibile da tutti: il token non
+# deve esserlo.
+#
+# Vuoto = Fluxus Connect disattivato. Per attivarlo, i valori li dà il
+# pannello di Fluxus Connect:
+#
+# FLUXUS_CONNECT_URL=
+# FLUXUS_CONNECT_TOKEN=
+FINE
+    fatto "$CONNECT_FILE (vuoto: Fluxus Connect disattivato)"
+else
+    dice "$CONNECT_FILE c'era già, non lo tocco"
+fi
+
+CONNECT_ATTIVO=0
+if [[ -n "$(leggi_chiave "$CONNECT_FILE" FLUXUS_CONNECT_URL 2>/dev/null || true)" ]]; then
+    CONNECT_ATTIVO=1
+fi
+
 # ── 3. Cartelle dati ──────────────────────────────────────────────────────────
 
 passo "Cartelle"
@@ -771,8 +795,9 @@ for modello in "$SORGENTE"/systemd/*.service.in "$SORGENTE"/systemd/*.timer.in; 
     base=$(basename "$modello" .in)
     [[ "$base" == mediamtx.service ]] && continue     # ha un nome tutto suo, più sotto
     unit="$PREFISSO-$base"
-    # remote-sync gira ogni 5 secondi: senza relay configurato sarebbe un timer
-    # che si sveglia per uscire subito. Si installa, ma non si attiva.
+    # remote-sync (5s) e connect-sync (2s) girano di continuo: senza relay/
+    # Connect configurati sarebbero timer che si svegliano per uscire subito.
+    # Si installano, ma non si attivano.
     rendi "$modello" | scrivi_file "/etc/systemd/system/$unit" 0644 root:root
     UNIT_INSTALLATI+=("$unit")
 done
@@ -955,6 +980,10 @@ for unit in "${UNIT_INSTALLATI[@]}"; do
     [[ "$unit" == *.timer ]] || continue
     if [[ "$unit" == *remote-sync* ]] && (( ! REMOTE_ATTIVO )); then
         dice "$unit installato ma non attivato (Fluxus Remote non è configurato)"
+        continue
+    fi
+    if [[ "$unit" == *connect-sync* ]] && (( ! CONNECT_ATTIVO )); then
+        dice "$unit installato ma non attivato (Fluxus Connect non è configurato)"
         continue
     fi
     DA_ATTIVARE+=("$unit")

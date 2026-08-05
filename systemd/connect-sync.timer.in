@@ -1,0 +1,9 @@
+[Unit]
+Description=@FLUXUS_APP_NAME@ Connect (@FLUXUS_INSTANCE@) — sincronizzazione ogni 2 secondi
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=2s
+
+[Install]
+WantedBy=timers.target

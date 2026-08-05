@@ -1296,6 +1296,134 @@ dedicata "Remote" tra Tipo e Cue.
   nessuna via di rientro verso Pi/LAN, perché il Pi tira i dati, non li
   riceve mai in ingresso.
 
+## Fluxus Connect — marker/cue da console esterne (v0.4.6)
+
+Problema simile a Fluxus Remote ma non sovrapponibile: seguire e
+controllare Fluxus da un software di scaletta o una console di regia
+esterna, sempre senza aprire porte sul Pi. Soluzione: **Fluxus Connect**
+(repository/prodotto separato, versionato a parte), un **broker** — non un
+relay con pulsantiera propria come Remote, ma un'API pubblica
+(`/api/v1/follow/*`, `/api/v1/control/*`) che terzi autenticati con una
+sotto-chiave possono consumare direttamente. Il Pi resta sempre lui a
+uscire, mai a ricevere connessioni in ingresso.
+
+1. Ogni 2s `scripts/connect_sync.php` (via `fm-connect-sync.timer`) invia a
+   Connect, in `POST /api/pi/status.php`, **tutte** le registrazioni con
+   `status='recording'` (elenco `registrations`, anche vuoto) — stessa
+   query e stesso calcolo di `elapsed_seconds`/`marker_count` già usati da
+   `app/api/status.php`, non un altro. Fluxus può registrare da più
+   sorgenti insieme: a differenza di Remote (che pubblicava lo stesso
+   elenco ma senza vincoli di forma sull'altro capo), qui ogni registrazione
+   ha un `id` stabile perché è il bersaglio che le console useranno per
+   indirizzare un comando a una registrazione precisa.
+2. Una console esterna, autenticata con una sotto-chiave `follow+control`,
+   deposita un marker/cue in `POST /control/commands.php` indicando
+   **esplicitamente** `target_id` fra le registrazioni che il follow espone.
+   La scelta del bersaglio è sempre della console: `connect_sync.php` non
+   applica alcuna euristica ("prendi la più recente", "prendi l'unica
+   trovata") — lo fa già Connect lato server (assegnazione automatica solo
+   quando è attiva esattamente una registrazione, whitelist stretta contro
+   quelle correnti negli altri casi). Un comando il cui `target_id` non
+   corrisponde più a nessuna registrazione attiva quando il Pi lo processa
+   (la registrazione è finita nel frattempo) viene scartato e **confermato**
+   comunque (mai ritentato all'infinito) — stesso principio già in uso in
+   `remote_sync.php` per lo stesso caso.
+3. `connect_sync.php` legge `GET /api/pi/queue.php` e per ogni comando
+   chiama `fmCreateMarker($recordingId, $type, $label, $when, 'connect',
+   null, $subkeyName)` (`includes/helpers.php`) usando `created_at` (il
+   timestamp del click sulla console, non del polling) per calcolare
+   `elapsed_seconds`. Poi conferma (`POST /api/pi/ack.php`, un id alla
+   volta: qui non esiste un ack in batch come nel vecchio relay di Remote).
+4. `subkey_name` — il nome della console/sotto-chiave che ha depositato il
+   comando, che Connect propaga nell'oggetto in coda apposta per questo —
+   finisce nella nuova colonna `markers.origin_label` (schema v7, vedi
+   `db_init.php`). **Non** viene mai scritto nel `label` visibile né riusa
+   la colonna `origin` (che resta il nome del canale: `local`/`remote`/
+   `connect`): sono due informazioni diverse, una tecnica (chi ha creato il
+   marker) e una descrittiva (cosa l'utente ci ha scritto).
+
+Marker/cue creati da Connect hanno `origin='connect'` e in
+`markers_table.php` mostrano un flag dedicato (icona `bolt`) nella colonna
+"Origine", con tooltip che include il nome della console quando
+`origin_label` è presente.
+
+### Configurazione (Pi)
+- `/etc/fluxus/<istanza>.connect.conf` (root:`<gruppo>`, 640, stesso
+  trattamento di `.remote.conf`): `FLUXUS_CONNECT_URL` (base URL di Connect)
+  + `FLUXUS_CONNECT_TOKEN` (token di primo livello del Pi, generato dal
+  pannello di Connect — mai una sotto-chiave, quelle sono per le console).
+  Se vuoti, la feature è disattivata (`connect_sync.php` esce subito,
+  nessuna chiamata di rete).
+- `scripts/connect_sync.php`: gira come l'utente di Fluxus via
+  `<prefisso>-connect-sync.service`/`.timer` (`OnUnitActiveSec=2s`), stesso
+  pattern di `<prefisso>-remote-sync` ma a cadenza doppia. Log:
+  `FM_LOGS/fm-connect-sync.log`. Stesso bootstrap di `remote_sync.php`:
+  risale da `<cartella dati>/scripts` per trovare `fluxus.conf`, poi carica
+  l'applicazione da lì — è l'altro PHP che gira fuori dalla radice web.
+
+### Modello di sicurezza
+- Pi → Connect: solo outbound HTTPS, header `Authorization: Bearer
+  <FLUXUS_CONNECT_TOKEN>`. Il Pi non è mai in ascolto su Internet.
+- Console → Connect: sotto-chiave dedicata, scope `follow` o
+  `follow+control`, revocabile singolarmente senza toccare le altre.
+- Compromissione di Connect nel caso peggiore: marker/cue falsi in coda, con
+  bersaglio comunque vincolato alle registrazioni realmente attive in quel
+  momento (whitelist lato Connect) — nessuna via di rientro verso Pi/LAN,
+  perché il Pi tira i dati, non li riceve mai in ingresso.
+
+### API pubblica esposta da Connect (per console esterne)
+
+⚠️ Non è l'API che `connect_sync.php` chiama: quella, sopra, è l'API
+**riservata** al Pi (`/api/pi/status.php`, `/api/pi/queue.php`,
+`/api/pi/ack.php`), autenticata col token di primo livello e mai pensata
+per essere consumata da terzi. Quella descritta qui è **pubblica**,
+versionata (`/api/v1/`), documentata in OpenAPI nel repository di Connect
+(`public/docs/openapi.yaml`) ed è rivolta a chi scrive una console esterna
+— non viene mai chiamata dal Pi. Reale e collaudata, non un progetto: da
+non confondere con "API di Federazione" più sotto (PENDING/FUTURO), che
+risolve un problema diverso (sincronizzare *configurazione* fra nodi
+Fluxus paritari, non far seguire/controllare lo *stato* a console terze).
+
+- **Auth**: header `Authorization: Bearer <sotto-chiave>`. Scope `follow`
+  (sola lettura) o `follow+control` (può anche scrivere comandi) —
+  assegnato alla sotto-chiave alla creazione sul pannello di Connect,
+  revocabile singolarmente. `401` per sotto-chiave mancante, malformata,
+  inesistente o revocata (stesso messaggio in tutti i casi tranne quello
+  mancante, per non rivelare a chi non è autenticato se un identificativo
+  sia mai esistito); `403` se lo scope non basta (`follow` che chiama un
+  endpoint di controllo).
+- **`GET /api/v1/follow/status.php`** — specchio di sola lettura
+  dell'ultimo stato pubblicato dal Pi, non una coda da consumare:
+  `node_name`, `state`, `registrations` (array, sempre presente, vuoto se
+  nessuna registrazione è attiva), `received_at`. Ogni voce di
+  `registrations` porta `id`, `state`, `source`, `media_type`,
+  `started_at`, `elapsed_seconds`, `marker_count`; gli stessi campi
+  restano anche "in cima" alla risposta come mirror della prima
+  registrazione dell'elenco, per compatibilità con chi ha integrato
+  l'endpoint prima che esistesse il supporto multi-registrazione — non è
+  una scelta di Connect su quale registrazione "conti di più". Whitelist
+  in lettura (mai percorsi filesystem, PID, note interne, configurazione
+  delle sorgenti) applicata di nuovo qui, oltre a quella già imposta in
+  scrittura dall'API riservata al Pi — difesa in profondità.
+- **`POST /api/v1/control/commands.php`** — deposita un marker/cue in
+  coda, richiede scope `follow+control`. Corpo `{"type": "marker"|"cue",
+  "label"?, "target_id"?}`: whitelist stretta su `type` (solo questi due
+  valori — avvio/stop restano PENDING/FUTURO anche in Connect, per il
+  raggio di danno più alto di un comando in ritardo di polling), `label`
+  opzionale (stringa, max 500 caratteri, scartata se vuota dopo il trim).
+  `target_id` è obbligatorio se più di una registrazione è attiva
+  (`400` se non compare fra quelle correnti), facoltativo con una sola
+  attiva (assegnato da Connect: non un'euristica, è l'unica scelta
+  possibile), ignorato con nessuna registrazione attiva. Risposta
+  `{"ok": true, "id": "<id comando>"}`.
+- Il comando resta solo **depositato**: l'endpoint non attende né
+  garantisce l'esecuzione. Il Pi lo ritira al ciclo di polling successivo
+  (fino a ~2s) via la propria API riservata; se nel frattempo la
+  registrazione bersaglio è finita, viene scartato e confermato in
+  silenzio lato Pi (vedi sopra) — la console non riceve una notifica del
+  mancato recapito, lo scopre solo rileggendo `follow/status.php` e non
+  trovando il marker atteso.
+
 ## scripts/stop_recording.sh
 
 Argomenti: `stop_recording.sh <recording_id>`

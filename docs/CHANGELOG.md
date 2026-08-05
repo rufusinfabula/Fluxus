@@ -17,6 +17,30 @@ nessuna fase copre.
 
 ---
 
+## 0.4.6
+
+**Fluxus Connect**: il Pi può ora seguire ed essere controllato (marker/cue)
+da console esterne tramite Fluxus Connect, un broker pubblico separato
+(repository/prodotto a parte) — stesso principio di Fluxus Remote (il Pi non
+riceve mai connessioni in ingresso), stessa forma di configurazione
+(`/etc/fluxus/<istanza>.connect.conf`, root:`<gruppo>`, 640).
+
+- Ogni 2s (`scripts/connect_sync.php`, `fm-connect-sync.timer`) il Pi
+  pubblica tutte le registrazioni attive e ritira dalla coda i comandi
+  depositati dalle console, indirizzati con `target_id` esplicito — mai
+  un'euristica lato Pi, la scelta della registrazione bersaglio è sempre
+  della console.
+- I marker creati via Connect riportano in interfaccia il nome della
+  console che li ha inviati (nuova colonna `markers.origin_label`, schema
+  v7).
+- `install.sh`/`bin/fluxus` trattano il nuovo file di segreti esattamente
+  come quello di Fluxus Remote: timer installato ma attivato solo se
+  configurato, incluso in backup/restore/uninstall.
+
+Vedi [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Fluxus Connect*, per il
+flusso completo. Fuori fase (come 0.3.1/0.3.2): nessuna fase della roadmap
+copre questa capability.
+
 ## 0.4.5
 
 Dashboard: nella sezione "Prossime registrazioni attese", quando non c'è

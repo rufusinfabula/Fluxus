@@ -19,7 +19,7 @@ $fmCuePlaySvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentCo
             <th>Etichetta</th>
             <th style="width:50px;">ID</th>
             <th style="width:80px;">Tipo</th>
-            <th style="width:70px;">Remote</th>
+            <th style="width:70px;">Origine</th>
             <th style="width:150px;">Cue</th>
             <th style="width:40px;"></th>
         </tr>
@@ -43,6 +43,10 @@ $fmCuePlaySvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentCo
                 <?php if (($m['origin'] ?? 'local') === 'remote'): ?>
                 <span class="fm-remote-flag" uk-tooltip="Creato da Fluxus Remote">
                     <span uk-icon="icon: check; ratio: 0.7"></span>
+                </span>
+                <?php elseif (($m['origin'] ?? 'local') === 'connect'): ?>
+                <span class="fm-remote-flag" uk-tooltip="<?= fmH(!empty($m['origin_label']) ? "Creato da {$m['origin_label']} via Fluxus Connect" : 'Creato via Fluxus Connect') ?>">
+                    <span uk-icon="icon: bolt; ratio: 0.7"></span>
                 </span>
                 <?php else: ?>
                 <span class="uk-text-meta">—</span>

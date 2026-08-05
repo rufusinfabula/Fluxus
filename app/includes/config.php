@@ -74,6 +74,10 @@ define('FM_REMOTE_URL',      $_fmConf['FLUXUS_REMOTE_URL']);
 define('FM_REMOTE_API_KEY',  $_fmConf['FLUXUS_REMOTE_API_KEY']);
 define('FM_NODE_NAME',       $_fmConf['FLUXUS_NODE_NAME']);
 
+// Fluxus Connect (segue/controlla da console esterne via broker) — vuoto = disattivato
+define('FM_CONNECT_URL',     $_fmConf['FLUXUS_CONNECT_URL']);
+define('FM_CONNECT_TOKEN',   $_fmConf['FLUXUS_CONNECT_TOKEN']);
+
 unset($_fmConf);
 
 require_once __DIR__ . '/helpers.php';

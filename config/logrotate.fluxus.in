@@ -68,6 +68,21 @@
     create 0664 @FLUXUS_USER@ @FLUXUS_GROUP@
 }
 
+# Dialogo con Fluxus Connect: se attivo interroga ogni 2 secondi, ancora più
+# chiacchierone di Remote — stessa politica, stesso tetto di dimensione: è
+# già la soglia più prudente in uso qui, vale anche a cadenza doppia.
+"@FLUXUS_DATA_DIR@/logs/fm-connect-sync.log"
+{
+    su @FLUXUS_USER@ @FLUXUS_GROUP@
+    daily
+    rotate 30
+    maxsize 8M
+    compress
+    missingok
+    notifempty
+    create 0664 @FLUXUS_USER@ @FLUXUS_GROUP@
+}
+
 # Relay dell'anteprima live, un file per sorgente riusato a ogni sessione: già
 # "effimero" per natura (segmenti da 2 secondi), ma il file che lo contiene si
 # comporta come gli altri log operativi — stessa politica di extract-clips.

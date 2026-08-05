@@ -125,12 +125,20 @@ stessa rete si pestano i piedi.
   [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Rotazione dei log*.
 - ~~Decidere se il repository diventa pubblico~~ — pubblico dal 2026-08-01:
   <https://github.com/rufusinfabula/fluxus>.
+- ~~**Fluxus Connect**~~ — marker/cue da console esterne tramite un broker
+  pubblico separato (repository/prodotto a parte), fuori fase come
+  0.3.1/0.3.2. Vedi [CHANGELOG.md](CHANGELOG.md#046) e la sezione *Fluxus
+  Connect* delle [note tecniche](NOTE-TECNICHE.md).
 
 ## Più avanti
 
 - **Federazione multi-nodo**: lo schema del database la prevede già (tabelle
   dei nodi remoti e relativo registro), ma non esiste alcuna interfaccia né
-  alcun endpoint. Da riprendere solo se serve davvero.
+  alcun endpoint. Da riprendere solo se serve davvero. Da non confondere con
+  **Fluxus Connect** (sopra, già implementata): quella sincronizza
+  *configurazione* (sources/schedules) fra nodi Fluxus paritari, questa fa
+  seguire/controllare lo *stato* a console e software di scaletta terzi —
+  problemi diversi, non un sostituto l'una dell'altra.
 - **EDIT/TRIM per cue, segmenti e file unici** → `2.0`: una sezione EDIT unica
   con tre schede — Segmenti, File unici, Cue — da cui ritagliare una porzione
   di qualunque registrazione audio e salvarla come nuova clip, con editor a

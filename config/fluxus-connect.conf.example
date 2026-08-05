@@ -1,0 +1,17 @@
+# Fluxus Connect — broker per seguire e controllare Fluxus da console esterne.
+#
+# Sta in un file separato da quello principale perché contiene un token: va
+# installato in  /etc/fluxus/<istanza>.connect.conf  come root:<gruppo di
+# Fluxus> 0640, mentre la configurazione principale è leggibile da tutti.
+#
+# Stesso formato dell'altro: CHIAVE=valore, commenti con '#'.
+#
+# Lasciare i valori vuoti per tenere la funzione disattivata: senza indirizzo e
+# senza token la sincronizzazione esce subito e non fa alcuna chiamata di rete.
+
+# Indirizzo di base di Fluxus Connect, senza barra finale.
+FLUXUS_CONNECT_URL=
+
+# Token di primo livello di questo Pi, generato dal pannello di Fluxus
+# Connect (non è una sotto-chiave: quelle sono per le console esterne).
+FLUXUS_CONNECT_TOKEN=

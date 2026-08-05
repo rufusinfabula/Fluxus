@@ -91,7 +91,7 @@ istanze_installate() {
     local f
     for f in "$CONF_DIR"/*.conf; do
         [[ -e "$f" ]] || continue
-        [[ "$f" == *.remote.conf ]] && continue
+        [[ "$f" == *.remote.conf || "$f" == *.connect.conf ]] && continue
         basename "$f" .conf
     done
 }
@@ -139,6 +139,7 @@ if [[ "$COMANDO" != list && "$COMANDO" != help ]]; then
 
     MANIFESTO="$CONF_DIR/$ISTANZA.install"
     REMOTE_FILE="$CONF_DIR/$ISTANZA.remote.conf"
+    CONNECT_FILE="$CONF_DIR/$ISTANZA.connect.conf"
 fi
 
 # Legge una chiave da un file CHIAVE=valore (il manifesto dell'installazione).
@@ -305,6 +306,11 @@ cmd_config() {
     else
         voce 'Fluxus Remote' 'non configurato'
     fi
+    if [[ -r "$CONNECT_FILE" ]] && [[ -n "$(leggi_chiave "$CONNECT_FILE" FLUXUS_CONNECT_URL 2>/dev/null || true)" ]]; then
+        voce 'Fluxus Connect' "configurato ($CONNECT_FILE)"
+    else
+        voce 'Fluxus Connect' 'non configurato'
+    fi
     printf '\n'
 }
 
@@ -428,8 +434,9 @@ cmd_backup() {
 
     install -d -m 0755 "$d/etc"
     cp -a "$FLUXUS_CONF" "$d/etc/$ISTANZA.conf"
-    [[ -r "$REMOTE_FILE" ]] && cp -a "$REMOTE_FILE" "$d/etc/$ISTANZA.remote.conf"
-    [[ -r "$MANIFESTO" ]]   && cp -a "$MANIFESTO"   "$d/etc/$ISTANZA.install"
+    [[ -r "$REMOTE_FILE" ]]  && cp -a "$REMOTE_FILE"  "$d/etc/$ISTANZA.remote.conf"
+    [[ -r "$CONNECT_FILE" ]] && cp -a "$CONNECT_FILE" "$d/etc/$ISTANZA.connect.conf"
+    [[ -r "$MANIFESTO" ]]    && cp -a "$MANIFESTO"    "$d/etc/$ISTANZA.install"
 
     cat > "$d/BACKUP" <<FINE
 istanza=$ISTANZA
@@ -503,7 +510,10 @@ cmd_restore() {
     if [[ -d "$etc" ]]; then
         [[ -r "$etc/$origine.remote.conf" ]] && \
             install -m 0640 -o root -g "$FLUXUS_GROUP" "$etc/$origine.remote.conf" "$REMOTE_FILE" && \
-            dice "segreti rimessi a posto"
+            dice "segreti di Fluxus Remote rimessi a posto"
+        [[ -r "$etc/$origine.connect.conf" ]] && \
+            install -m 0640 -o root -g "$FLUXUS_GROUP" "$etc/$origine.connect.conf" "$CONNECT_FILE" && \
+            dice "segreti di Fluxus Connect rimessi a posto"
         # La configurazione non si sovrascrive da sola: l'archivio può venire da
         # un'altra macchina, con altri percorsi, altre porte, un altro utente.
         # La si mette accanto a quella viva, perché si possano confrontare.
@@ -598,7 +608,7 @@ cmd_uninstall() {
     [[ -d "$FLUXUS_WEB_DIR" ]] && rm -rf "${FLUXUS_WEB_DIR:?}" && dice "applicazione rimossa"
     local mtxconf; mtxconf=$(dal_manifesto FLUXUS_MEDIAMTX_CONF)
     [[ -n "$mtxconf" && -e "$mtxconf" ]] && rm -f "$mtxconf"
-    rm -f "$FLUXUS_CONF" "$REMOTE_FILE" "$MANIFESTO"
+    rm -f "$FLUXUS_CONF" "$REMOTE_FILE" "$CONNECT_FILE" "$MANIFESTO"
     dice "configurazione rimossa"
 
     # 5. I dati, solo se li si è chiesti esplicitamente.

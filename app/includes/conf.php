@@ -139,6 +139,12 @@ function fmInstanceConf(): array {
         ? $r['FLUXUS_NODE_NAME']
         : (gethostname() ?: $i);
 
+    // Stesso trattamento, stesso file a parte, per il token di Fluxus Connect.
+    $connect = dirname($file) . '/' . $i . '.connect.conf';
+    $k = is_readable($connect) ? fmReadConfFile($connect) : [];
+    $c['FLUXUS_CONNECT_URL']   = rtrim($k['FLUXUS_CONNECT_URL'] ?? '', '/');
+    $c['FLUXUS_CONNECT_TOKEN'] = $k['FLUXUS_CONNECT_TOKEN'] ?? '';
+
     return $c;
 }
 

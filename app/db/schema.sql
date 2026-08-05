@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS markers (
     clip_filename      TEXT,
     clip_trim_filename TEXT,
     origin             TEXT NOT NULL DEFAULT 'local',
+    origin_label       TEXT,  -- nome della console (via Fluxus Connect), se noto
     created_at         TEXT DEFAULT (datetime('now'))
 );
 
