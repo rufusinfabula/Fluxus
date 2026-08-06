@@ -1415,6 +1415,64 @@ Marker/cue creati da Connect hanno `origin='connect'` e in
   autenticazione degli altri endpoint riservati al Pi: `401` per token
   mancante, malformato o sconosciuto.
 
+### Catalogo (registrazioni, marker/cue, sorgenti, orari) — v0.4.9
+
+Fin qui Connect vedeva solo lo stato delle registrazioni attive. Dalla 0.4.9
+uno **secondo script indipendente**, `scripts/connect_catalog_sync.php` (via
+`fm-connect-catalog-sync.timer`, ogni 30s — non 2s: qui non c'è nulla da
+seguire in tempo reale, e un ciclo più lento non rallenta il percorso
+critico marker/cue), pubblica uno specchio pieno — non una coda, non un
+diff incrementale — di quattro cataloghi. Stessa configurazione di
+`connect_sync.php` (`.connect.conf`, vuoto = spento), stesso schema
+"gira come utente di Fluxus, esce subito se non configurato", log proprio
+(`FM_LOGS/fm-connect-catalog-sync.log`). Non tocca né rallenta
+`connect_sync.php`, che resta l'unico responsabile di marker/cue in tempo
+reale.
+
+Uno specchio pieno regge perché il totale in DB è già limitato dalla
+retention per sorgente (`max_recordings`/`max_days_recordings`, con cascata
+su `markers` via `ON DELETE CASCADE`): non serve un cursore né una
+paginazione per restare leggeri ogni 30s.
+
+- **`POST /api/pi/recordings.php`** — `{"recordings": [...]}`, tutto lo
+  storico (non solo `status='recording'`). Copre sia "lista" sia "dettaglio"
+  lato Connect, che specchia la riga intera e la può servire sia in elenco
+  sia per singolo id — il Pi non riceve mai una query on-demand. Per riga:
+  `id`, `source_id`, `source_name`, `media_type`, `status`, `start_time`,
+  `end_time`, `duration_seconds` (stessa espressione CASE già usata da
+  `app/recordings.php`, non un'altra), `marker_count`, `clip_count` (stessa
+  aggregazione già usata lì). Esclusi `output_dir`, `clips_dir`,
+  `filename_base`, `ffmpeg_pid`, `notes`: percorsi, PID e note interne
+  restano sul Pi, whitelist di sicurezza (sotto).
+- **`POST /api/pi/markers.php`** — `{"markers": [...]}`, dump piatto di
+  tutta la tabella `markers` (marker e cue), filtrabile lato Connect per
+  `recording_id` e per `type`. Per riga: `id`, `recording_id`,
+  `elapsed_seconds`, `elapsed_hms`, `absolute_time`, `label`, `type`,
+  `clip_status`, `origin`, `origin_label`, `created_at`. Esclusi
+  `clip_filename`/`clip_trim_filename` (percorsi filesystem). I 3 marker
+  orfani noti in produzione (id 25/53/54, vedi *Retention automatica*)
+  passano senza trattamento speciale: righe con un `recording_id` che
+  Connect non troverà in `recordings`, innocue come lo sono già oggi.
+- **`POST /api/pi/sources.php`** — `{"sources": [...]}`. Per riga: `id`,
+  `name`, `media_type`, `active`. Esclusi `url`, `device`, `extra_opts`,
+  profili qualità/codec, soglie di retention, `storage_volume_id`:
+  configurazione della sorgente, vietata dalla whitelist.
+- **`POST /api/pi/schedules.php`** — `{"schedules": [...]}`. Per riga: `id`,
+  `source_id`, `source_name` (join), `label`, `on_calendar`,
+  `slot_duration`, `active`.
+
+⚠️ **Questi 4 endpoint non esistevano prima della 0.4.9: vanno aggiunti al
+repository di Fluxus Connect** (ingest + persistenza), non sono coperti da
+questo repository — stesso avviso già dato per `/api/pi/whoami.php` sopra.
+Stessa autenticazione degli altri endpoint riservati al Pi:
+`Authorization: Bearer <FLUXUS_CONNECT_TOKEN>`, `401` per token
+mancante/malformato/sconosciuto.
+
+Il filtro audio/video/clock non è un endpoint a parte: `media_type` è già
+un campo di ogni recording/source, il filtro lo applica Connect lato
+`/api/v1/follow/*` (stessa divisione di responsabilità già in vigore per lo
+stato attivo: il Pi non filtra mai per conto della console).
+
 ### Modello di sicurezza
 - Pi → Connect: solo outbound HTTPS, header `Authorization: Bearer
   <FLUXUS_CONNECT_TOKEN>`. Il Pi non è mai in ascolto su Internet.
@@ -1477,6 +1535,22 @@ Fluxus paritari, non far seguire/controllare lo *stato* a console terze).
   silenzio lato Pi (vedi sopra) — la console non riceve una notifica del
   mancato recapito, lo scopre solo rileggendo `follow/status.php` e non
   trovando il marker atteso.
+- ⚠️ **Da qui in poi, contratto atteso ma non ancora implementato lato
+  Connect** (v0.4.9): specchia i 4 payload che il Pi pubblica sopra
+  (`recordings.php`/`markers.php`/`sources.php`/`schedules.php`), stesso
+  scope `follow` già esistente, nessuno scope nuovo, stessa whitelist in
+  lettura del punto sopra (mai percorsi filesystem, PID, note interne,
+  configurazione delle sorgenti — già rispettata dai payload del Pi, quindi
+  qui è solo passthrough).
+  - **`GET /api/v1/follow/recordings.php`** — elenco, con filtri opzionali
+    in query string: `media_type` (`audio`|`video`|`clock`), `source_id`,
+    `status`.
+  - **`GET /api/v1/follow/recordings/{id}.php`** — dettaglio di una singola
+    registrazione (stessi campi della riga in elenco).
+  - **`GET /api/v1/follow/recordings/{id}/markers.php`** — marker e cue di
+    quella registrazione, con filtro opzionale `type` (`marker`|`cue`).
+  - **`GET /api/v1/follow/sources.php`** — elenco sorgenti.
+  - **`GET /api/v1/follow/schedules.php`** — elenco orari programmati.
 
 ## scripts/stop_recording.sh
 

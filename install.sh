@@ -806,9 +806,9 @@ for modello in "$SORGENTE"/systemd/*.service.in "$SORGENTE"/systemd/*.timer.in; 
     base=$(basename "$modello" .in)
     [[ "$base" == mediamtx.service ]] && continue     # ha un nome tutto suo, più sotto
     unit="$PREFISSO-$base"
-    # remote-sync (5s) e connect-sync (2s) girano di continuo: senza relay/
-    # Connect configurati sarebbero timer che si svegliano per uscire subito.
-    # Si installano, ma non si attivano.
+    # remote-sync (5s), connect-sync (2s) e connect-catalog-sync (30s) girano
+    # di continuo: senza relay/Connect configurati sarebbero timer che si
+    # svegliano per uscire subito. Si installano, ma non si attivano.
     rendi "$modello" | scrivi_file "/etc/systemd/system/$unit" 0644 root:root
     UNIT_INSTALLATI+=("$unit")
 done
@@ -993,7 +993,7 @@ for unit in "${UNIT_INSTALLATI[@]}"; do
         dice "$unit installato ma non attivato (Fluxus Remote non è configurato)"
         continue
     fi
-    if [[ "$unit" == *connect-sync* ]] && (( ! CONNECT_ATTIVO )); then
+    if [[ "$unit" == *connect-sync* || "$unit" == *connect-catalog-sync* ]] && (( ! CONNECT_ATTIVO )); then
         dice "$unit installato ma non attivato (Fluxus Connect non è configurato)"
         continue
     fi

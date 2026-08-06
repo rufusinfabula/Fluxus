@@ -1,0 +1,9 @@
+[Unit]
+Description=@FLUXUS_APP_NAME@ Connect (@FLUXUS_INSTANCE@) — catalogo (registrazioni, marker, sorgenti, orari)
+
+[Service]
+Type=oneshot
+User=@FLUXUS_USER@
+Group=@FLUXUS_GROUP@
+Environment=FLUXUS_CONF=@FLUXUS_CONF_FILE@
+ExecStart=/usr/bin/php @FLUXUS_DATA_DIR@/scripts/connect_catalog_sync.php

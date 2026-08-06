@@ -129,16 +129,23 @@ stessa rete si pestano i piedi.
   pubblico separato (repository/prodotto a parte), fuori fase come
   0.3.1/0.3.2. Vedi [CHANGELOG.md](CHANGELOG.md#046) e la sezione *Fluxus
   Connect* delle [note tecniche](NOTE-TECNICHE.md).
+- ~~**Catalogo verso Fluxus Connect**~~ — oltre allo stato attivo, anche
+  registrazioni (storico), marker/cue, sorgenti e orari, fuori fase come
+  sopra (`0.4.9`). Vedi [CHANGELOG.md](CHANGELOG.md#049).
 
 ## Più avanti
 
 - **Federazione multi-nodo**: lo schema del database la prevede già (tabelle
   dei nodi remoti e relativo registro), ma non esiste alcuna interfaccia né
   alcun endpoint. Da riprendere solo se serve davvero. Da non confondere con
-  **Fluxus Connect** (sopra, già implementata): quella sincronizza
-  *configurazione* (sources/schedules) fra nodi Fluxus paritari, questa fa
-  seguire/controllare lo *stato* a console e software di scaletta terzi —
-  problemi diversi, non un sostituto l'una dell'altra.
+  **Fluxus Connect** (sopra, già implementata): quella farebbe sincronizzare
+  *configurazione* fra nodi Fluxus paritari (scrittura, bidirezionale), Connect
+  fa vedere/seguire *stato e catalogo* (sources/schedules/registrazioni, sola
+  lettura) e controllare via marker/cue a console e software di scaletta
+  terzi — problemi diversi, non un sostituto l'una dell'altra. Dalla `0.4.9`
+  il catalogo sources/schedules in sola lettura passa già da Connect: se un
+  giorno servirà la federazione vera (scrittura fra pari), non ripartirà da
+  zero ma non è comunque la stessa cosa.
 - **EDIT/TRIM per cue, segmenti e file unici** → `2.0`: una sezione EDIT unica
   con tre schede — Segmenti, File unici, Cue — da cui ritagliare una porzione
   di qualunque registrazione audio e salvarla come nuova clip, con editor a

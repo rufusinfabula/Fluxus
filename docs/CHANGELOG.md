@@ -17,6 +17,27 @@ nessuna fase copre.
 
 ---
 
+## 0.4.9
+
+**Catalogo verso Fluxus Connect**: oltre allo stato delle registrazioni
+attive, il Pi ora pubblica anche uno specchio pieno di registrazioni
+(storico completo, non solo quelle in corso), marker/cue, sorgenti e orari
+programmati — con la stessa whitelist di sicurezza già in vigore (mai
+percorsi filesystem, PID, note interne, configurazione delle sorgenti).
+
+- Nuovo script `scripts/connect_catalog_sync.php`, indipendente da
+  `connect_sync.php` (che resta a 2s per marker/cue in tempo reale): gira
+  ogni 30s via `<prefisso>-connect-catalog-sync.timer`, stessa
+  configurazione (`.connect.conf`), stesso spegnimento automatico se URL/
+  token sono vuoti.
+- 4 nuovi endpoint riservati al Pi: `POST /api/pi/recordings.php`,
+  `/markers.php`, `/sources.php`, `/schedules.php` — da aggiungere al
+  repository di Fluxus Connect (non coperti da questo repository, vedi
+  [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Fluxus Connect*).
+  Il filtro audio/video/clock e il dettaglio di una singola registrazione
+  restano responsabilità di Connect, che specchia i payload e li serve
+  sull'API pubblica `/api/v1/follow/*` già esistente.
+
 ## 0.4.8
 
 **Fluxus Connect da Impostazioni**: URL e token si impostano ora dalla card
