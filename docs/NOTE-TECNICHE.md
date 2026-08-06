@@ -1361,6 +1361,60 @@ Marker/cue creati da Connect hanno `origin='connect'` e in
   risale da `<cartella dati>/scripts` per trovare `fluxus.conf`, poi carica
   l'applicazione da lì — è l'altro PHP che gira fuori dalla radice web.
 
+### Configurazione da Impostazioni (v0.4.8)
+- Card "Fluxus Connect" in Impostazioni (`app/settings.php`, subito sopra
+  "Nodo"): URL e token si impostano da browser, non serve più modificare a
+  mano `.connect.conf` né rilanciare `install.sh`.
+- **Il token è mostrato in chiaro, non mascherato come la password di
+  accesso in "Nodo"**: scelta deliberata, non una svista. Il campo password
+  che si svuota sempre a ogni salvataggio ("lascia vuoto per non
+  modificare") impedirebbe di rileggere il token già inserito per
+  verificarlo — e a differenza della password di accesso, qui non c'è nulla
+  da autenticare *contro* Fluxus stesso: è un segreto che il Pi manda
+  *fuori*, verso Connect, mai usato per entrare nel Pi. Il modello di
+  sicurezza di Connect (sotto) si basa sul fatto che il Pi non riceva mai
+  connessioni in ingresso: chi può leggere questa pagina è già chi
+  amministra il Pi. Ogni form della pagina porta avanti URL e token attuali
+  in campi nascosti (non solo quello della card Connect), così salvare
+  Marker&Cue o Nodo non li tocca per errore.
+- **Perché serve comunque uno script root**: `.connect.conf` resta
+  `root:<gruppo> 0640` — il gruppo ha solo lettura, quindi PHP-FPM (che gira
+  come `www-data`) può leggerlo (da qui `FM_CONNECT_URL`/`FM_CONNECT_TOKEN`,
+  sempre disponibili) ma non scriverlo. Stesso identico problema già risolto
+  per "Abilita disco" e per la pagina Rete: `app/includes/helpers.php`
+  (`fmWriteConnectConf()`) invoca via `sudo -n`
+  `/usr/local/bin/fluxus-write-connect-conf.sh` (root:root 0755, **unico per
+  macchina** come `fluxus-enable-volume.sh`/`fluxus-network.sh`, quindi non
+  legge configurazione propria: istanza/gruppo/prefisso-unit arrivano come
+  argomenti). Regola dedicata `_CONNECTCONF` in
+  `config/sudoers.fluxus.in`, con istanza/gruppo/prefisso fissati dai
+  segnaposto e solo URL/token liberi — stesso schema della regola `_VOLUME`.
+- Lo script riscrive il file per intero in modo atomico (`mktemp` +
+  `install -m 0640`) e **attiva/disattiva a caldo** il timer
+  `<prefisso>-connect-sync.timer` (`systemctl enable --now`/`disable --now`,
+  best-effort): senza questo passaggio il cambiamento sarebbe rimasto fermo
+  fino al prossimo `install.sh`. Semantica invariata: URL e token vanno
+  entrambi valorizzati o entrambi vuoti, mai uno solo.
+- L'helper si installa/aggiorna con `install.sh` come gli altri due, dietro
+  lo stesso interruttore keep/overwrite: `--connect-conf-helper keep|overwrite`
+  (default `keep`, per non toccare uno script condiviso da altre istanze).
+
+### Pulsante "Testa connessione"
+- Nella card, accanto a "Salva": verifica subito che URL e token raggiungano
+  Connect, senza aspettare il prossimo giro di `fm-connect-sync.timer`.
+  Prende i valori così come sono nel form in quel momento (non ancora
+  salvati); token vuoto = usa quello già configurato, stessa regola del
+  salvataggio.
+- `app/api/connect_test.php` → `fmConnectTest()` (`app/includes/helpers.php`)
+  → `GET /api/pi/whoami.php` sul broker, stesso header `Authorization:
+  Bearer <token>` degli altri endpoint `/api/pi/*`.
+- ⚠️ **`/api/pi/whoami.php` non esisteva prima di questa card: va aggiunto
+  al repository di Fluxus Connect**, non è coperto da questo repository.
+  Contratto atteso — 200 JSON: `{"subkeys": ["nome-console", ...]}` (array
+  vuoto se nessuna sotto-chiave è configurata per quel token); stessa
+  autenticazione degli altri endpoint riservati al Pi: `401` per token
+  mancante, malformato o sconosciuto.
+
 ### Modello di sicurezza
 - Pi → Connect: solo outbound HTTPS, header `Authorization: Bearer
   <FLUXUS_CONNECT_TOKEN>`. Il Pi non è mai in ascolto su Internet.

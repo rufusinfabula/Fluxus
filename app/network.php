@@ -12,7 +12,7 @@ $pageTitle = 'Rete';
 include __DIR__ . '/includes/head.php';
 ?>
 
-<h2 class="fm-page-title"><span uk-icon="icon: signal"></span> Rete</h2>
+<h2 class="fm-page-title"><span uk-icon="icon: world"></span> Rete</h2>
 <p class="uk-text-meta uk-margin-remove-top">
     <a href="<?= rtrim(FM_WEB_BASE, '/') ?>/settings.php"><span uk-icon="icon: chevron-left; ratio: 0.8"></span> Impostazioni</a>
 </p>

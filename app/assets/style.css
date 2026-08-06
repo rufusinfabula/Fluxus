@@ -798,6 +798,33 @@ h2.fm-page-title {
     padding-top: 8px;
 }
 
+/* Indice delle card in Impostazioni (app/settings.php). Il posizionamento
+   "fixed" (top/left/width) lo calcola il JS della pagina: qui solo l'aspetto. */
+.fm-toc {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 2px solid #e5e5e5;
+}
+.fm-toc a {
+    padding: 4px 0 4px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    color: #888;
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    margin-left: -2px;
+}
+.fm-toc a:hover {
+    color: #555;
+}
+.fm-toc a.fm-toc-active {
+    color: var(--fm-accent);
+    border-left-color: var(--fm-accent);
+}
+
 /* Card sorgente della stessa riga tutte alte come la più alta: lo stretch di
    riga è già il comportamento di default di uk-grid (flex-wrap), basta far
    riempire l'altezza all'item della griglia e alla card interna. */

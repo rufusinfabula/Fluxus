@@ -1229,6 +1229,58 @@ function fmNetworkHelper(array $args): array {
     return ['ok' => false, 'error' => $first !== '' ? preg_replace('/^ERR /', '', $first) : 'comando fallito'];
 }
 
+/**
+ * Invoca /usr/local/bin/fluxus-write-connect-conf.sh via sudo (Impostazioni →
+ * Fluxus Connect): scrive <istanza>.connect.conf (root:gruppo 0640, PHP-FPM
+ * non può scriverlo) e attiva/disattiva a caldo il timer di sincronizzazione.
+ * Stesso schema di fmNetworkHelper: mai un'eccezione, solo ok/error.
+ */
+function fmWriteConnectConf(string $url, string $token): array {
+    $cmd = 'sudo -n /usr/local/bin/fluxus-write-connect-conf.sh '
+        . escapeshellarg(FM_INSTANCE) . ' '
+        . escapeshellarg(FM_GROUP) . ' '
+        . escapeshellarg(FM_UNIT_PREFIX) . ' '
+        . escapeshellarg($url) . ' '
+        . escapeshellarg($token);
+    $out = trim((string)@shell_exec($cmd . ' 2>&1'));
+    if ($out === 'OK') return ['ok' => true];
+    return ['ok' => false, 'error' => $out !== '' ? preg_replace('/^ERR /', '', $out) : 'comando fallito'];
+}
+
+/**
+ * Test di connessione per la card "Fluxus Connect" in Impostazioni: chiama
+ * GET /api/pi/whoami.php sul broker, stesso token di primo livello e stesso
+ * stile di richiesta di scripts/connect_sync.php (fccsRequest), ma isolata
+ * qui perché quello script non è incluso altrove.
+ *
+ * ⚠️ Endpoint da aggiungere lato Fluxus Connect (repository separato): non
+ * esisteva prima di questa card. Risposta attesa, 200 JSON:
+ * {"subkeys": ["nome-console", ...]} (array vuoto se nessuna sotto-chiave
+ * configurata). Stessa autenticazione degli altri endpoint /api/pi/*: 401
+ * per token mancante/malformato/sconosciuto.
+ */
+function fmConnectTest(string $url, string $token): array {
+    $ch = curl_init(rtrim($url, '/') . '/api/pi/whoami.php');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 5,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $token],
+    ]);
+    $raw = curl_exec($ch);
+    $err = curl_error($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($raw === false) return ['ok' => false, 'error' => "connessione fallita: $err"];
+    if ($code < 200 || $code >= 300) return ['ok' => false, 'error' => "HTTP $code"];
+    $data = json_decode($raw, true);
+    if (!is_array($data)) return ['ok' => false, 'error' => 'risposta non JSON'];
+
+    $subkeys = array_values(array_filter((array)($data['subkeys'] ?? []), 'is_string'));
+    return ['ok' => true, 'subkeys' => $subkeys];
+}
+
 /** Righe "CHIAVE=valore" (l'output di 'status') in un array associativo. */
 function fmNetworkParseKV(array $lines): array {
     $out = [];

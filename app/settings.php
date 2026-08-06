@@ -19,6 +19,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cuePostRoll = (int)($_POST['cue_post_roll'] ?? 90);
     $markerAutosaveSeconds = (int)($_POST['marker_autosave_seconds'] ?? 8);
 
+    // Fluxus Connect non passa da fmSetSetting: vive in un file di sistema
+    // (root:gruppo 0640) che PHP-FPM non può scrivere, vedi fmWriteConnectConf().
+    // Il token è in chiaro nel form (il Pi non riceve mai connessioni
+    // dall'esterno, vedi NOTE-TECNICHE.md): ogni form della pagina porta
+    // avanti il valore attuale in un campo nascosto, quindi qui non serve
+    // nessuna logica "vuoto = non modificare".
+    $connectUrl = trim($_POST['connect_url'] ?? '');
+    $connectToken = trim($_POST['connect_token'] ?? '');
+    if ($connectUrl === '') $connectToken = ''; // svuotare l'URL disattiva sempre anche il token
+
     if ($nodeName === '') $errors[] = 'Il nome nodo è obbligatorio.';
 
     try {
@@ -39,6 +49,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($markerAutosaveSeconds < 3 || $markerAutosaveSeconds > 60) {
         $errors[] = 'Il salvataggio automatico del modale deve essere tra 3 e 60 secondi.';
+    }
+    if ($connectUrl !== '' && !preg_match('#^https?://[A-Za-z0-9.-]+(:\d{1,5})?(/.*)?$#', $connectUrl)) {
+        $errors[] = 'URL di Fluxus Connect non valido.';
+    }
+    if ($connectUrl !== '' && $connectToken === '') {
+        $errors[] = 'Manca il token di Fluxus Connect.';
+    }
+
+    if (empty($errors) && ($connectUrl !== FM_CONNECT_URL || $connectToken !== FM_CONNECT_TOKEN)) {
+        $r = fmWriteConnectConf($connectUrl, $connectToken);
+        if (!$r['ok']) $errors[] = 'Fluxus Connect: ' . $r['error'];
     }
 
     if (empty($errors)) {
@@ -63,6 +84,9 @@ $authEnabled = fmSetting('auth_enabled', '0') === '1';
 $cuePreRoll = (int)fmSetting('cue_pre_roll', '30');
 $cuePostRoll = (int)fmSetting('cue_post_roll', '90');
 $markerAutosaveSeconds = (int)fmSetting('marker_autosave_seconds', '8');
+$connectUrl = FM_CONNECT_URL;
+$connectToken = FM_CONNECT_TOKEN;
+$connectConfigured = $connectUrl !== '' && $connectToken !== '';
 
 $storageVolumes = fmStorageVolumes(true);
 $storageAudioId = (int)fmSetting('storage_volume_audio', '1');
@@ -106,13 +130,27 @@ include __DIR__ . '/includes/head.php';
 <?php if ($saved): ?><div class="uk-alert-success" uk-alert><span uk-icon="icon: check"></span> Impostazioni salvate.</div><?php endif; ?>
 <?php foreach ($errors as $e): ?><div class="uk-alert-danger" uk-alert><span uk-icon="icon: warning"></span> <?= fmH($e) ?></div><?php endforeach; ?>
 
-<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
+<div class="uk-grid-small" uk-grid>
+<div class="uk-width-1-5@m uk-visible@m" id="fm-toc-col">
+    <nav class="fm-toc" id="fm-settings-toc">
+        <a href="#marker-cue">Marker &amp; Cue</a>
+        <a href="#archiviazione">Archiviazione</a>
+        <a href="#rete">Rete</a>
+        <a href="#fluxus-connect">Fluxus Connect</a>
+        <a href="#nodo">Nodo</a>
+    </nav>
+</div>
+<div class="uk-width-4-5@m">
+
+<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="marker-cue">
     <h3 class="fm-section-title uk-margin-small-bottom">Marker &amp; Cue</h3>
     <p class="uk-text-meta uk-margin-remove-top">Intervallo estratto attorno al click di un cue (marker/cue &rarr; clip, vale per audio e video, si applica ai cue creati dopo il salvataggio) e durata del salvataggio automatico del modale Marker/Cue (la barra si riduce mano a mano che i secondi passano; allo scadere il marker/cue viene salvato con l'etichetta inserita, o con il nome di default <span class="fm-mono">marker_ID</span> / <span class="fm-mono">cue_ID</span> se lasciata vuota).</p>
     <form method="post">
         <input type="hidden" name="node_name" value="<?= fmH($nodeName) ?>">
         <input type="hidden" name="timezone" value="<?= fmH($timezone) ?>">
         <?php if ($authEnabled): ?><input type="hidden" name="auth_enabled" value="1"><?php endif; ?>
+        <input type="hidden" name="connect_url" value="<?= fmH($connectUrl) ?>">
+        <input type="hidden" name="connect_token" value="<?= fmH($connectToken) ?>">
         <div class="uk-grid-small" uk-grid>
             <div class="uk-width-1-3@m">
                 <label class="uk-form-label">Pre-roll (secondi prima del click)</label>
@@ -533,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
+<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="rete">
     <h3 class="fm-section-title uk-margin-small-bottom">Rete</h3>
     <p class="uk-text-meta uk-margin-remove-top">Connessione WiFi, indirizzo IP e nome macchina si gestiscono nella pagina dedicata: scansione e cambio rete, IP fisso o automatico, richiedono un po' più di spazio di una card.</p>
     <div class="uk-flex uk-flex-middle" style="gap:12px;">
@@ -556,9 +594,84 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
+<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="fluxus-connect">
+    <h3 class="fm-section-title uk-margin-small-bottom">Fluxus Connect</h3>
+    <p class="uk-text-meta uk-margin-remove-top">Broker esterno, separato da Fluxus, per seguire e controllare le registrazioni (marker/cue) da console di regia o software di scaletta. Il Pi esce sempre lui verso Connect, non riceve mai connessioni in ingresso: lasciando l'URL vuoto la funzione resta disattivata. URL e token li dà il pannello di Fluxus Connect.</p>
+    <form method="post">
+        <input type="hidden" name="node_name" value="<?= fmH($nodeName) ?>">
+        <input type="hidden" name="timezone" value="<?= fmH($timezone) ?>">
+        <?php if ($authEnabled): ?><input type="hidden" name="auth_enabled" value="1"><?php endif; ?>
+        <input type="hidden" name="cue_pre_roll" value="<?= (int)$cuePreRoll ?>">
+        <input type="hidden" name="cue_post_roll" value="<?= (int)$cuePostRoll ?>">
+        <input type="hidden" name="marker_autosave_seconds" value="<?= (int)$markerAutosaveSeconds ?>">
+        <div class="uk-grid-small" uk-grid>
+            <div class="uk-width-1-2@m">
+                <label class="uk-form-label">URL di Fluxus Connect</label>
+                <input class="uk-input uk-form-small fm-mono" type="url" id="fm-connect-url" name="connect_url" value="<?= fmH($connectUrl) ?>" placeholder="https://connect.tuodominio.it">
+            </div>
+            <div class="uk-width-1-2@m">
+                <label class="uk-form-label">Token</label>
+                <input class="uk-input uk-form-small fm-mono" type="text" id="fm-connect-token" name="connect_token" value="<?= fmH($connectToken) ?>" autocomplete="off" spellcheck="false" placeholder="generato dal pannello di Fluxus Connect">
+            </div>
+        </div>
+        <p class="uk-text-meta uk-margin-small-top" style="font-size:11px;">
+            Stato: <?= $connectConfigured ? '<span class="uk-text-success">attivo</span>' : 'non configurato' ?>
+            — il token è mostrato in chiaro: il Pi non riceve mai connessioni dall'esterno (vedi NOTE-TECNICHE.md).
+        </p>
+        <div class="uk-margin-top uk-flex uk-flex-middle" style="gap:12px;">
+            <button type="submit" class="uk-button uk-button-primary uk-button-small">Salva</button>
+            <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-connect-test">Testa connessione</button>
+            <span id="fm-connect-test-result" class="uk-text-meta" style="font-size:11px;"></span>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('fm-connect-test');
+    var result = document.getElementById('fm-connect-test-result');
+    if (!btn || !result) return;
+
+    btn.addEventListener('click', function () {
+        var url = document.getElementById('fm-connect-url').value.trim();
+        var token = document.getElementById('fm-connect-token').value.trim();
+        if (url === '') {
+            result.className = 'uk-text-danger';
+            result.textContent = 'inserisci prima l\'URL';
+            return;
+        }
+        btn.disabled = true;
+        result.className = 'uk-text-meta';
+        result.textContent = 'verifica in corso…';
+        fetch(<?= json_encode(FM_WEB_BASE . '/api/connect_test.php') ?>, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url, token: token })
+        }).then(function (r) {
+            return r.json().then(function (d) {
+                if (!r.ok) throw new Error(d.error || ('http ' + r.status));
+                return d;
+            });
+        }).then(function (d) {
+            result.className = 'uk-text-success';
+            result.textContent = d.subkeys.length
+                ? 'connesso — sotto-chiavi: ' + d.subkeys.join(', ')
+                : 'connesso (nessuna sotto-chiave configurata)';
+        }).catch(function (e) {
+            result.className = 'uk-text-danger';
+            result.textContent = e.message || 'connessione fallita';
+        }).finally(function () {
+            btn.disabled = false;
+        });
+    });
+});
+</script>
+
+<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="nodo">
     <h3 class="fm-section-title uk-margin-small-bottom">Nodo</h3>
     <form method="post">
+        <input type="hidden" name="connect_url" value="<?= fmH($connectUrl) ?>">
+        <input type="hidden" name="connect_token" value="<?= fmH($connectToken) ?>">
         <input type="hidden" name="cue_pre_roll" value="<?= (int)$cuePreRoll ?>">
         <input type="hidden" name="cue_post_roll" value="<?= (int)$cuePostRoll ?>">
         <input type="hidden" name="marker_autosave_seconds" value="<?= (int)$markerAutosaveSeconds ?>">
@@ -594,5 +707,94 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </form>
 </div>
+
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var toc = document.getElementById('fm-settings-toc');
+    var col = document.getElementById('fm-toc-col');
+    var topbar = document.getElementById('fm-topbar');
+    if (!toc || !col) return;
+
+    // L'indice deve comportarsi come un vero "sticky": restare al suo posto
+    // naturale (accanto alla prima card, sotto titolo ed eventuali avvisi)
+    // finché lo si raggiunge scorrendo, e solo allora fermarsi sotto la barra
+    // in cima (#fm-topbar, anch'essa sticky a top:0). "position:sticky" puro
+    // non basta: la colonna che lo contiene, dentro un uk-grid flex, è alta
+    // solo quanto il suo contenuto, quindi l'elemento uscirebbe subito dai
+    // bordi della colonna. Soluzione: si misura la posizione naturale a ogni
+    // scroll e si passa a "fixed" solo quando la si supera — appena si
+    // torna sopra quella soglia si torna al flusso normale.
+    var isFixed = false;
+    function posiziona() {
+        if (!window.matchMedia('(min-width: 960px)').matches) {
+            if (isFixed) {
+                toc.style.position = '';
+                toc.style.top = '';
+                toc.style.left = '';
+                toc.style.width = '';
+                col.style.height = '';
+                isFixed = false;
+            }
+            return;
+        }
+        var topbarHeight = topbar ? topbar.getBoundingClientRect().height : 0;
+        var minTop = topbarHeight + 16;
+        var colRect = col.getBoundingClientRect();
+
+        if (colRect.top <= minTop) {
+            if (!isFixed) {
+                // Fissata solo ORA: si misura l'altezza mentre è ancora nel
+                // flusso normale, e si riserva lo spazio sulla colonna perché
+                // non collassi (altrimenti la prossima lettura di colRect.top
+                // perderebbe il riferimento a "dove sarebbe" senza fixed).
+                col.style.height = toc.offsetHeight + 'px';
+                toc.style.position = 'fixed';
+                isFixed = true;
+            }
+            toc.style.top = minTop + 'px';
+            toc.style.left = colRect.left + 'px';
+            toc.style.width = colRect.width + 'px';
+        } else if (isFixed) {
+            toc.style.position = '';
+            toc.style.top = '';
+            toc.style.left = '';
+            toc.style.width = '';
+            col.style.height = '';
+            isFixed = false;
+        }
+    }
+    posiziona();
+    window.addEventListener('scroll', posiziona, { passive: true });
+    window.addEventListener('resize', posiziona);
+
+    // Indice delle card: evidenzia la voce della card più visibile mentre si
+    // scorre. Nessuna libreria: qui basta un IntersectionObserver leggero.
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    var links = {};
+    toc.querySelectorAll('a[href^="#"]').forEach(function (a) {
+        links[a.getAttribute('href').slice(1)] = a;
+    });
+
+    var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            var link = links[entry.target.id];
+            if (!link) return;
+            if (entry.isIntersecting) {
+                toc.querySelectorAll('a').forEach(function (a) { a.classList.remove('fm-toc-active'); });
+                link.classList.add('fm-toc-active');
+            }
+        });
+    }, { rootMargin: '-96px 0px -70% 0px' });
+
+    Object.keys(links).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) observer.observe(el);
+    });
+});
+</script>
 
 <?php include __DIR__ . '/includes/foot.php'; ?>

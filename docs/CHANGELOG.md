@@ -17,6 +17,33 @@ nessuna fase copre.
 
 ---
 
+## 0.4.8
+
+**Fluxus Connect da Impostazioni**: URL e token si impostano ora dalla card
+"Fluxus Connect" (Impostazioni, sopra "Nodo"), senza più modificare a mano
+`.connect.conf` né rilanciare `install.sh`.
+
+- Nuovo script privilegiato `bin/fluxus-write-connect-conf.sh` (root:root
+  0755, unico per macchina, come `fluxus-enable-volume.sh`/
+  `fluxus-network.sh`): scrive il file di secreti e attiva/disattiva a caldo
+  `<prefisso>-connect-sync.timer`, invocato via `sudo -n` da
+  `fmWriteConnectConf()` — `.connect.conf` resta `root:<gruppo> 0640`, PHP-FPM
+  può leggerlo ma non scriverlo.
+- Nuova regola dedicata in `config/sudoers.fluxus.in`; `install.sh` installa
+  l'helper dietro lo stesso interruttore `keep`/`overwrite` degli altri due
+  (`--connect-conf-helper`).
+- Impostazioni: piccolo indice verticale a sinistra con un link per ciascuna
+  card (Marker & Cue, Archiviazione, Rete, Fluxus Connect, Nodo), evidenzia
+  quella visibile mentre si scorre.
+- Pulsante "Testa connessione" nella card: verifica subito URL e token
+  (`GET /api/pi/whoami.php` sul broker) senza aspettare il prossimo giro del
+  timer, e mostra le sotto-chiavi configurate. Richiede che Fluxus Connect
+  esponga quel nuovo endpoint (repository separato, non coperto da qui).
+
+Vedi [NOTE-TECNICHE.md](NOTE-TECNICHE.md), sezione *Fluxus Connect* →
+*Configurazione da Impostazioni* e *Pulsante "Testa connessione"*. Fuori fase
+come 0.4.6: nessuna fase della roadmap copre questa capability.
+
 ## 0.4.6
 
 **Fluxus Connect**: il Pi può ora seguire ed essere controllato (marker/cue)

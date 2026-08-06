@@ -192,6 +192,10 @@ Altro
   --network-helper MODO  keep      non tocca /usr/local/bin/fluxus-network.sh
                                    se è diverso da quello del sorgente (predefinito)
                          overwrite lo sostituisce, con copia di sicurezza
+  --connect-conf-helper MODO
+                         keep      non tocca /usr/local/bin/fluxus-write-connect-conf.sh
+                                   se è diverso da quello del sorgente (predefinito)
+                         overwrite lo sostituisce, con copia di sicurezza
   --no-deps              non installa pacchetti
   --force                prosegue anche con una registrazione in corso
   --dry-run              mostra cosa farebbe, senza toccare niente
@@ -222,6 +226,7 @@ MEDIAMTX_BIN=''
 SORGENTE=''
 VOLUME_HELPER='keep'
 NETWORK_HELPER_MODO='keep'
+CONNECT_CONF_HELPER='keep'
 NIENTE_PACCHETTI=0
 FORZA=0
 
@@ -254,6 +259,7 @@ while [[ $# -gt 0 ]]; do
         --source)            SORGENTE=$(valore "$@"); shift 2 ;;
         --volume-helper)     VOLUME_HELPER=$(valore "$@"); shift 2 ;;
         --network-helper)    NETWORK_HELPER_MODO=$(valore "$@"); shift 2 ;;
+        --connect-conf-helper) CONNECT_CONF_HELPER=$(valore "$@"); shift 2 ;;
         --no-deps)           NIENTE_PACCHETTI=1; shift ;;
         --force)             FORZA=1; shift ;;
         --dry-run)           PROVA=1; shift ;;
@@ -268,6 +274,7 @@ done
 [[ "$MEDIAMTX_MODO"  =~ ^(instance|none)$  ]] || muori "--mediamtx vuole 'instance' o 'none'"
 [[ "$VOLUME_HELPER"  =~ ^(keep|overwrite)$ ]] || muori "--volume-helper vuole 'keep' o 'overwrite'"
 [[ "$NETWORK_HELPER_MODO" =~ ^(keep|overwrite)$ ]] || muori "--network-helper vuole 'keep' o 'overwrite'"
+[[ "$CONNECT_CONF_HELPER" =~ ^(keep|overwrite)$ ]] || muori "--connect-conf-helper vuole 'keep' o 'overwrite'"
 
 # ── Preliminari ───────────────────────────────────────────────────────────────
 
@@ -766,6 +773,10 @@ NETWORK_HELPER=/usr/local/bin/fluxus-network.sh
 installa_helper_macchina "$SORGENTE/bin/fluxus-network.sh" "$NETWORK_HELPER" "$NETWORK_HELPER_MODO" --network-helper
 NETWORK_HELPER_STATO="$HELPER_STATO"
 
+CONNECT_CONF_HELPER_BIN=/usr/local/bin/fluxus-write-connect-conf.sh
+installa_helper_macchina "$SORGENTE/bin/fluxus-write-connect-conf.sh" "$CONNECT_CONF_HELPER_BIN" "$CONNECT_CONF_HELPER" --connect-conf-helper
+CONNECT_CONF_HELPER_STATO="$HELPER_STATO"
+
 # ── 6. Modelli: servizi, permessi, server web ─────────────────────────────────
 
 SEGNAPOSTO=(
@@ -1019,6 +1030,7 @@ FLUXUS_MEDIAMTX_UNIT=$MEDIAMTX_UNIT
 FLUXUS_MEDIAMTX_CONF=$MEDIAMTX_CONF
 FLUXUS_VOLUME_HELPER=$VOLUME_HELPER_STATO
 FLUXUS_NETWORK_HELPER=$NETWORK_HELPER_STATO
+FLUXUS_CONNECT_CONF_HELPER=$CONNECT_CONF_HELPER_STATO
 FINE
 
 # ── Fine ──────────────────────────────────────────────────────────────────────

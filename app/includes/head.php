@@ -18,7 +18,7 @@ $fmWebBase = rtrim(FM_WEB_BASE, '/');
 <link rel="stylesheet" href="<?= $fmWebBase ?>/assets/style.css">
 </head>
 <body>
-<div style="position:sticky;top:0;z-index:980">
+<div id="fm-topbar" style="position:sticky;top:0;z-index:980">
 <?php include __DIR__ . '/nav.php'; ?>
 </div>
 <div class="uk-container uk-margin-top uk-margin-bottom">
