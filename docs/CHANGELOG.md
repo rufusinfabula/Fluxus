@@ -17,6 +17,15 @@ nessuna fase copre.
 
 ---
 
+## 0.4.10
+
+**Fix**: `install.sh` non confondeva più una vera collisione di prefisso
+systemd con un'istanza il cui nome è per intero il prefisso di un'altra già
+installata (es. `fluxus` rispetto a `fluxus-dev`: il confronto era per
+prefisso di stringa). Se non è stato chiesto un `--unit-prefix` esplicito,
+ora ne assegna uno libero da solo (`<istanza>-fl1`, `-fl2`, ...) invece di
+bloccarsi.
+
 ## 0.4.9
 
 **Catalogo verso Fluxus Connect**: oltre allo stato delle registrazioni

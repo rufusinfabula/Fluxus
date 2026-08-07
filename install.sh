@@ -215,7 +215,7 @@ WEB_DIR=''
 WEB_BASE=''; WEB_BASE_DATO=0
 UTENTE=''
 GRUPPO=''
-PREFISSO=''
+PREFISSO=''; PREFISSO_DATO=0
 PHP_FPM_SOCK=''
 NGINX_MODO='auto'
 NGINX_VHOST=''
@@ -248,7 +248,7 @@ while [[ $# -gt 0 ]]; do
         --web-base)          WEB_BASE=${2-}; WEB_BASE_DATO=1; shift 2 ;;
         --user)              UTENTE=$(valore "$@"); shift 2 ;;
         --group)             GRUPPO=$(valore "$@"); shift 2 ;;
-        --unit-prefix)       PREFISSO=$(valore "$@"); shift 2 ;;
+        --unit-prefix)       PREFISSO=$(valore "$@"); PREFISSO_DATO=1; shift 2 ;;
         --php-fpm-sock)      PHP_FPM_SOCK=$(valore "$@"); shift 2 ;;
         --nginx)             NGINX_MODO=$(valore "$@"); shift 2 ;;
         --nginx-vhost)       NGINX_VHOST=$(valore "$@"); shift 2 ;;
@@ -408,7 +408,6 @@ fi
 [[ "$RTMP_PORT" =~ ^[0-9]+$ && "$MEDIAMTX_API_PORT" =~ ^[0-9]+$ ]] || muori "le porte vogliono un numero"
 
 MEDIAMTX_CONF="$CONF_DIR/$ISTANZA.mediamtx.yml"
-MEDIAMTX_UNIT="$PREFISSO-mediamtx.service"
 MEDIAMTX_USER='mediamtx'
 
 if [[ -z "$NGINX_VHOST" ]]; then
@@ -477,22 +476,48 @@ fi
 # 2. Il prefisso dei servizi. Due istanze con lo stesso prefisso si
 #    disabiliterebbero i timer a vicenda; e l'installazione da cui il progetto
 #    proviene usa il prefisso storico 'fm', che nessuno deve poter calpestare.
-if [[ ! -e "$MANIFESTO" ]]; then
-    for u in /etc/systemd/system/"$PREFISSO"-*.timer /etc/systemd/system/"$PREFISSO"-*.service; do
-        [[ -e "$u" ]] || continue
-        muori \
-"esistono già servizi con il prefisso '$PREFISSO' ($(basename "$u")), e non li ho
-  installati io. Due istanze con lo stesso prefisso si spengono i timer a
-  vicenda: scegli un --unit-prefix diverso."
-    done
-fi
-for altro in "$CONF_DIR"/*.install; do
-    [[ -e "$altro" ]] || continue
-    [[ "$altro" == "$MANIFESTO" ]] && continue
-    if [[ "$(leggi_chiave "$altro" FLUXUS_UNIT_PREFIX)" == "$PREFISSO" ]]; then
-        muori "il prefisso '$PREFISSO' è già dell'istanza $(basename "$altro" .install)"
+#    Il confronto è per prefisso di stringa (vedi prefisso_in_uso), quindi
+#    un'istanza il cui nome è per intero il prefisso di un'altra già installata
+#    (es. 'fluxus' rispetto a 'fluxus-dev') risulta in collisione pur non
+#    essendocene una vera.
+prefisso_in_uso() {
+    local p="$1" u altro
+    if [[ ! -e "$MANIFESTO" ]]; then
+        for u in /etc/systemd/system/"$p"-*.timer /etc/systemd/system/"$p"-*.service; do
+            [[ -e "$u" ]] && return 0
+        done
     fi
-done
+    for altro in "$CONF_DIR"/*.install; do
+        [[ -e "$altro" ]] || continue
+        [[ "$altro" == "$MANIFESTO" ]] && continue
+        [[ "$(leggi_chiave "$altro" FLUXUS_UNIT_PREFIX)" == "$p" ]] && return 0
+    done
+    return 1
+}
+
+if prefisso_in_uso "$PREFISSO"; then
+    if (( PREFISSO_DATO )); then
+        muori \
+"il prefisso '$PREFISSO' è già in uso da un'altra installazione (servizi
+  esistenti o istanza registrata in $CONF_DIR): scegli un --unit-prefix
+  diverso."
+    fi
+    # Non è stato chiesto un prefisso esplicito: se ne cerca uno libero da soli,
+    # come già si fa per le porte — un nome d'istanza che collide solo per
+    # prefisso di stringa con un'altra già installata non deve fermare chi sta
+    # solo creando una seconda istanza.
+    n=1
+    while prefisso_in_uso "${PREFISSO}-fl$n"; do
+        n=$((n + 1))
+    done
+    dice "prefisso '$PREFISSO' già in uso: assegnato '${PREFISSO}-fl$n'"
+    PREFISSO="${PREFISSO}-fl$n"
+fi
+# Stesse regole del nome istanza (bin/fluxus-write-connect-conf.sh lo pretende
+# per scrivere le unit di Fluxus Connect): lettere minuscole, cifre, trattini.
+[[ "$PREFISSO" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+    || muori "prefisso servizi non valido: '$PREFISSO' (lettere minuscole, cifre e trattini)"
+MEDIAMTX_UNIT="$PREFISSO-mediamtx.service"
 
 # 3. Utente e gruppo devono esistere: l'installer non inventa utenti di sistema.
 getent passwd "$UTENTE" >/dev/null || muori "l'utente di sistema '$UTENTE' non esiste"
