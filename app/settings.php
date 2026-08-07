@@ -93,6 +93,9 @@ $storageAudioId = (int)fmSetting('storage_volume_audio', '1');
 $storageVideoId = (int)fmSetting('storage_volume_video', '1');
 // Stesso elenco e stesso ordine della barra di stato.
 $displayVolumes = fmVolumesForDisplay();
+// Dischi collegati ma con un filesystem che Fluxus non sa leggere (es. APFS):
+// solo da mostrare, nessuna azione possibile.
+$unreadableDisks = fmUnreadableDisks();
 
 // Mount point attualmente selezionato per audio e per video: si risale dal
 // volume salvato in DB al disco montato che lo contiene.
@@ -250,6 +253,14 @@ include __DIR__ . '/includes/head.php';
                         data-fs="<?= fmH($d['fs']) ?>"
                         data-mountable="<?= $mountable ? '1' : '0' ?>"
                         data-used="<?= fmH(number_format($d['used_gb'], 1, ',', '')) ?>">Abilita</button>
+                <?php else: ?>
+                <?php // Il disco può essere tornato collegato senza essersi rimontato da
+                      // solo (capita dopo un calo di tensione USB): questo pulsante rilancia
+                      // lo stesso script di abilitazione con l'UUID già noto da /etc/fstab,
+                      // senza bisogno di una shell. ?>
+                <button type="button" class="uk-button uk-button-default uk-button-small fm-vol-reconnect"
+                        data-volume-id="<?= (int)$d['volume_id'] ?>" data-label="<?= fmH($d['label']) ?>"
+                        uk-tooltip="title: Se il disco è di nuovo collegato ma non è tornato online da solo, riprova a montarlo; pos: top">Riprova</button>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -310,6 +321,34 @@ include __DIR__ . '/includes/head.php';
         </div>
     <?php endforeach; ?>
     </div>
+
+    <?php if ($unreadableDisks): ?>
+    <?php /* Dischi collegati ma illeggibili (es. APFS di un Mac): fuori da
+              #fm-volume-list apposta, non partecipano al drag&drop né ai
+              pulsanti — non c'è alcuna azione che Fluxus possa offrire su un
+              filesystem che non sa aprire. */ ?>
+    <div class="fm-vol-list uk-margin-small-top">
+    <?php foreach ($unreadableDisks as $u): ?>
+        <div class="fm-vol-card fm-vol-card-disabled">
+            <span class="fm-vol-badge" uk-tooltip="title: Disco esterno; pos: top">
+                <?= fmVolumeIcon(false) ?>
+            </span>
+            <div class="fm-vol-info">
+                <div><span class="uk-text-bold"><?= fmH($u['label']) ?></span></div>
+                <div class="uk-text-meta fm-mono fm-vol-meta" style="font-size:11px;">
+                    <span>/dev/<?= fmH($u['name']) ?> · <?= fmH($u['fs']) ?></span>
+                    <span class="fm-vol-chip fm-vol-chip-err"
+                          uk-tooltip="title: Fluxus non sa leggere questo filesystem: nessuna azione possibile da qui, va riformattato in uno supportato; pos: top">illeggibile</span>
+                </div>
+            </div>
+            <div class="fm-vol-space fm-vol-space-narrow">
+                <span class="uk-text-meta uk-text-small"><?= number_format($u['size_gb'], 1) ?> GB</span>
+            </div>
+            <span class="fm-vol-remove-spacer"></span>
+        </div>
+    <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <div class="uk-margin-small-top" style="font-size:11px;">
         <span class="uk-text-meta">Il volume senza tag non riceve nuove registrazioni.</span>
@@ -532,6 +571,36 @@ document.addEventListener('DOMContentLoaded', function () {
                 UIkit.modal.alert('Non è stato possibile abilitare il disco:\n\n' + (err.message || 'errore sconosciuto'));
             });
         }, function () {});
+    });
+
+    // "Riprova": rilancia l'abilitazione di un volume registrato ma offline,
+    // usando l'UUID già scritto in /etc/fstab. Nessuna conferma: non tocca
+    // dati nuovi, ripristina solo lo stato di un disco già noto.
+    list.addEventListener('click', function (e) {
+        var btn = e.target.closest('.fm-vol-reconnect');
+        if (!btn) return;
+        e.stopPropagation();
+
+        var label = btn.getAttribute('data-label') || 'il disco';
+        btn.disabled = true;
+        btn.textContent = 'verifica…';
+        fetch(<?= json_encode(rtrim(FM_WEB_BASE, '/') . '/api/volume_enable.php') ?>, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ volume_id: btn.getAttribute('data-volume-id') })
+        }).then(function (r) {
+            return r.json().then(function (d) {
+                if (!r.ok) throw new Error(d.error || ('http ' + r.status));
+                return d;
+            });
+        }).then(function (d) {
+            say('«' + (d.label || label) + '» di nuovo collegato su ' + d.mount, 'uk-text-success');
+            setTimeout(function () { location.reload(); }, 900);
+        }).catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Riprova';
+            UIkit.modal.alert('Non è stato possibile ricollegare «' + label + '»:\n\n' + (err.message || 'errore sconosciuto'));
+        });
     });
 
     // Togli un volume dall'elenco (× sulla card).

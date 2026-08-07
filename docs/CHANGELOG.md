@@ -17,6 +17,20 @@ nessuna fase copre.
 
 ---
 
+## 0.4.11
+
+**Fix**: un volume di storage registrato ma scollegato per un calo di
+tensione USB (disco che si stacca un attimo e non si rimonta da solo) ora si
+può far tornare online dalla card in Impostazioni → Archiviazione, pulsante
+**"Riprova"**, senza bisogno di shell — riusa lo stesso script di
+abilitazione già esistente, con l'UUID recuperato da `/etc/fstab`.
+
+**Novità**: un disco collegato ma con filesystem che Fluxus non sa leggere
+(APFS, HFS+…) ora compare in Impostazioni marcato **"illeggibile"** invece di
+restare invisibile: prima la rilevazione dei dischi leggeva solo
+`/proc/mounts`, e un disco mai montato non lasciava alcuna traccia in UI.
+Nessuna azione possibile su queste card: solo visibilità.
+
 ## 0.4.10
 
 **Fix**: `install.sh` non confondeva più una vera collisione di prefisso

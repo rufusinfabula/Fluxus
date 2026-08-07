@@ -703,6 +703,70 @@ function fmDetectedVolumes(): array {
 }
 
 /**
+ * Dischi collegati al Pi che non compaiono né in fmDetectedVolumes() (nessuna
+ * partizione montata) né fra i volumi registrati e solo scollegati: il caso
+ * tipico è un disco con un filesystem che Linux non sa leggere (APFS di un
+ * Mac, HFS+, ZFS…). Senza questo elenco un disco così resta invisibile in
+ * Impostazioni — sembra un problema di collegamento quando invece il Pi lo
+ * vede benissimo, semplicemente non sa aprirlo.
+ *
+ * A differenza di fmDetectedVolumes() qui non c'è alcuna azione da offrire:
+ * serve solo a farli *vedere*, marcati "illeggibile". Chi vuole usare quel
+ * disco deve riformattarlo a mano in un filesystem supportato.
+ */
+function fmUnreadableDisks(): array {
+    $realFs = ['ext2', 'ext3', 'ext4', 'xfs', 'btrfs', 'f2fs', 'vfat', 'exfat',
+               'ntfs', 'ntfs3', 'fuseblk'];
+
+    $rootSrc  = trim((string)@shell_exec('findmnt -no SOURCE / 2>/dev/null'));
+    $rootDisk = $rootSrc !== ''
+        ? trim((string)@shell_exec('lsblk -no PKNAME ' . escapeshellarg($rootSrc) . ' 2>/dev/null'))
+        : '';
+
+    $lsblk = json_decode((string)@shell_exec('lsblk -J -b -o NAME,TYPE,FSTYPE,LABEL,SIZE,MOUNTPOINT 2>/dev/null'), true) ?: [];
+    $tree = $lsblk['blockdevices'] ?? [];
+
+    // UUID dei volumi già noti a Fluxus (montati o solo registrati in fstab),
+    // per non duplicare qui una card già mostrata come "non collegato".
+    $known = [];
+    foreach (fmStorageVolumes() as $v) {
+        if (!empty($v['is_default'])) continue;
+        $uuid = fmFstabUUIDForMount(dirname(rtrim($v['path'], '/')));
+        if ($uuid !== '') $known[] = $uuid;
+    }
+
+    $out = [];
+    foreach ($tree as $disk) {
+        if (($disk['type'] ?? '') !== 'disk' || $disk['name'] === $rootDisk) continue;
+
+        $usable = false;
+        $fsFound = [];
+        foreach ($disk['children'] ?? [] as $p) {
+            if (!empty($p['fstype'])) $fsFound[] = $p['fstype'];
+            if (!empty($p['mountpoint'])) { $usable = true; break; }
+            if (!empty($p['fstype']) && in_array($p['fstype'], $realFs, true)) {
+                $uuid = fmDeviceUUID('/dev/' . $p['name']);
+                if ($uuid !== '' && in_array($uuid, $known, true)) { $usable = true; break; }
+            }
+        }
+        if ($usable) continue;
+
+        $label = null;
+        foreach ($disk['children'] ?? [] as $p) {
+            if (!empty($p['label'])) { $label = $p['label']; break; }
+        }
+
+        $out[] = [
+            'name'    => $disk['name'],
+            'label'   => $label ?? ('Disco ' . $disk['name']),
+            'size_gb' => round(($disk['size'] ?? 0) / 1073741824, 1),
+            'fs'      => $fsFound ? implode(' + ', array_unique($fsFound)) : 'nessun filesystem riconosciuto',
+        ];
+    }
+    return $out;
+}
+
+/**
  * UUID di un dispositivo a blocchi, letto dai symlink di /dev/disk/by-uuid.
  *
  * ⚠️ Non usare `blkid`: legge direttamente il device (brw-rw---- root:disk) e
@@ -715,6 +779,31 @@ function fmDeviceUUID(string $device): string {
         if ((realpath($link) ?: '') === $real) {
             $uuid = basename($link);
             return preg_match('/^[A-Fa-f0-9-]{4,36}$/', $uuid) ? $uuid : '';
+        }
+    }
+    return '';
+}
+
+/**
+ * UUID con cui un volume esterno è stato registrato la prima volta in
+ * /etc/fstab da fluxus-enable-volume.sh, cercando la riga per mount point.
+ * Serve a "riprovare" un volume che risulta registrato ma scollegato: se il
+ * disco è di nuovo fisicamente presente, questo UUID è l'unico argomento che
+ * serve per richiamare lo stesso script e rimontarlo, senza che il client
+ * possa suggerire un device a piacere.
+ *
+ * /etc/fstab è leggibile da chiunque (644): niente privilegi di troppo.
+ */
+function fmFstabUUIDForMount(string $mount): string {
+    $mount = rtrim($mount, '/');
+    if ($mount === '') return '';
+    foreach (@file('/etc/fstab') ?: [] as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || !str_starts_with($line, 'UUID=')) continue;
+        $cols = preg_split('/\s+/', $line);
+        if (count($cols) < 2) continue;
+        if (rtrim($cols[1], '/') === $mount) {
+            return substr($cols[0], 5);
         }
     }
     return '';

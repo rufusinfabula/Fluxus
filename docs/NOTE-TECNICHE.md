@@ -3060,3 +3060,77 @@ non deve mai spegnerla, lo stesso motivo per cui non tocca
 `--now` (a differenza di `mediamtx.service`): scatta solo al prossimo
 riavvio vero, mai durante un `install.sh`/`fluxus update` dal vivo, nemmeno
 su una macchina già in servizio.
+
+## Volumi: disco offline che non si rimonta da solo, e dischi illeggibili (0.4.11, 2026-08-07)
+
+Due lacune emerse collegando un secondo disco USB a un host già in uso: il
+disco esterno già in uso si è disconnesso per un calo di tensione sul bus
+(`dmesg`: due `USB disconnect` a distanza di minuti), e non si è rimontato
+da sé al ritorno
+— contraddicendo quanto scritto sopra ("ricompare da sé quando lo si
+ricollega"). E il disco appena collegato, partizionato da un Mac (EFI +
+APFS), non compariva **da nessuna parte**: né montato né segnalato, perché
+`fmDetectedVolumes()` legge solo `/proc/mounts`.
+
+### Un volume registrato non si rimonta da solo
+
+`nofail` in fstab evita che il boot si blocchi a disco scollegato, ma non
+implica un `.mount` automount: **systemd non rimonta un disco al suo
+ricomparire se non era già montato**, a meno di un'unit `.automount` esplicita
+(che qui non c'è). Un disco può quindi tornare visibile al kernel (`lsblk`,
+`fdisk -l`) restando comunque assente da `/proc/mounts`, e quindi invisibile
+a `fmDetectedVolumes()` — l'unica via prima d'ora era rimontarlo a mano da
+shell (`mount /mnt/<label>`), non praticabile per chi non ha accesso SSH.
+
+Il volume **resta comunque visibile** in questo caso: essendo registrato in
+`storage_volumes`, `fmVolumesForDisplay()` lo mostra già come card "non
+collegato" (il meccanismo descritto sopra, invariato). Mancava solo un modo
+per **farlo tornare** senza shell.
+
+`api/volume_enable.php` accetta ora, oltre al `mount` già rilevato in
+`/proc/mounts`, anche un `volume_id`: quello di un volume registrato ma
+`!fmVolumeOnline()`. L'UUID non arriva più da un device già montato, ma da
+**`fmFstabUUIDForMount()`**, che rilegge `/etc/fstab` (644, leggibile da
+chiunque) cercando la riga scritta la prima volta da
+`fluxus-enable-volume.sh` per quel mount point. Da lì in poi è lo stesso
+percorso di sempre: `sudo -n fluxus-enable-volume.sh <UUID> ...`, che risolve
+l'UUID a device via `blkid` (gira da root, nessun problema di permessi) e
+rimonta se il disco è davvero tornato. **Lo script non è stato toccato**: fa
+già tutto il necessario, serviva solo un secondo modo di ricavargli l'UUID.
+
+In UI, la card di un volume offline mostra ora un pulsante **"Riprova"** al
+posto dello slot vuoto (stesso spazio di "Abilita", stesso `fm-vol-slot-enable`).
+Nessuna conferma prima di agire, a differenza di "Abilita": non tocca dati
+nuovi, ripristina solo lo stato di un volume già noto — se il disco non è
+davvero collegato, lo script fallisce con un messaggio chiaro
+("Nessun dispositivo con UUID …") e il pulsante torna cliccabile.
+
+### Dischi con filesystem illeggibile
+
+`fmUnreadableDisks()` (helpers.php) elenca i dischi a livello di **disco
+intero** (non partizione) che non compaiono altrove: nessuna partizione
+montata, e nessuna già nota come volume registrato (confronto per UUID via
+`fmFstabUUIDForMount()`, stesso helper del punto precedente). Usa
+`lsblk -J` per l'albero disco→partizioni e `findmnt`+`lsblk -no PKNAME` per
+escludere il disco di sistema, esattamente come fa già `fluxus-enable-volume.sh`
+lato root.
+
+Non offre **alcuna azione**: un filesystem che Linux non sa montare (APFS,
+HFS+, ZFS…) non si abilita, si riformatta a mano fuori da Fluxus. Le card
+vivono perciò **fuori da `#fm-volume-list`**, in un contenitore proprio: non
+partecipano al drag&drop né ai gruppi `uk-sortable` (che sono cablati su
+quell'id), e i pulsanti (`.fm-vol-enable`, `.fm-vol-remove`,
+`.fm-vol-reconnect`) sono tutti delegati da un `addEventListener` su quello
+stesso contenitore, quindi semplicemente non li vedono. Riusano le classi CSS
+esistenti (`fm-vol-card`, `fm-vol-card-disabled`, `fm-vol-chip-err`…): nessuna
+regola nuova in `style.css`.
+
+Un disco con **più partizioni** (com'era il caso: EFI vfat da 200 MB + APFS)
+conta come illeggibile **nel suo complesso** se nessuna partizione è montata
+o già registrata — anche se una di quelle partizioni avrebbe, in teoria, un
+filesystem che Fluxus saprebbe montare. Scelta deliberata: la partizione EFI
+di un disco Mac non è ciò per cui l'utente l'ha collegato, e offrire
+"Abilita" su 200 MB sarebbe fuorviante. Chi vuole davvero usare quella
+partizione la abilita comunque a mano restando nel flusso esistente (basta
+che venga montata una volta, anche dal desktop): da lì in poi
+`fmDetectedVolumes()` la vede come sempre.
