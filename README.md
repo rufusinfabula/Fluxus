@@ -106,7 +106,8 @@ sudo fluxus uninstall                    # via tutto, i dati restano
 ```
 
 Con più installazioni sulla stessa macchina, `fluxus list` le elenca e
-`--instance <nome>` sceglie su quale lavorare. Le opzioni complete: `--help` su
+`--instance <nome>` sceglie su quale lavorare; senza, da un terminale, il
+comando chiede quale. Le opzioni complete: `--help` su
 entrambi i comandi.
 
 ## Documentazione

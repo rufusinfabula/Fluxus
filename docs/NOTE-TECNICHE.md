@@ -2992,7 +2992,10 @@ nessun `ALTER TABLE`, nessun bump di `schema_version`) — fuori fase come già
     `/usr/local/lib/fluxus`, mai quello nella cartella dell'utente di Fluxus:
     gira come root, e quel file sarebbe riscrivibile da chi root non è;
     (g) **niente istanza indovinata**: con più installazioni e nessuna
-    indicata, il comando si ferma ed elenca.
+    indicata, il comando non ne sceglie una da solo. Davanti a un terminale
+    (0.4.15) chiede quale, con un elenco numerato, e prima di procedere
+    stampa il comando completo che sta eseguendo; dentro uno script, in una
+    pipe o con `--yes` si ferma ed elenca, come prima.
 26. Rete (fase 4): vedi la sezione dedicata. `fluxus-hotspot-check.service`
     **dalla 0.4.14 si installa ma non si abilita** (e `install.sh` la spegne
     se era abilitata): l'attivazione vera non è mai stata collaudata dal vivo,

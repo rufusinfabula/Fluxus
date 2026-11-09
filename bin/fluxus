@@ -96,6 +96,39 @@ istanze_installate() {
     done
 }
 
+# Legge una chiave da un file CHIAVE=valore (il manifesto dell'installazione).
+leggi_chiave() {
+    local file="$1" chiave="$2"
+    [[ -r "$file" ]] || return 1
+    sed -n -e 's/\r$//' -e "s/^[[:space:]]*${chiave}[[:space:]]*=//p" "$file" | tail -n 1 \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+# Più installazioni e nessuna indicata. Davanti a un terminale si chiede quale,
+# con un elenco numerato: è una scelta esplicita di chi c'è, non un'istanza
+# indovinata (vincolo 25g). Dentro uno script, in una pipe o con --yes non c'è
+# nessuno a cui chiedere, e il comando si ferma ed elenca come sempre.
+scegli_istanza() {
+    local i n=1 scelta versione base
+    printf '\nSu questa macchina ci sono %d installazioni di Fluxus:\n\n' "${#TUTTE[@]}" >&2
+    for i in "${TUTTE[@]}"; do
+        versione=$(leggi_chiave "$CONF_DIR/$i.install" FLUXUS_INSTALLED_VERSION 2>/dev/null || true)
+        base=$(leggi_chiave "$CONF_DIR/$i.conf" FLUXUS_WEB_BASE 2>/dev/null || true)
+        printf '  %d) %-14s %-8s %s\n' "$n" "$i" "${versione:-?}" "${base:-/}" >&2
+        n=$(( n + 1 ))
+    done
+    printf '\nQuale? [1-%d, invio per uscire] ' "${#TUTTE[@]}" >&2
+    read -r scelta || scelta=''
+    [[ -n "$scelta" ]] || exit 0
+    if [[ "$scelta" =~ ^[0-9]+$ ]] && (( scelta >= 1 && scelta <= ${#TUTTE[@]} )); then
+        ISTANZA="${TUTTE[$(( scelta - 1 ))]}"
+    else
+        for i in "${TUTTE[@]}"; do [[ "$scelta" == "$i" ]] && ISTANZA="$i"; done
+        [[ -n "$ISTANZA" ]] || muori "scelta non valida: $scelta"
+    fi
+    printf '\n→ fluxus --instance %s %s\n' "$ISTANZA" "$COMANDO" >&2
+}
+
 ISTANZA=''
 AUTOMATICO=0
 COMANDO=''
@@ -120,12 +153,16 @@ if [[ "$COMANDO" != list && "$COMANDO" != help ]]; then
         case ${#TUTTE[@]} in
             0) muori "nessuna installazione di Fluxus su questa macchina ($CONF_DIR è vuota)" ;;
             1) ISTANZA="${TUTTE[0]}" ;;
-            *) printf '%serrore:%s qui ci sono %d installazioni: indica quale.\n\n' \
-                   "$C_ERR" "$C_FIN" "${#TUTTE[@]}" >&2
-               for i in "${TUTTE[@]}"; do
-                   printf '  fluxus --instance %s %s\n' "$i" "$COMANDO" >&2
-               done
-               exit 1 ;;
+            *) if (( ! AUTOMATICO )) && [[ -t 0 && -t 2 ]]; then
+                   scegli_istanza
+               else
+                   printf '%serrore:%s qui ci sono %d installazioni: indica quale.\n\n' \
+                       "$C_ERR" "$C_FIN" "${#TUTTE[@]}" >&2
+                   for i in "${TUTTE[@]}"; do
+                       printf '  fluxus --instance %s %s\n' "$i" "$COMANDO" >&2
+                   done
+                   exit 1
+               fi ;;
         esac
     fi
     CONF_FILE="$CONF_DIR/$ISTANZA.conf"
@@ -142,13 +179,6 @@ if [[ "$COMANDO" != list && "$COMANDO" != help ]]; then
     CONNECT_FILE="$CONF_DIR/$ISTANZA.connect.conf"
 fi
 
-# Legge una chiave da un file CHIAVE=valore (il manifesto dell'installazione).
-leggi_chiave() {
-    local file="$1" chiave="$2"
-    [[ -r "$file" ]] || return 1
-    sed -n -e 's/\r$//' -e "s/^[[:space:]]*${chiave}[[:space:]]*=//p" "$file" | tail -n 1 \
-        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
-}
 dal_manifesto() { leggi_chiave "$MANIFESTO" "$1" 2>/dev/null || true; }
 
 # ⚠️ Il database si apre SEMPRE come utente di Fluxus, nemmeno per leggere: è in

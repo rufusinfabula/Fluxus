@@ -18,6 +18,16 @@ nessuna fase copre.
 
 ---
 
+## 0.4.15
+
+**Comando `fluxus`**: con più installazioni sulla stessa macchina e senza
+`--instance`, davanti a un terminale ora chiede quale usare con un elenco
+numerato (nome, versione, indirizzo), invece di fermarsi con un errore. Si
+risponde con il numero o con il nome; invio vuoto esce senza fare niente.
+Prima di procedere stampa il comando completo, per esempio
+`→ fluxus --instance fluxus status`. Dentro uno script, in una pipe o con
+`--yes` il comportamento è quello di prima: errore ed elenco delle istanze.
+
 ## 0.4.14
 
 **Cambiato**: l'hotspot di primo avvio è **dormiente**. `install.sh` installa
