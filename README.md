@@ -9,7 +9,7 @@ angolo che registra da sola, giorno dopo giorno, e a cui si chiede conto dal
 browser. Nessun servizio cloud, nessuna porta aperta verso Internet, nessun
 abbonamento.
 
-> **Stato: `1.0.0`, la prima versione stabile.**
+> **Stato: `1.0.1`. La prima versione stabile è la `1.0.0`.**
 > Fluxus registra in produzione ogni giorno, **si installa** con un comando da
 > chi sa usare un terminale, e si può installare due volte sulla stessa
 > macchina senza che le due copie si tocchino. Percorsi e nomi vengono da un

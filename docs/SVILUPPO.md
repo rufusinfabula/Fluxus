@@ -38,11 +38,15 @@ aggiorna, perché l'installer copia da lì.
    si legge il vincolo corrispondente nelle [note tecniche](NOTE-TECNICHE.md),
    sezione *Vincoli critici*. `scripts/record.sh` è il file più delicato del
    progetto.
-5. **Il database di produzione si apre solo come l'utente di Fluxus**
-   (`www-data`), mai come un altro utente, nemmeno in sola lettura. È in
-   modalità WAL: anche una `SELECT` crea i file `-wal`/`-shm` con il
-   proprietario di chi l'ha lanciata, e da lì PHP non riesce più a scrivere.
-   È già successo.
+5. **Il database di produzione si apre come l'utente di Fluxus**
+   (`sudo -u www-data sqlite3 …`). È in modalità WAL: chi lo apre crea i file
+   `-wal`/`-shm` accanto al database, e fino alla 1.0.0 un membro del gruppo
+   che lo apriva con il proprio utente li creava con il proprio gruppo —
+   PHP non riusciva più a scrivere. È già successo. Dalla 1.0.1 la cartella
+   del database ha il setgid (`2770`) e quel blocco non si ripresenta, e il
+   database è chiuso agli altri utenti (`0660`); resta comunque la regola,
+   perché è l'unico modo che non dipende dai permessi. Aprirlo come root è
+   innocuo: SQLite restituisce i file al proprietario del database.
 6. **Il database di produzione non si scrive mai a mano**, nemmeno per una
    pulizia banale. Ci pensano l'applicazione, gli script e le migrazioni.
 7. `settings.schema_version` è il contatore delle migrazioni del database,

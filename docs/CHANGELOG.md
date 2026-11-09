@@ -23,10 +23,30 @@ nessuna fase copre.
 
 ---
 
-## 1.0.1 — in lavorazione su `dev`
+## 1.0.1
 
-Non ancora rilasciata: qui si raccoglie ciò che cambia dopo la 1.0.0. La
-versione stabile resta la 1.0.0, sul branch `1.0`.
+**Database protetto.** La cartella del database diventa `2770` e il database
+`0660`, utente e gruppo dell'istanza:
+
+- **non più leggibile dagli altri utenti della macchina** — prima era `0664`
+  in una cartella `0775`, e dentro ci sono l'hash della password e la chiave
+  di federazione;
+- **non più bloccabile per sbaglio**: un membro del gruppo (un amministratore
+  che apre il database con il suo utente) creava i file `-wal`/`-shm` con il
+  proprio gruppo, e PHP riceveva *"attempt to write a readonly database"*
+  finché qualcuno non li sistemava — anche per sempre, se quella connessione
+  veniva interrotta. Con il setgid sulla cartella quei file prendono sempre il
+  gruppo dell'istanza. Aprirlo come root era già innocuo: SQLite restituisce
+  i file al proprietario del database.
+
+`install.sh` sistema i permessi anche delle installazioni esistenti
+(database e `-wal`/`-shm`), un database nuovo nasce `0660`, e `fluxus restore`
+lo rimette `0660`.
+
+Sulla macchina di sviluppo l'utente del server RTMP (`mediamtx`) è stato tolto
+dal gruppo `www-data`, dove l'installer non lo mette e dove non gli serve: un
+servizio che riceve connessioni dalla rete non deve poter leggere o bloccare
+il database.
 
 **Documentazione**: nuova pagina [SVILUPPO.md](SVILUPPO.md) che raccoglie in
 un posto solo le regole di sviluppo, collaudo, rilascio e manutenzione — prima

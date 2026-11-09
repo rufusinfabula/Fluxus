@@ -38,7 +38,7 @@ if ($_fm_needs_init) {
         ('federation_api_key', '" . bin2hex(random_bytes(24)) . "')");
     $_db->exec("INSERT OR IGNORE INTO settings VALUES ('schema_version', '2')");
     unset($_db);
-    @chmod(FM_DB, 0664);
+    @chmod(FM_DB, 0660);   // solo l'utente e il gruppo dell'istanza (1.0.1)
 }
 
 // Migrazioni incrementali per DB già esistenti (aggiunta colonne senza perdere dati).

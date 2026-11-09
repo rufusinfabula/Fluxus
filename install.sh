@@ -701,9 +701,18 @@ fi
 
 passo "Cartelle"
 
-for d in "$DATA_DIR" "$DATA_DIR"/{db,recordings,clips,tmp,logs,scripts,volumes}; do
+for d in "$DATA_DIR" "$DATA_DIR"/{recordings,clips,tmp,logs,scripts,volumes}; do
     esegui install -d -m 0775 -o "$UTENTE" -g "$GRUPPO" "$d"
 done
+# La cartella del database (1.0.1): 2770. Chiusa agli altri utenti della
+# macchina — dentro ci sono l'hash della password e la chiave di federazione —
+# e con il setgid: i file -wal/-shm che SQLite crea accanto al database
+# prendono il gruppo dell'istanza anche quando li crea un altro membro del
+# gruppo (un amministratore che apre il database con il suo utente). Senza,
+# nascevano utente:utente 0664, e PHP riceveva "attempt to write a readonly
+# database" finché qualcuno non li sistemava: è già successo. Provato:
+# con il setgid la stessa sequenza non blocca più niente.
+esegui install -d -m 2770 -o "$UTENTE" -g "$GRUPPO" "$DATA_DIR/db"
 # Le sessioni sono l'unica cartella che nessun altro deve poter leggere:
 # dentro ci sono i cookie di chi è entrato.
 esegui install -d -m 0700 -o "$UTENTE" -g "$GRUPPO" "$DATA_DIR/sessions"
@@ -1069,6 +1078,20 @@ else
     schema=$(sudo -u "$UTENTE" sqlite3 -cmd ".timeout 5000" "$DB" \
         "SELECT value FROM settings WHERE key='schema_version';" 2>/dev/null || true)
     fatto "$DB (schema $schema)"
+fi
+
+# Permessi del database (1.0.1): 0660, utente e gruppo dell'istanza, anche per
+# i -wal/-shm. Sistema le installazioni nate prima (0664, leggibile da tutti) e
+# un -wal/-shm rimasto con il proprietario sbagliato, che bloccherebbe PHP.
+for f in "$DB" "$DB-wal" "$DB-shm"; do
+    if (( PROVA )); then
+        printf '    · porterei %s a 0660 %s:%s, se c'"'"'è\n' "$f" "$UTENTE" "$GRUPPO"
+    elif [[ -e "$f" ]]; then
+        chown "$UTENTE:$GRUPPO" "$f" && chmod 0660 "$f" || segna_avviso "non riesco a sistemare i permessi di $f"
+    fi
+done
+if (( ! PROVA )); then
+    fatto "permessi del database: solo $UTENTE e il gruppo $GRUPPO"
 fi
 
 # ── 10. Avvio dei servizi ─────────────────────────────────────────────────────

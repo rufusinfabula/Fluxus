@@ -616,7 +616,7 @@ cmd_restore() {
             cp -a "$FM_DB" "$FM_DB.prima-del-restore-$(date +%Y%m%d-%H%M%S)"
         fi
         rm -f "$FM_DB" "$FM_DB-wal" "$FM_DB-shm"
-        install -m 0664 -o "$FLUXUS_USER" -g "$FLUXUS_GROUP" "$nuovo" "$FM_DB"
+        install -m 0660 -o "$FLUXUS_USER" -g "$FLUXUS_GROUP" "$nuovo" "$FM_DB"
         dice "database rimesso a posto (il precedente è accanto, con la data)"
     fi
 

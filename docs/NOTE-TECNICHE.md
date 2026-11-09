@@ -3220,3 +3220,26 @@ per arm64, amd64 e armv7 (dal `checksums.sha256` della release). Un archivio con
 un'impronta diversa non si installa; un `mediamtx` già presente non si tocca.
 La v1.14.0 è quella in produzione: il binario arm64 della release è identico
 a quello in servizio.
+
+## Permessi del database (1.0.1, 2026-11-09)
+
+Provato su una copia del database, aprendolo con utenti diversi:
+
+| Chi lo apre | Esito, prima della 1.0.1 |
+|---|---|
+| root | innocuo: SQLite, quando gira come root, dà i `-wal`/`-shm` al proprietario del database |
+| un utente fuori dal gruppo | innocuo: non può creare file nella cartella, SQLite rifiuta di aprire |
+| un membro del gruppo, `SELECT` che si chiude | innocuo: i file nascono e vengono cancellati alla chiusura |
+| un membro del gruppo, connessione aperta o interrotta | **guasto**: `-wal`/`-shm` nascono `utente:utente 0664`, PHP riceve *attempt to write a readonly database*; se la connessione viene uccisa, i file restano e il blocco con loro |
+
+Il gruppo dell'istanza conteneva, su una macchina reale, l'amministratore e
+anche l'utente del server RTMP — aggiunto a mano, non dall'installer.
+
+**Rimedio**: cartella `db` `2770` (setgid: i file nuovi prendono il gruppo
+della cartella, e con `0660` restano scrivibili dal gruppo) e database `0660`.
+Con il setgid la stessa sequenza — connessione di un membro del gruppo aperta,
+poi uccisa — lascia PHP libero di scrivere. `install.sh` crea la cartella
+così, porta a `0660` utente:gruppo il database e gli eventuali `-wal`/`-shm`
+già presenti; `db_init.php` crea il database `0660`; `fluxus restore` lo
+rimette `0660`. Il backup (`fluxus backup`) già leggeva come utente di Fluxus
+e scriveva l'archivio con `umask 077`.
