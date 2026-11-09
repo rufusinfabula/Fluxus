@@ -141,6 +141,7 @@ include __DIR__ . '/includes/head.php';
         <a href="#rete">Rete</a>
         <a href="#fluxus-connect">Fluxus Connect</a>
         <a href="#nodo">Nodo</a>
+        <a href="#comandi">Comandi da terminale</a>
     </nav>
 </div>
 <div class="uk-width-4-5@m">
@@ -776,6 +777,81 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </form>
 </div>
+
+<?php
+// Comandi da terminale: le ricette più usate, già con il nome di questa
+// istanza, e l'aiuto completo letto dal vivo dal comando 'fluxus' installato,
+// così il riquadro non può restare indietro rispetto alla versione che gira.
+// Il riferimento completo è docs/COMANDI.md nel sorgente.
+$fmCmdIst = FM_INSTANCE;
+$fmCmdSrc = '';
+$fmCmdManifest = FM_CONF_DIR . '/' . FM_INSTANCE . '.install';
+if (is_readable($fmCmdManifest)) {
+    foreach (file($fmCmdManifest, FILE_IGNORE_NEW_LINES) as $fmCmdRiga) {
+        if (str_starts_with($fmCmdRiga, 'FLUXUS_SOURCE=')) $fmCmdSrc = trim(substr($fmCmdRiga, 14));
+    }
+}
+$fmCmdHelp = is_executable('/usr/local/bin/fluxus') ? (string)shell_exec('/usr/local/bin/fluxus --help 2>/dev/null') : '';
+$fmCmdRicette = [
+    ['Come sta questa installazione', "sudo fluxus --instance $fmCmdIst status"],
+    ['Cosa sta succedendo, in diretta', "sudo fluxus --instance $fmCmdIst logs -f"],
+    ['Il log di una registrazione (al posto di ID il suo numero)', "sudo fluxus --instance $fmCmdIst logs record ID"],
+    ['C\'è una registrazione in corso? (non deve stampare niente prima di un aggiornamento)',
+        "sudo -u " . FM_USER . " sqlite3 -cmd \".timeout 5000\" " . FM_DB . " \"SELECT id, source_name FROM recordings WHERE status='recording';\""],
+    ['Backup di database, configurazione e chiavi', "sudo fluxus --instance $fmCmdIst backup"],
+    ['Aggiornare da GitHub (prima la prova a vuoto)',
+        ($fmCmdSrc !== '' ? "cd $fmCmdSrc && git pull\n" : "cd <cartella del sorgente> && git pull\n")
+        . "sudo ./install.sh --instance $fmCmdIst --dry-run\nsudo ./install.sh --instance $fmCmdIst"],
+];
+?>
+<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="comandi">
+    <h3 class="fm-section-title uk-margin-small-bottom">Comandi da terminale</h3>
+    <p class="uk-text-meta uk-margin-remove-top">Per chi gestisce la macchina: si lanciano da un terminale sul Pi, anche via SSH, e vogliono <span class="fm-mono">sudo</span>. Quelli qui sotto sono già scritti per questa installazione (<span class="fm-mono"><?= fmH($fmCmdIst) ?></span>). Il riferimento completo, con le opzioni dell'installer, è <span class="fm-mono">docs/COMANDI.md</span> nel sorgente.</p>
+    <?php foreach ($fmCmdRicette as [$fmCmdTitolo, $fmCmdTesto]): ?>
+    <div class="uk-margin-small-bottom">
+        <div class="uk-text-small"><?= fmH($fmCmdTitolo) ?></div>
+        <div class="uk-flex uk-flex-top" style="gap:8px;">
+            <pre class="fm-mono fm-cmd uk-margin-remove" style="flex:1;font-size:12px;padding:6px 8px;white-space:pre-wrap;word-break:break-all;"><?= fmH($fmCmdTesto) ?></pre>
+            <button type="button" class="uk-button uk-button-default uk-button-small fm-cmd-copy">Copia</button>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    <details class="uk-margin-top">
+        <summary class="uk-text-small" style="cursor:pointer;">Tutti i comandi di <span class="fm-mono">fluxus</span> (aiuto del comando installato)</summary>
+        <?php if (trim($fmCmdHelp) !== ''): ?>
+        <pre class="fm-mono uk-margin-small-top" style="font-size:12px;padding:8px;white-space:pre-wrap;"><?= fmH($fmCmdHelp) ?></pre>
+        <?php else: ?>
+        <p class="uk-text-meta">Il comando <span class="fm-mono">/usr/local/bin/fluxus</span> non risponde: va reinstallato con <span class="fm-mono">install.sh</span>.</p>
+        <?php endif; ?>
+    </details>
+</div>
+
+<script>
+// navigator.clipboard esiste solo in un contesto sicuro (https o localhost):
+// su http://<indirizzo-della-macchina> non c'è, e si ripiega su execCommand.
+document.querySelectorAll('.fm-cmd-copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var text = btn.parentNode.querySelector('.fm-cmd').textContent;
+        var fatto = function () {
+            var orig = btn.textContent;
+            btn.textContent = 'Copiato!';
+            setTimeout(function () { btn.textContent = orig; }, 1500);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(fatto);
+            return;
+        }
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { if (document.execCommand('copy')) fatto(); } catch (e) {}
+        document.body.removeChild(ta);
+    });
+});
+</script>
 
 </div>
 </div>

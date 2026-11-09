@@ -18,6 +18,20 @@ nessuna fase copre.
 
 ---
 
+## 0.4.16
+
+**Documentazione**: nuova pagina [COMANDI.md](COMANDI.md) con tutti i comandi
+da terminale — `fluxus`, le opzioni principali di `install.sh`, le ricette più
+usate (stato, log, backup, controllo di una registrazione in corso,
+installazione da GitHub, aggiornamento, istanza di prova).
+
+**Interfaccia**: in Impostazioni, nuovo riquadro **Comandi da terminale**. Le
+ricette più usate sono già scritte con il nome dell'istanza, il percorso del
+database e la cartella del sorgente, con un pulsante **Copia** (funziona anche
+su `http://`, dove il browser non offre gli appunti moderni). Sotto, l'aiuto
+completo del comando `fluxus` installato, letto dal vivo: non può restare
+indietro rispetto alla versione che gira.
+
 ## 0.4.15
 
 **Comando `fluxus`**: con più installazioni sulla stessa macchina e senza

@@ -107,14 +107,16 @@ sudo fluxus uninstall                    # via tutto, i dati restano
 
 Con più installazioni sulla stessa macchina, `fluxus list` le elenca e
 `--instance <nome>` sceglie su quale lavorare; senza, da un terminale, il
-comando chiede quale. Le opzioni complete: `--help` su
-entrambi i comandi.
+comando chiede quale. Tutti i comandi, con le ricette più usate, sono in
+[docs/COMANDI.md](docs/COMANDI.md) e, già scritti per la propria
+installazione, in Impostazioni → Comandi da terminale.
 
 ## Documentazione
 
 | | |
 |---|---|
 | [Manuale d'uso](docs/MANUALE.md) | per chi lo usa tutti i giorni |
+| [Comandi da terminale](docs/COMANDI.md) | per chi gestisce la macchina: `fluxus`, l'installer, le ricette |
 | [Architettura](docs/ARCHITETTURA.md) | com'è fatto: schema dati, script, servizi |
 | [Note tecniche](docs/NOTE-TECNICHE.md) | **perché** è fatto così: misure sul campo, vincoli critici, strade già provate e scartate |
 | [Roadmap](docs/ROADMAP.md) | cosa manca per arrivare alla 1.0 |

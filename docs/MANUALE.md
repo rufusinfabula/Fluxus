@@ -610,3 +610,7 @@ macchina, `fluxus list` le elenca e `--instance <nome>` sceglie quale.
 Il backup di ciò che non si può rifare — database, configurazione, chiavi — è
 `sudo fluxus backup`. Le registrazioni e le clip non sono incluse: sono
 tante e pesanti, e per averle si aggiunge `--with-media`.
+
+Tutti gli altri comandi, già scritti per la tua installazione e con un
+pulsante per copiarli, sono in **Impostazioni → Comandi da terminale**. Il
+riferimento completo è [COMANDI.md](COMANDI.md).
