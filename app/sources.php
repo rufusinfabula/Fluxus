@@ -553,14 +553,28 @@ include __DIR__ . '/includes/head.php';
     modeBtns.forEach(function (b) {
         b.addEventListener('click', function () { setMode(b.dataset.mode); });
     });
+    // navigator.clipboard esiste solo in un contesto sicuro (https o localhost):
+    // su http://<indirizzo-della-macchina> non c'è, e si ripiega su execCommand.
     document.getElementById('fm-rtmp-copy-btn').addEventListener('click', function () {
+        var btn = document.getElementById('fm-rtmp-copy-btn');
         var text = document.getElementById('fm-rtmp-push-url').textContent;
-        navigator.clipboard.writeText(text).then(function () {
-            var btn = document.getElementById('fm-rtmp-copy-btn');
+        var fatto = function () {
             var orig = btn.textContent;
             btn.textContent = 'Copiato!';
             setTimeout(function () { btn.textContent = orig; }, 1500);
-        });
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(fatto);
+            return;
+        }
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { if (document.execCommand('copy')) fatto(); } catch (e) {}
+        document.body.removeChild(ta);
     });
 
     window.fmOpenSourceModal = function (s) {

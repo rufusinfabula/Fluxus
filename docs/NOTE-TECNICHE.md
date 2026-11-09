@@ -3168,3 +3168,55 @@ di un disco Mac non è ciò per cui l'utente l'ha collegato, e offrire
 partizione la abilita comunque a mano restando nel flusso esistente (basta
 che venga montata una volta, anche dal desktop): da lì in poi
 `fmDetectedVolumes()` la vede come sempre.
+
+## Versioni, branch e installazione da GitHub (1.0.0, 2026-11-09)
+
+**Si lavora solo su `dev`** (il vecchio `main`, rinominato su GitHub: i link a
+`main` vengono reindirizzati). `VERSION` su `dev` sale una versione dopo
+l'altra — 1.0.0, 1.0.1 … 1.1.0 — e ogni versione ha il suo tag `vX.Y.Z`: non
+esistono due versioni con lo stesso numero.
+
+I **branch stabili** `0.4`, `1.0`, `1.1`… sono segnalibri su una versione di
+`dev` dichiarata stabile: non ci si lavora mai sopra. Un branch stabile nasce,
+o avanza lungo `dev` finché questo resta nella stessa serie (il `1.0` può
+passare dalla 1.0.0 alla 1.0.6), **solo con una decisione esplicita di chi
+mantiene il progetto**: è ciò che installa chiunque da GitHub. La conseguenza
+accettata: quando `dev` è già alla 1.1.x, una correzione esce come 1.1.x, non
+come 1.0.x. Il branch predefinito di GitHub è l'ultima versione stabile.
+
+`0.4` punta alla 0.4.16, non alla 0.4.13 (la prima con i cue sistemati): la
+0.4.13 ha ancora l'hotspot di primo avvio abilitato e mai collaudato. Tutte le
+versioni dalla 0.0.1 alla 0.4.16 hanno un tag, sull'ultimo commit con quel
+`VERSION` (0.0.1–0.2.0 secondo la rinumerazione del commit `355e800`).
+
+**`get.sh`** è il comando unico per una macchina nuova:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/rufusinfabula/fluxus/HEAD/get.sh)
+```
+
+- `HEAD` è il branch predefinito: l'indirizzo non cambia mai.
+- Legge da GitHub i branch `N.N` e i tag (`git ls-remote`), propone l'ultima
+  versione e le tre precedenti, `t` mostra tutte più `dev` con un avviso;
+  invio = l'ultima. `--version X.Y` salta il menu; senza terminale installa
+  l'ultima senza domande. Le opzioni che non riconosce passano a `install.sh`.
+- `bash <(curl …)` e non `curl … | bash`: con la pipe lo standard input è lo
+  script stesso, e né il menu né `install.sh` potrebbero chiedere niente.
+- Il sorgente va in `/opt/fluxus`, di root, sul branch della versione scelta.
+
+**`fluxus update`** riconosce un sorgente così (un clone con il branch `N.N`):
+prende da GitHub le correzioni della sua versione (`fetch` + `merge
+--ff-only`), avvisa se esiste una versione più nuova e ci passa solo con `--to
+X.Y` (senza numero le elenca e chiede). Un sorgente su un altro branch — `dev`,
+la copia di lavoro di chi sviluppa — o senza git si usa così com'è, senza
+scaricare niente; con modifiche non salvate non si tocca. git gira come il
+proprietario della cartella: root non lavora in un repository di un altro
+utente (`safe.directory`). Il controllo della registrazione in corso viene
+prima di toccare il sorgente.
+
+**MediaMTX** (1.0.0): se manca, `install.sh` lo scarica dalle release ufficiali,
+versione fissata (`MEDIAMTX_VERSIONE`) e impronta SHA-256 scritta nello script
+per arm64, amd64 e armv7 (dal `checksums.sha256` della release). Un archivio con
+un'impronta diversa non si installa; un `mediamtx` già presente non si tocca.
+La v1.14.0 è quella in produzione: il binario arm64 della release è identico
+a quello in servizio.

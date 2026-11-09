@@ -4,7 +4,7 @@
 #     fluxus status                 come sta
 #     fluxus list                   le istanze installate su questa macchina
 #     fluxus logs [-f] [che cosa]   i log
-#     fluxus update [--from DIR]    aggiorna dal sorgente
+#     fluxus update [--to X.Y]      aggiorna (e cambia versione) da GitHub
 #     fluxus backup [--out FILE]    database, configurazione e segreti
 #     fluxus restore FILE           rimette a posto un backup
 #     fluxus config                 la configurazione, come la vede Fluxus
@@ -67,8 +67,12 @@ Comandi
                         record ID     il log di una registrazione
                         services      il giornale dei servizi systemd
                         NOME          un file in <cartella dati>/logs
-  update [--from DIR] aggiorna dal sorgente (predefinito: quello registrato
-                      all'ultima installazione). Rilancia install.sh
+  update [opzioni]    aggiorna dal sorgente registrato all'ultima installazione
+                      e rilancia install.sh. Se il sorgente è una versione
+                      scaricata da GitHub (0.4, 1.0…), prima ne prende le
+                      correzioni e dice se ne esiste una più nuova
+      --to X.Y          passa alla versione X.Y (senza numero: le elenca)
+      --from DIR        aggiorna da un altro sorgente
   backup [opzioni]    database, configurazione e segreti in un archivio
       --out FILE        dove scriverlo (predefinito: /var/backups/fluxus/…)
       --with-media      include registrazioni e clip (può essere enorme)
@@ -391,33 +395,113 @@ cmd_logs() {
 
 # ── update ────────────────────────────────────────────────────────────────────
 
+# Il sorgente di un'installazione fatta con get.sh è un clone di GitHub su un
+# branch di versione (0.4, 1.0, 1.1…): 'update' ne scarica le correzioni e,
+# con --to, passa a un'altra versione. Un sorgente su un altro branch (dev, la
+# copia di lavoro di chi sviluppa) o senza git si usa così com'è: non si
+# scarica niente, e non si rischia di toccare lavoro non salvato.
+# git gira come il proprietario della cartella: root non può lavorare in un
+# repository di un altro utente (safe.directory).
+sorgente_git() { sudo -u "$(stat -c %U "$SORG")" git -C "$SORG" "$@"; }
+
+versioni_remote() {   # i branch di versione su GitHub, dal più vecchio
+    sorgente_git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin \
+        | grep -E '^[0-9]+\.[0-9]+$' | sort -V
+}
+
+piu_nuova() {   # vero se $2 è una versione successiva a $1
+    [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n 1)" == "$2" ]]
+}
+
+aggiorna_sorgente() {   # $1 = versione richiesta con --to ('?' = da scegliere), o vuoto
+    local verso="$1" ramo r nuove=() scelta i
+    if [[ ! -d "$SORG/.git" ]]; then
+        [[ -z "$verso" ]] || muori "--to: $SORG non è un sorgente scaricato da GitHub"
+        return 0
+    fi
+    ramo=$(sorgente_git branch --show-current)
+    if [[ ! "$ramo" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        # Una copia di lavoro (dev, o un altro branch): --to la sposterebbe su
+        # un branch di versione sotto i piedi di chi ci sta lavorando.
+        [[ -z "$verso" ]] || muori "il sorgente $SORG è sul branch '${ramo:-?}', non su una versione: --to vale solo per un'installazione fatta da GitHub (get.sh)"
+        dice "il sorgente è sul branch '${ramo:-?}': lo uso così com'è, senza scaricare niente"
+        return 0
+    fi
+    [[ -z "$(sorgente_git status --porcelain --untracked-files=no)" ]] \
+        || muori "in $SORG ci sono modifiche non salvate: non lo aggiorno"
+    dice "controllo le versioni su GitHub…"
+    sorgente_git fetch -q --prune --tags origin || muori "non riesco a raggiungere GitHub"
+
+    for r in $(versioni_remote); do piu_nuova "$ramo" "$r" && nuove+=("$r"); done
+
+    if [[ "$verso" == '?' ]]; then
+        [[ ${#nuove[@]} -gt 0 ]] || { dice "nessuna versione più nuova della $ramo"; verso=''; }
+        if [[ -n "$verso" ]]; then
+            [[ -t 0 ]] || muori "--to senza numero vuole un terminale: indica la versione, per esempio --to ${nuove[-1]}"
+            printf '\nVersioni più nuove della %s:\n\n' "$ramo" >&2
+            for (( i = ${#nuove[@]} - 1; i >= 0; i-- )); do
+                printf '  %d) %s\n' $(( ${#nuove[@]} - i )) "${nuove[$i]}" >&2
+            done
+            printf '\nQuale? [1-%d, invio per uscire] ' "${#nuove[@]}" >&2
+            read -r scelta || scelta=''
+            [[ -n "$scelta" ]] || exit 0
+            [[ "$scelta" =~ ^[0-9]+$ ]] && (( scelta >= 1 && scelta <= ${#nuove[@]} )) \
+                || muori "scelta non valida: $scelta"
+            verso="${nuove[$(( ${#nuove[@]} - scelta ))]}"
+        fi
+    fi
+
+    if [[ -n "$verso" ]]; then
+        versioni_remote | grep -qx "$verso" \
+            || muori "la versione '$verso' non esiste su GitHub (disponibili: $(versioni_remote | tr '\n' ' '))"
+        sorgente_git checkout -q -B "$verso" "origin/$verso" || muori "non riesco a passare alla versione $verso"
+        dice "sorgente portato alla versione $verso"
+    else
+        sorgente_git merge -q --ff-only "origin/$ramo" || muori "non riesco a portare $SORG all'ultima $ramo"
+        dice "sorgente aggiornato all'ultima $ramo"
+        if [[ ${#nuove[@]} -gt 0 ]]; then
+            avvisa "è disponibile Fluxus ${nuove[-1]}, questa installazione segue la $ramo. Per passarci:
+     sudo fluxus --instance $ISTANZA update --to ${nuove[-1]}"
+        fi
+    fi
+}
+
 cmd_update() {
     serve_root update
-    local sorgente='' arg atteso=0
+    local arg atteso='' verso=''
+    SORG=''
     for arg in "${ARGOMENTI[@]:-}"; do
-        if (( atteso )); then sorgente="$arg"; atteso=0; continue; fi
+        if [[ "$atteso" == from ]]; then SORG="$arg"; atteso=''; continue; fi
+        if [[ "$atteso" == to && "$arg" != -* ]]; then verso="$arg"; atteso=''; continue; fi
+        atteso=''
         case "$arg" in
-            --from) atteso=1 ;;
-            --from=*) sorgente="${arg#--from=}" ;;
+            --from) atteso=from ;;
+            --from=*) SORG="${arg#--from=}" ;;
+            --to) atteso=to; verso='?' ;;
+            --to=*) verso="${arg#--to=}" ;;
             '') ;;
             *) muori "update: argomento sconosciuto '$arg'" ;;
         esac
     done
-    [[ -n "$sorgente" ]] || sorgente=$(dal_manifesto FLUXUS_SOURCE)
-    [[ -n "$sorgente" ]] || muori "non so da dove aggiornare: indicalo con --from <cartella del sorgente>"
-    [[ -x "$sorgente/install.sh" ]] || muori "in $sorgente non c'è install.sh"
+    [[ -n "$SORG" ]] || SORG=$(dal_manifesto FLUXUS_SOURCE)
+    [[ -n "$SORG" ]] || muori "non so da dove aggiornare: indicalo con --from <cartella del sorgente>"
+    [[ -x "$SORG/install.sh" ]] || muori "in $SORG non c'è install.sh"
 
+    # Il controllo della registrazione in corso viene prima di toccare il
+    # sorgente: se si rinuncia qui, il sorgente resta com'era.
     if registrazione_in_corso; then
         avvisa "c'è una registrazione in corso su '$ISTANZA'"
         conferma "Aggiorno lo stesso?" || muori "annullato"
     fi
 
-    dice "aggiorno '$ISTANZA' da $sorgente ($(cat "$sorgente/VERSION" 2>/dev/null || echo '?'))"
+    aggiorna_sorgente "$verso"
+
+    dice "aggiorno '$ISTANZA' da $SORG ($(cat "$SORG/VERSION" 2>/dev/null || echo '?'))"
     local opzioni=()
     (( AUTOMATICO )) && opzioni+=(--yes)
     # L'installer è rieseguibile: rilegge da solo dalla configurazione tutto ciò
     # che non gli viene ripetuto qui.
-    exec "$sorgente/install.sh" --instance "$ISTANZA" --source "$sorgente" "${opzioni[@]}"
+    exec "$SORG/install.sh" --instance "$ISTANZA" --source "$SORG" "${opzioni[@]}"
 }
 
 # ── backup ────────────────────────────────────────────────────────────────────

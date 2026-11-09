@@ -573,7 +573,7 @@ else
     # Si installa solo ciò che manca davvero: su una macchina che ospita già
     # un'installazione in servizio, un 'apt install' inutile è un rischio inutile.
     manca=()
-    for pacchetto in nginx php-fpm php-cli php-sqlite3 php-curl sqlite3 ffmpeg rsync logrotate network-manager; do
+    for pacchetto in nginx php-fpm php-cli php-sqlite3 php-curl sqlite3 ffmpeg rsync logrotate network-manager curl ca-certificates; do
         dpkg-query -W -f='${Status}' "$pacchetto" 2>/dev/null | grep -q '^install ok installed$' \
             || manca+=("$pacchetto")
     done
@@ -935,14 +935,75 @@ fi
 
 passo "Server RTMP (MediaMTX)"
 
+# Se sulla macchina non c'è un mediamtx, lo si scarica dalle release ufficiali
+# (1.0.0). Versione fissata e impronta SHA-256 scritta qui, presa dal file
+# checksums.sha256 della release: un archivio diverso da quello atteso non si
+# installa. La v1.14.0 è quella che gira in produzione dal 2025: il binario
+# arm64 della release è identico, byte per byte, a quello in servizio.
+# Per cambiare versione vanno aggiornate insieme MEDIAMTX_VERSIONE e le
+# impronte. Un mediamtx già presente non si tocca mai.
+MEDIAMTX_VERSIONE='v1.14.0'
+MEDIAMTX_SIMULATO=0   # 1 = scaricamento solo descritto (--dry-run): il file non c'è
+declare -A MEDIAMTX_SHA256=(
+    [arm64]='6a18e8bbc036def0125fdb9fbb78fabb7ae82bf429196edae5d4831f4cdb2390'
+    [amd64]='0738080afacc329cbee4a039ce66fc21b8195718c9afa42e2673786b969ade23'
+    [armv7]='aae3a240cfa504fb42d4de5f7263830c499acf1a76363d8743ca257bdf5fe164'
+)
+
+scarica_mediamtx() {
+    local arch pacchetto url dir dest=/usr/local/bin/mediamtx
+    case "$(dpkg --print-architecture 2>/dev/null)" in
+        arm64) arch=arm64 ;;
+        amd64) arch=amd64 ;;
+        armhf) arch=armv7 ;;
+        *)     segna_avviso "architettura $(dpkg --print-architecture 2>/dev/null || uname -m) non prevista: mediamtx va installato a mano"
+               return 1 ;;
+    esac
+    pacchetto="mediamtx_${MEDIAMTX_VERSIONE}_linux_${arch}.tar.gz"
+    url="https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSIONE}/${pacchetto}"
+    if (( PROVA )); then
+        printf '    · scaricherei %s\n' "$url"
+        printf '    · ne verificherei l'"'"'impronta SHA-256 e lo installerei in %s\n' "$dest"
+        MEDIAMTX_BIN="$dest"
+        MEDIAMTX_SIMULATO=1
+        return 0
+    fi
+    command -v curl >/dev/null || { segna_avviso "manca curl: non posso scaricare mediamtx"; return 1; }
+    dir=$(mktemp -d) || return 1
+    if ! curl -fsSL --retry 3 --connect-timeout 20 -o "$dir/$pacchetto" "$url"; then
+        rm -rf "$dir"
+        segna_avviso "non sono riuscito a scaricare $url"
+        return 1
+    fi
+    if ! printf '%s  %s\n' "${MEDIAMTX_SHA256[$arch]}" "$dir/$pacchetto" | sha256sum -c --quiet - >/dev/null 2>&1; then
+        rm -rf "$dir"
+        segna_avviso "l'archivio di mediamtx scaricato non ha l'impronta attesa: non lo installo"
+        return 1
+    fi
+    if ! tar xzf "$dir/$pacchetto" -C "$dir" mediamtx; then
+        rm -rf "$dir"
+        segna_avviso "l'archivio di mediamtx non contiene l'eseguibile atteso"
+        return 1
+    fi
+    if ! install -m 0755 -o root -g root "$dir/mediamtx" "$dest"; then
+        rm -rf "$dir"
+        segna_avviso "non sono riuscito a installare mediamtx in $dest"
+        return 1
+    fi
+    rm -rf "$dir"
+    MEDIAMTX_BIN="$dest"
+    fatto "mediamtx $MEDIAMTX_VERSIONE ($arch) scaricato e verificato"
+}
+
 if [[ "$MEDIAMTX_MODO" == none ]]; then
     dice "--mediamtx none: le sorgenti 'rtmp-push' funzioneranno solo se un MediaMTX"
     dice "risponde su 127.0.0.1:$RTMP_PORT con l'API su $MEDIAMTX_API_PORT"
 else
     if [[ -z "$MEDIAMTX_BIN" ]]; then
         MEDIAMTX_BIN=$(command -v mediamtx || true)
+        [[ -n "$MEDIAMTX_BIN" ]] || scarica_mediamtx || true
     fi
-    if [[ -z "$MEDIAMTX_BIN" || ! -x "$MEDIAMTX_BIN" ]]; then
+    if [[ -z "$MEDIAMTX_BIN" ]] || { [[ ! -x "$MEDIAMTX_BIN" ]] && (( ! MEDIAMTX_SIMULATO )); }; then
         segna_avviso "mediamtx non è installato: le sorgenti 'rtmp-push' non funzioneranno.
      L'eseguibile si prende da https://github.com/bluenviron/mediamtx/releases,
      si mette in /usr/local/bin/mediamtx e poi si rilancia questo installer

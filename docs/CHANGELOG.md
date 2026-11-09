@@ -6,17 +6,54 @@ progetto proviene: nessuno le ha mai installate come pacchetto, e sono
 conservate qui perché spiegano *perché* il codice è fatto così. Le decisioni
 tecniche che ne derivano stanno in [NOTE-TECNICHE.md](NOTE-TECNICHE.md).
 
-Convenzione, finché si resta sotto l'1.0: **il numero di versione è il numero
-della fase**. La fase 1 della [roadmap](ROADMAP.md) chiude sulla `0.1.0`, la
-fase 2 sulla `0.2.0`, e così via fino alla fase 4. Le fasi 5 e 6 sono state
-spostate alla 1.5 (2026-11-09): dalla `0.4.x` si passa alla `1.0.0`. Le correzioni
-lungo la strada prendono la terza cifra: `0.2.1`, `0.2.2`.
+Sotto l'1.0 **il numero di versione era il numero della fase**: la fase 1
+della [roadmap](ROADMAP.md) chiude sulla `0.1.0`, e così via fino alla fase 4;
+le correzioni prendevano la terza cifra. Le fasi 5 e 6 sono state spostate
+alla 1.5, e dalla `0.4.16` si è passati alla `1.0.0`.
+
+Dalla 1.0 si lavora sul branch `dev`, e le versioni salgono una dopo l'altra
+(1.0.0, 1.0.1 … 1.1.0), ognuna con il suo tag `vX.Y.Z`. I branch `0.4`, `1.0`,
+`1.1`… sono le versioni stabili, da cui si installa: vedi la sezione
+*Versioni, branch e installazione da GitHub* delle
+[note tecniche](NOTE-TECNICHE.md).
 
 La `0.0.1` sta fuori dal conteggio: è l'estrazione del sorgente
 dall'installazione unica, il lavoro che ha reso possibile la roadmap ma che
 nessuna fase copre.
 
 ---
+
+## 1.0.0
+
+**La prima versione stabile.** Fluxus registra, estrae, archivia, si installa
+da GitHub con un comando e si governa con `fluxus`. Hotspot, cambio di rete e
+di IP restano sperimentali; configurazione guidata e immagine SD sono la 1.5
+(vedi la [roadmap](ROADMAP.md)).
+
+**Installazione con un solo comando**: `get.sh` chiede a GitHub quali versioni
+esistono, propone l'ultima e le tre precedenti (`t` per tutte), scarica il
+sorgente in `/opt/fluxus` e lancia l'installer:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/rufusinfabula/fluxus/HEAD/get.sh)
+```
+
+**Aggiornamenti da GitHub**: per un'installazione fatta così, `sudo fluxus
+update` prende le correzioni della versione installata e dice se ne esiste una
+più nuova; `sudo fluxus update --to 1.1` ci passa (senza numero le elenca). Un
+sorgente di lavoro su `dev` si usa così com'è, come prima.
+
+**MediaMTX scaricato dall'installer**: se manca, `install.sh` lo prende dalle
+release ufficiali (v1.14.0, quella in produzione), con l'impronta SHA-256
+verificata; prima avvisava e basta, e le sorgenti `rtmp-push` restavano senza
+server.
+
+**Fix**: il pulsante **Copia** dell'indirizzo RTMP nel modale delle sorgenti
+non copiava niente quando l'interfaccia era aperta in `http://` (il browser
+offre gli appunti moderni solo in https).
+
+**Versioni e branch**: `main` diventa `dev`; tag su tutte le versioni dalla
+0.0.1; branch stabile `0.4` sulla 0.4.16 e `1.0` su questa versione.
 
 ## 0.4.16
 

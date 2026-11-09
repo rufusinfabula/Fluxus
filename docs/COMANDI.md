@@ -57,11 +57,45 @@ sudo fluxus --instance fluxus backup --with-media   # anche registrazioni e clip
 ## Installare da GitHub
 
 Su una macchina con Raspberry Pi OS Bookworm (64 bit), Debian 12 o Ubuntu
-22.04+, già collegata a Internet:
+22.04+, già collegata a Internet, un solo comando:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/rufusinfabula/fluxus/HEAD/get.sh)
+```
+
+Chiede quale versione installare:
+
+```
+Versioni disponibili:
+
+   1) 1.0   (1.0.0)    ultima, consigliata
+   2) 0.4   (0.4.16)
+
+   t) tutte le versioni
+
+Quale installo? [invio = 1]
+```
+
+Invio installa l'ultima; `t` mostra tutte le versioni e anche `dev`, la
+versione in sviluppo, da usare solo per prove. Poi scarica il sorgente in
+`/opt/fluxus` e lancia l'installer, che fa le sue domande come sempre.
+
+Opzioni, da scrivere dopo il comando (`bash <(curl …) --version 1.0`):
+
+| Opzione | Cosa fa |
+|---|---|
+| `--version X.Y` | installa quella versione senza menu (`dev` = in sviluppo) |
+| `--dir PERCORSO` | dove tenere il sorgente (predefinito `/opt/fluxus`) |
+| tutte le altre | passano a `install.sh`: `--instance`, `--dry-run`, `--yes`… |
+
+Senza un terminale (dentro uno script) installa l'ultima versione senza
+domande.
+
+A mano, senza `get.sh`:
 
 ```bash
 sudo apt install -y git
-git clone https://github.com/rufusinfabula/fluxus.git
+git clone --branch 1.0 https://github.com/rufusinfabula/fluxus.git
 cd fluxus
 sudo ./install.sh --dry-run    # mostra ogni azione, senza farne nessuna
 sudo ./install.sh
@@ -72,18 +106,37 @@ Impostazioni → Nodo → *Richiedi autenticazione*, e una password.
 
 ## Aggiornare
 
-Dalla cartella del sorgente:
-
 ```bash
-git pull
-sudo ./install.sh --instance fluxus --dry-run
-sudo ./install.sh --instance fluxus
-sudo fluxus --instance fluxus status
+sudo fluxus --instance fluxus update          # le correzioni della versione installata
+sudo fluxus --instance fluxus update --to     # elenca le versioni più nuove e chiede
+sudo fluxus --instance fluxus update --to 1.1 # passa direttamente alla 1.1
 ```
 
-Oppure, se il sorgente è già aggiornato, `sudo fluxus --instance fluxus update`
-rilancia l'installer dal sorgente usato l'ultima volta. L'installer si rifiuta
-di procedere con una registrazione in corso (a meno di `--force`).
+Per un'installazione fatta da GitHub (`get.sh`, o un clone su un branch di
+versione come `1.0`), `update` scarica le correzioni di quella versione,
+avvisa se ne esiste una più nuova e rilancia l'installer. Il passaggio a
+un'altra versione non avviene mai da solo: serve `--to`. Se nel sorgente ci
+sono modifiche non salvate, non lo tocca.
+
+Se invece il sorgente è una copia di lavoro su `dev` (chi sviluppa Fluxus),
+`update` non scarica niente: rilancia l'installer da quella cartella così
+com'è. In quel caso si aggiorna a mano:
+
+```bash
+cd <cartella del sorgente>
+sudo ./install.sh --instance fluxus --dry-run
+sudo ./install.sh --instance fluxus
+```
+
+L'installer si rifiuta di procedere con una registrazione in corso (a meno di
+`--force`).
+
+## Versioni
+
+Le versioni stabili sono i branch `0.4`, `1.0`, `1.1`… su GitHub: è da lì che
+installa `get.sh`. Lo sviluppo avviene sul branch `dev`, che non è una
+versione rilasciata. Ogni versione precisa ha anche un tag (`v1.0.0`,
+`v0.4.16`…).
 
 ## Un'installazione di prova accanto a quella in servizio
 
@@ -113,7 +166,9 @@ fluxus [--instance NOME] <comando> [opzioni]
 | `logs record ID` | il log di una registrazione |
 | `logs services` | il giornale dei servizi systemd |
 | `logs NOME` | un file in `<cartella dati>/logs` |
-| `update [--from DIR]` | aggiorna dal sorgente (predefinito: quello dell'ultima installazione) |
+| `update` | aggiorna dal sorgente dell'ultima installazione; se viene da GitHub, prima ne scarica le correzioni |
+| `update --to [X.Y]` | passa a un'altra versione (senza numero le elenca) |
+| `update --from DIR` | aggiorna da un altro sorgente |
 | `backup [--out FILE] [--with-media]` | archivio di database, configurazione e segreti (in `/var/backups/fluxus/`) |
 | `restore FILE` | rimette a posto un archivio prodotto da `backup` |
 | `uninstall [--purge] [--yes]` | rimuove servizi, permessi, regole web e applicazione; i dati restano, a meno di `--purge` |

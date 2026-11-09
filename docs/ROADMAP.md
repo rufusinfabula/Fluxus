@@ -97,7 +97,7 @@ loro collaudo è spostato alla 1.5, dove serve davvero.
 
 ---
 
-## Verso la 1.0
+## 1.0 — `1.0.0`
 
 La 1.0 è Fluxus **completo per chi lo installa da terminale**: registra,
 estrae, archivia, si installa da GitHub e si governa con `fluxus`. Niente di
@@ -120,12 +120,26 @@ non collaudato acceso di default.
   ancora quella dell'installazione unica di prima.
 - ~~**Installazione senza password dichiarata**~~ — `0.4.14`: lo dicono
   l'installer, il README e il manuale.
+- ~~**MediaMTX scaricato dall'installer**~~ — `1.0.0`: versione fissata e
+  impronta SHA-256 verificata; prima l'installer avvisava e basta.
+- ~~**Pulsanti "Copia" anche su `http://`**~~ — `1.0.0`.
+- ~~**Installazione con un solo comando**~~ — `1.0.0`: `get.sh`, con il menu
+  delle versioni; `fluxus update` scarica le correzioni e cambia versione con
+  `--to`.
+- ~~**Versioni e branch**~~ — `1.0.0`: si lavora su `dev`, le versioni stabili
+  sono i branch `0.4`, `1.0`…, tag su tutte le versioni.
 - **Installazione su una macchina pulita** — da GitHub, su un sistema appena
   scritto, senza nulla di già presente. Finora l'installer è stato provato
-  solo su una macchina che aveva già le dipendenze.
+  solo su una macchina che aveva già le dipendenze. **Si farà sulla 1.0 già
+  rilasciata** (scelta del 2026-11-09): eventuali correzioni andranno sul
+  branch `1.0` come `1.0.x`. Da controllare in particolare che
+  l'installazione di NetworkManager non disturbi la rete su sistemi che non lo
+  usano già (Debian/Ubuntu server).
 
-Sotto la 1.0 vale la regola "versione = fase". Dalla 1.0 in poi la numerazione
-segue il prodotto: correzioni sulla terza cifra, novità sulla seconda.
+Sotto la 1.0 valeva la regola "versione = fase". Dalla 1.0 si lavora su
+`dev` e le versioni salgono una dopo l'altra; i branch stabili si spostano solo
+per una decisione esplicita. Vedi la sezione *Versioni, branch e installazione
+da GitHub* delle [note tecniche](NOTE-TECNICHE.md).
 
 ---
 
@@ -154,6 +168,12 @@ perché non aggiungono funzioni a Fluxus ma un modo diverso di consegnarlo.
 
 ## Più avanti
 
+- **Fluxus Connect e i cue scaduti — da verificare.** Dalla `0.4.13` il
+  catalogo inviato a Connect (`scripts/connect_catalog_sync.php`, campo
+  `clip_status`) può contenere cue con stato `expired`: la clip è stata
+  cancellata alla scadenza, il cue resta. Connect sta in un repository a parte
+  e non è stato controllato se mostra questo valore in modo sensato o lo
+  tratta come un errore. Lasciato in sospeso per scelta il 2026-11-09.
 - **Federazione multi-nodo**: lo schema del database la prevede già (tabelle
   dei nodi remoti e relativo registro), ma non esiste alcuna interfaccia né
   alcun endpoint. Da riprendere solo se serve davvero. Da non confondere con

@@ -9,7 +9,7 @@ angolo che registra da sola, giorno dopo giorno, e a cui si chiede conto dal
 browser. Nessun servizio cloud, nessuna porta aperta verso Internet, nessun
 abbonamento.
 
-> **Stato: `0.4.14`, verso la 1.0.**
+> **Stato: `1.0.0`, la prima versione stabile.**
 > Fluxus registra in produzione ogni giorno, **si installa** con un comando da
 > chi sa usare un terminale, e si può installare due volte sulla stessa
 > macchina senza che le due copie si tocchino. Percorsi e nomi vengono da un
@@ -64,19 +64,29 @@ per raggiungere il Pi, che è poi il modo normale di lavorarci.
 
 ## Installazione
 
-Sulla macchina che dovrà registrare, già collegata a Internet:
+Sulla macchina che dovrà registrare, già collegata a Internet, un solo
+comando:
 
 ```bash
-sudo apt install -y git
-git clone https://github.com/rufusinfabula/fluxus.git
-cd fluxus
-sudo ./install.sh
+bash <(curl -fsSL https://raw.githubusercontent.com/rufusinfabula/fluxus/HEAD/get.sh)
 ```
 
-Per aggiornarla più avanti: `git pull` nella stessa cartella, poi
-`sudo fluxus update`.
+Chiede quale versione installare — invio per l'ultima, `t` per vederle tutte
+— scarica il sorgente in `/opt/fluxus` e lancia l'installer. Chi preferisce
+leggerlo prima di eseguirlo lo scarica, lo guarda e poi lo lancia:
 
-Installa dipendenze, cartelle, applicazione, servizi, permessi, server web e
+```bash
+curl -fsSLO https://raw.githubusercontent.com/rufusinfabula/fluxus/HEAD/get.sh
+less get.sh
+bash get.sh
+```
+
+Per aggiornarla più avanti: `sudo fluxus update` prende le correzioni della
+versione installata e dice se ne è uscita una più nuova; `sudo fluxus update
+--to` per passarci. Le versioni stabili sono i branch `0.4`, `1.0`, `1.1`…; lo
+sviluppo avviene su `dev`, che non è una versione rilasciata.
+
+L'installer installa dipendenze, cartelle, applicazione, servizi, permessi, server web e
 server RTMP, prepara il database e finisce stampando l'indirizzo a cui
 collegarsi. Funziona sia in un terminale con monitor sia via SSH su una macchina
 senza schermo; se un terminale non c'è — dentro uno script, in una pipe — non fa

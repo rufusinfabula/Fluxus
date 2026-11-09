@@ -799,8 +799,10 @@ $fmCmdRicette = [
     ['C\'è una registrazione in corso? (non deve stampare niente prima di un aggiornamento)',
         "sudo -u " . FM_USER . " sqlite3 -cmd \".timeout 5000\" " . FM_DB . " \"SELECT id, source_name FROM recordings WHERE status='recording';\""],
     ['Backup di database, configurazione e chiavi', "sudo fluxus --instance $fmCmdIst backup"],
-    ['Aggiornare da GitHub (prima la prova a vuoto)',
-        ($fmCmdSrc !== '' ? "cd $fmCmdSrc && git pull\n" : "cd <cartella del sorgente> && git pull\n")
+    ['Aggiornare: le correzioni della versione installata (se installata da GitHub)', "sudo fluxus --instance $fmCmdIst update"],
+    ['Passare a una versione più nuova (le elenca e chiede quale)', "sudo fluxus --instance $fmCmdIst update --to"],
+    ['Reinstallare dal sorgente, con la prova a vuoto prima',
+        "cd " . ($fmCmdSrc !== '' ? $fmCmdSrc : '<cartella del sorgente>') . "\n"
         . "sudo ./install.sh --instance $fmCmdIst --dry-run\nsudo ./install.sh --instance $fmCmdIst"],
 ];
 ?>
