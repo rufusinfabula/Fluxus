@@ -23,6 +23,11 @@ nessuna fase copre.
 
 ---
 
+## 1.0.1 — in lavorazione su `dev`
+
+Non ancora rilasciata: qui si raccoglie ciò che cambia dopo la 1.0.0. La
+versione stabile resta la 1.0.0, sul branch `1.0`.
+
 ## 1.0.0
 
 **La prima versione stabile.** Fluxus registra, estrae, archivia, si installa
