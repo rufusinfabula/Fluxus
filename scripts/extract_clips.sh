@@ -116,13 +116,19 @@ while IFS='|' read -r MID RECORDING_ID ELAPSED MEDIA_TYPE OUTPUT_DIR FBASE SOURC
         CUM=0
         FIRST_OFFSET=""
         for SEG in $(ls "$OUTPUT_DIR/${FBASE}"_[0-9][0-9][0-9]."$EXT" 2>/dev/null | sort); do
-            DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$SEG" 2>/dev/null)
-            DUR=${DUR%.*}
+            DUR_RAW=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$SEG" 2>/dev/null)
+            DUR=${DUR_RAW%.*}
             [[ -z "$DUR" ]] && DUR=0
             SEG_START=$CUM
             SEG_END=$(( CUM + DUR ))
             if [[ $SEG_END -gt $START_SEC && $SEG_START -lt $END_SEC ]]; then
                 echo "file '$SEG'" >> "$LIST_FILE"
+                # Senza 'duration' su ogni voce il demuxer concat non sa la durata
+                # totale e rifiuta il seek ("could not seek to position"): ffmpeg
+                # legge allora dall'inizio del segmento e, con -c copy, scrive nel
+                # cue tutto ciò che precede il punto richiesto, nascosto da una
+                # edit list. Clip da 2 minuti che pesavano oltre 1 GB (2026-11-09).
+                [[ "$DUR_RAW" =~ ^[0-9]+(\.[0-9]+)?$ ]] && echo "duration $DUR_RAW" >> "$LIST_FILE"
                 [[ -z "$FIRST_OFFSET" ]] && FIRST_OFFSET=$SEG_START
             fi
             CUM=$SEG_END

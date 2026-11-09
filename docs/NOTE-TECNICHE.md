@@ -2727,7 +2727,11 @@ nessun `ALTER TABLE`, nessun bump di `schema_version`) — fuori fase come già
    ed è comunque in quarantena anche per audio — vedi vincolo 11)
 6. extract_clips.sh usa atrim+libmp3lame per audio, accurate_seek+copy per video.
    I cue video ereditano la qualità del file sorgente: se la registrazione è
-   ricodificata, lo è anche la clip, senza alcuna modifica a extract_clips.sh
+   ricodificata, lo è anche la clip, senza alcuna modifica a extract_clips.sh.
+   Nel ramo segmentato ogni voce della lista concat **deve** avere la sua riga
+   `duration`: senza, il demuxer concat non sa fare il seek, ffmpeg legge dal
+   primo fotogramma del segmento e con `-c copy` lo mette tutto nel cue dietro
+   una edit list — durata giusta, peso di decine di minuti di video (0.4.12)
 7. ffmpeg usa -reconnect SOLO per type=http (audio e video); rtmp/rtsp/srt e
    rtmp-push non lo supportano, vedi vincolo 1
 8. Per sorgente rtmp-push l'URL ffmpeg **non è più assunto** (2026-07-30): si

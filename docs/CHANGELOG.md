@@ -17,6 +17,19 @@ nessuna fase copre.
 
 ---
 
+## 0.4.12
+
+**Fix**: i cue video estratti da registrazioni segmentate pesavano centinaia di
+MB o più di 1 GB per 2 minuti di contenuto. La lista concat che
+`extract_clips.sh` passa a ffmpeg non dichiarava la durata dei segmenti, e
+senza durata il demuxer concat rifiuta il seek (`could not seek to position`
+nel log): ffmpeg leggeva dall'inizio del segmento e, in copia di flusso,
+scriveva nel cue tutto il video precedente al punto richiesto, nascosto da una
+edit list. La clip si vedeva giusta, ma conteneva fino a 48 minuti di video.
+Ora ogni voce della lista ha la sua riga `duration`, misurata con ffprobe come
+già si faceva per il calcolo degli offset. I cue estratti prima della
+correzione restano gonfi finché non vengono rifatti.
+
 ## 0.4.11
 
 **Fix**: un volume di storage registrato ma scollegato per un calo di
