@@ -127,6 +127,7 @@ installazione, in Impostazioni → Comandi da terminale.
 |---|---|
 | [Manuale d'uso](docs/MANUALE.md) | per chi lo usa tutti i giorni |
 | [Comandi da terminale](docs/COMANDI.md) | per chi gestisce la macchina: `fluxus`, l'installer, le ricette |
+| [Sviluppo e rilascio](docs/SVILUPPO.md) | per chi ci lavora: regole di sviluppo, collaudo, rilascio, manutenzione |
 | [Architettura](docs/ARCHITETTURA.md) | com'è fatto: schema dati, script, servizi |
 | [Note tecniche](docs/NOTE-TECNICHE.md) | **perché** è fatto così: misure sul campo, vincoli critici, strade già provate e scartate |
 | [Roadmap](docs/ROADMAP.md) | cosa manca per arrivare alla 1.0 |

@@ -28,6 +28,10 @@ nessuna fase copre.
 Non ancora rilasciata: qui si raccoglie ciò che cambia dopo la 1.0.0. La
 versione stabile resta la 1.0.0, sul branch `1.0`.
 
+**Documentazione**: nuova pagina [SVILUPPO.md](SVILUPPO.md) che raccoglie in
+un posto solo le regole di sviluppo, collaudo, rilascio e manutenzione — prima
+sparse fra note tecniche, roadmap e appunti locali.
+
 ## 1.0.0
 
 **La prima versione stabile.** Fluxus registra, estrae, archivia, si installa
