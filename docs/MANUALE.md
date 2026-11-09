@@ -63,9 +63,10 @@ L'indirizzo esatto lo stampa l'installer quando finisce, e lo si può richiedere
 in ogni momento con `fluxus status` da un terminale sulla macchina. Funziona da
 qualunque dispositivo sulla stessa rete: computer, tablet, telefono.
 
-**Non serve una password**, perché l'autenticazione è attualmente disattivata —
-il sistema si fida della rete locale. Se viene accesa (Impostazioni → Nodo),
-comparirà una pagina di login.
+**Un'installazione nuova non ha password**: l'interfaccia è aperta a chiunque
+sia sulla stessa rete, e l'installer lo ricorda quando finisce. Al primo
+collegamento vai in **Impostazioni → Nodo**, spunta **Richiedi autenticazione**
+e scegli una password: da lì in poi comparirà una pagina di login.
 
 > Fluxus **non è raggiungibile da Internet**, per scelta. Se devi premere marker
 > mentre sei fuori casa esiste *Fluxus Remote*, una pulsantiera separata su un
@@ -485,8 +486,9 @@ un click: Fluxus lo rimonta come si deve e crea le cartelle che gli servono.
   cui risponde e il file di configurazione da cui li prende. Serve a capire con
   quale Fluxus si sta parlando quando su una stessa macchina ce n'è più d'uno.
   Non si cambia da qui: lo decide chi installa.
-- **Richiedi autenticazione** + **Nuova password** — accende il login. Da fare
-  se il Pi sta su una rete condivisa.
+- **Richiedi autenticazione** + **Nuova password** — accende il login.
+  Un'installazione nuova nasce **senza password**: impostala qui al primo
+  collegamento, a meno che la rete non sia solo tua.
 
 ---
 

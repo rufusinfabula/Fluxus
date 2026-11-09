@@ -9,19 +9,20 @@ angolo che registra da sola, giorno dopo giorno, e a cui si chiede conto dal
 browser. Nessun servizio cloud, nessuna porta aperta verso Internet, nessun
 abbonamento.
 
-> **Stato: in lavorazione (`0.4.13`, quattro fasi su sei).**
-> Fluxus **si installa** con un comando, si può installare due volte sulla
-> stessa macchina senza che le due copie si tocchino, e la rete si configura dal
-> browser. Quel che manca per la 1.0 sta nella [roadmap](docs/ROADMAP.md):
-> procedura guidata al primo accesso, immagine SD pronta.
+> **Stato: `0.4.14`, verso la 1.0.**
+> Fluxus registra in produzione ogni giorno, **si installa** con un comando da
+> chi sa usare un terminale, e si può installare due volte sulla stessa
+> macchina senza che le due copie si tocchino. Percorsi e nomi vengono da un
+> file di configurazione per installazione, l'interfaccia non chiede niente a
+> Internet, e il comando `fluxus` governa ciò che l'installer ha messo.
 >
-> Fatto finora: percorsi, nomi e utente di sistema non sono più scritti nel
-> codice ma vengono da un file di configurazione, uno per installazione;
-> l'interfaccia non chiede più niente a Internet, perché la macchina che va
-> configurata è proprio quella che una connessione non ce l'ha ancora; c'è
-> l'installer, con il comando `fluxus` per governare ciò che ha installato; e
-> WiFi, indirizzo e nome della macchina si cambiano da una pagina Rete, con un
-> hotspot proprio quando al primo avvio non trova nessuna rete conosciuta.
+> C'è una pagina Rete: stato, ricerca delle reti WiFi e nome della macchina
+> sono collaudati; cambio di rete, cambio di indirizzo IP e hotspot sono
+> **sperimentali**, e l'hotspot non si accende più da solo al riavvio.
+>
+> La versione "pronta all'uso" per chi un terminale non lo usa — procedura
+> guidata al primo accesso, immagine SD da scrivere e accendere, hotspot
+> collaudato — è spostata alla **1.5**: vedi la [roadmap](docs/ROADMAP.md).
 
 ---
 
@@ -63,11 +64,17 @@ per raggiungere il Pi, che è poi il modo normale di lavorarci.
 
 ## Installazione
 
-Da una copia del sorgente, sulla macchina che dovrà registrare:
+Sulla macchina che dovrà registrare, già collegata a Internet:
 
 ```bash
+sudo apt install -y git
+git clone https://github.com/rufusinfabula/fluxus.git
+cd fluxus
 sudo ./install.sh
 ```
+
+Per aggiornarla più avanti: `git pull` nella stessa cartella, poi
+`sudo fluxus update`.
 
 Installa dipendenze, cartelle, applicazione, servizi, permessi, server web e
 server RTMP, prepara il database e finisce stampando l'indirizzo a cui
@@ -77,6 +84,10 @@ domande e prosegue con i valori predefiniti.
 
 Prima di fidarsi, `sudo ./install.sh --dry-run` mostra ogni singola azione senza
 compierne nessuna.
+
+⚠️ **L'installazione nasce senza password**: l'interfaccia è aperta a chiunque
+sia sulla stessa rete. Al primo collegamento vai in **Impostazioni → Nodo**,
+spunta *Richiedi autenticazione* e imposta una password.
 
 Un'installazione di prova accanto a una già in servizio si fa dandole un nome:
 

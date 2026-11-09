@@ -2314,7 +2314,7 @@ fase 4. Ora li serve Fluxus, da `app/assets/vendor/`.
 
 Sono nel repository, circa 950 KB. L'alternativa — scaricarli durante
 l'installazione — è stata scartata: installare non deve dipendere dal fatto che
-una CDN sia raggiungibile in quel momento, l'immagine SD della fase 6 deve
+una CDN sia raggiungibile in quel momento, l'immagine SD della fase 6 (ora nella 1.5) deve
 funzionare appena accesa, e una fase che si dichiara «funziona senza Internet»
 non può avere un passo che Internet lo richiede.
 
@@ -2994,7 +2994,11 @@ nessun `ALTER TABLE`, nessun bump di `schema_version`) — fuori fase come già
     (g) **niente istanza indovinata**: con più installazioni e nessuna
     indicata, il comando si ferma ed elenca.
 26. Rete (fase 4): vedi la sezione dedicata. `fluxus-hotspot-check.service`
-    va installato con `systemctl enable` **senza** `--now`: l'hotspot deve
+    **dalla 0.4.14 si installa ma non si abilita** (e `install.sh` la spegne
+    se era abilitata): l'attivazione vera non è mai stata collaudata dal vivo,
+    e `hotspot-check` guarda solo il WiFi, quindi su una macchina collegata
+    solo via cavo si accenderebbe a ogni riavvio. Quando tornerà attiva (1.5),
+    va abilitata con `systemctl enable` **senza** `--now`: l'hotspot deve
     scattare solo al riavvio vero, mai durante `install.sh`/`fluxus update`
     su una macchina già in servizio. `hotspot-check` gira **una volta sola
     al boot**, non è sorveglianza continua: una caduta di rete durante il
@@ -3050,7 +3054,7 @@ per non far scattare l'hotspot al primo sguardo su un router lento a
 ripartire dopo un blackout), apre un hotspot proprio. SSID deterministico
 `Fluxus-XXXX` dagli ultimi caratteri del MAC della scheda WiFi, non
 dall'hostname (spesso ancora `raspberrypi` su più unità nella stessa stanza
-durante il provisioning — vedi ROADMAP.md, fase 6). Password fissa e
+durante il provisioning — vedi ROADMAP.md, 1.5). Password fissa e
 documentata (`HOTSPOT_PASSWORD` nello script): non c'è canale per
 comunicarne una diversa per unità a chi non ha ancora rete, e comunque
 un'installazione fresca è già priva di login applicativo di suo
@@ -3081,8 +3085,10 @@ permanente. Per questo non è un modello `.in` (nessun segnaposto, non passa
 da `rendi()` in `install.sh`, non appartiene a nessuna istanza) e non entra
 né in `UNIT_INSTALLATI` né nel manifesto per-istanza: `fluxus uninstall`
 non deve mai spegnerla, lo stesso motivo per cui non tocca
-`fluxus-enable-volume.sh`. Si installa con `systemctl enable` **senza**
-`--now` (a differenza di `mediamtx.service`): scatta solo al prossimo
+`fluxus-enable-volume.sh`. **Dalla 0.4.14 è dormiente** (vincolo 26): si
+installa ma non si abilita. Quando tornerà attiva, si installa con
+`systemctl enable` **senza** `--now` (a differenza di `mediamtx.service`):
+scatta solo al prossimo
 riavvio vero, mai durante un `install.sh`/`fluxus update` dal vivo, nemmeno
 su una macchina già in servizio.
 

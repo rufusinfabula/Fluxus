@@ -967,18 +967,23 @@ fi
 # Unit systemd machine-wide, non per istanza: nessun segnaposto @FLUXUS_...@,
 # non passa da rendi(), non entra in UNIT_INSTALLATI né nel manifesto qui
 # sotto — 'fluxus uninstall' non deve mai spegnerla, stesso motivo per cui
-# non tocca fluxus-enable-volume.sh. Si abilita ma non si avvia (enable,
-# senza --now): scatta solo al prossimo riavvio vero, mai durante questo
-# install.sh, nemmeno su una macchina già in servizio. Vedi
-# docs/NOTE-TECNICHE.md, sezione Rete.
+# non tocca fluxus-enable-volume.sh.
+#
+# Dormiente dalla 0.4.14: si installa ma NON si abilita, e se un'installazione
+# precedente l'aveva abilitata la si spegne. L'attivazione vera dell'hotspot
+# non è mai stata collaudata dal vivo, e la logica di avvio guarda solo il
+# WiFi: su una macchina collegata solo via cavo l'hotspot si accenderebbe a
+# ogni riavvio. Torna attiva con il collaudo previsto per la 1.5 (vedi
+# docs/ROADMAP.md e docs/NOTE-TECNICHE.md, sezione Rete); intanto chi la vuole
+# la abilita a mano con 'systemctl enable fluxus-hotspot-check.service'.
 
 passo "Hotspot di primo avvio"
 
 esegui install -D -m 0644 -o root -g root "$SORGENTE/systemd/fluxus-hotspot-check.service" \
     /etc/systemd/system/fluxus-hotspot-check.service
 esegui systemctl daemon-reload
-esegui systemctl enable fluxus-hotspot-check.service
-fatto "fluxus-hotspot-check.service (abilitato, scatta al prossimo riavvio)"
+esegui systemctl disable fluxus-hotspot-check.service 2>/dev/null || true
+fatto "fluxus-hotspot-check.service (installato ma non abilitato: funzione sperimentale)"
 
 # ── 9. Database ───────────────────────────────────────────────────────────────
 #
@@ -1069,6 +1074,17 @@ printf '  Interfaccia   %shttp://%s%s/%s\n' "$C_OK" "$INDIRIZZO_IP" "$WEB_BASE" 
 printf '  Ingresso RTMP rtmp://%s:%s/<id-sorgente>\n' "$INDIRIZZO_IP" "$RTMP_PORT"
 printf '  Gestione      sudo fluxus --instance %s status\n' "$ISTANZA"
 printf '  Configurazione\n                %s\n' "$CONF_FILE"
+
+# L'installazione nasce senza password (settings.auth_enabled = 0): lo si dice
+# qui, finché non c'è una configurazione guidata che la chieda al primo accesso.
+# Su un aggiornamento con l'accesso già protetto l'avviso non compare.
+AUTH_ATTIVA=""
+[[ -f "$DB" ]] && AUTH_ATTIVA=$(sudo -u "$UTENTE" sqlite3 -cmd ".timeout 5000" "$DB" \
+    "SELECT value FROM settings WHERE key='auth_enabled';" 2>/dev/null || true)
+if [[ "$AUTH_ATTIVA" != "1" ]]; then
+    printf '\n  %sAccesso senza password.%s L'"'"'interfaccia è aperta a chiunque sia sulla\n' "$C_AVV" "$C_FIN"
+    printf '  stessa rete: al primo collegamento, in Impostazioni → Nodo, spunta «Richiedi\n  autenticazione» e imposta una password.\n'
+fi
 
 if [[ ${#AVVISI[@]} -gt 0 ]]; then
     printf '\n  %sDa sapere:%s\n' "$C_AVV" "$C_FIN"

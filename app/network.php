@@ -46,15 +46,15 @@ include __DIR__ . '/includes/head.php';
 </div>
 
 <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
-    <h3 class="fm-section-title uk-margin-small-bottom">Reti WiFi</h3>
-    <p class="uk-text-meta uk-margin-remove-top">La connessione a una nuova rete si applica subito: hai qualche secondo per verificarla, altrimenti torna da sola a quella di prima.</p>
+    <h3 class="fm-section-title uk-margin-small-bottom">Reti WiFi <span class="uk-label uk-label-warning" style="font-size:10px;vertical-align:middle;" uk-tooltip="Non ancora collaudata dal vivo: usala solo con un collegamento di riserva, per esempio il cavo Ethernet">sperimentale</span></h3>
+    <p class="uk-text-meta uk-margin-remove-top">La ricerca delle reti è sicura. La connessione a una nuova rete si applica subito: hai qualche secondo per verificarla, altrimenti torna da sola a quella di prima. Il cambio di rete non è ancora stato collaudato dal vivo: se raggiungi questa macchina solo via WiFi, tieni pronto un cavo Ethernet.</p>
     <button type="button" class="uk-button uk-button-default uk-button-small" id="fm-net-scan-btn">Cerca reti</button>
     <div id="fm-net-wifi-list" class="uk-margin-small-top"></div>
 </div>
 
 <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
-    <h3 class="fm-section-title uk-margin-small-bottom">Indirizzo IP</h3>
-    <p class="uk-text-meta uk-margin-remove-top">Anche qui: la modifica si applica subito e torna indietro da sola se non la confermi.</p>
+    <h3 class="fm-section-title uk-margin-small-bottom">Indirizzo IP <span class="uk-label uk-label-warning" style="font-size:10px;vertical-align:middle;" uk-tooltip="Non ancora collaudata dal vivo: usala solo con un collegamento di riserva, per esempio il cavo Ethernet">sperimentale</span></h3>
+    <p class="uk-text-meta uk-margin-remove-top">Anche qui: la modifica si applica subito e torna indietro da sola se non la confermi. Come il cambio di rete, non è ancora stata collaudata dal vivo.</p>
     <label class="uk-margin-small-right"><input class="uk-radio" type="radio" name="fm-net-ip-mode" value="auto"> Automatico (DHCP)</label>
     <label><input class="uk-radio" type="radio" name="fm-net-ip-mode" value="manual"> Manuale</label>
     <div id="fm-net-ip-manual" class="uk-grid-small uk-margin-small-top" uk-grid hidden>
@@ -82,8 +82,8 @@ include __DIR__ . '/includes/head.php';
 </div>
 
 <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom">
-    <h3 class="fm-section-title uk-margin-small-bottom">Hotspot di configurazione</h3>
-    <p class="uk-text-meta uk-margin-remove-top">Se al prossimo riavvio la macchina non trova nessuna rete nota, ne apre una propria a cui collegarsi col telefono. Si può anche attivarla a mano da qui, ad esempio se il router è cambiato ed è irraggiungibile: si chiude da sola dopo 15 minuti se nessuno la configura.</p>
+    <h3 class="fm-section-title uk-margin-small-bottom">Hotspot di configurazione <span class="uk-label uk-label-warning" style="font-size:10px;vertical-align:middle;" uk-tooltip="Non ancora collaudata dal vivo: usala solo con un collegamento di riserva, per esempio il cavo Ethernet">sperimentale</span></h3>
+    <p class="uk-text-meta uk-margin-remove-top">Una rete propria della macchina, a cui collegarsi col telefono per configurarla: si chiude da sola dopo 15 minuti se nessuno la configura. L'accensione automatica al riavvio è spenta finché la funzione non sarà collaudata; da qui la si può comunque attivare a mano, ma prende il posto della connessione WiFi attuale.</p>
     <div id="fm-net-hotspot-active" class="uk-margin-small-bottom" hidden>
         <span class="uk-label uk-label-warning">attivo</span>
         <span class="fm-mono" id="fm-net-hotspot-ssid"></span>

@@ -8,7 +8,8 @@ tecniche che ne derivano stanno in [NOTE-TECNICHE.md](NOTE-TECNICHE.md).
 
 Convenzione, finché si resta sotto l'1.0: **il numero di versione è il numero
 della fase**. La fase 1 della [roadmap](ROADMAP.md) chiude sulla `0.1.0`, la
-fase 2 sulla `0.2.0`, e così via fino alla fase 6 e alla `1.0.0`. Le correzioni
+fase 2 sulla `0.2.0`, e così via fino alla fase 4. Le fasi 5 e 6 sono state
+spostate alla 1.5 (2026-11-09): dalla `0.4.x` si passa alla `1.0.0`. Le correzioni
 lungo la strada prendono la terza cifra: `0.2.1`, `0.2.2`.
 
 La `0.0.1` sta fuori dal conteggio: è l'estrazione del sorgente
@@ -16,6 +17,30 @@ dall'installazione unica, il lavoro che ha reso possibile la roadmap ma che
 nessuna fase copre.
 
 ---
+
+## 0.4.14
+
+**Cambiato**: l'hotspot di primo avvio è **dormiente**. `install.sh` installa
+`fluxus-hotspot-check.service` ma non la abilita più, e la spegne dove
+un'installazione precedente l'aveva abilitata. L'accensione vera dell'hotspot
+non è mai stata collaudata dal vivo, e il controllo all'avvio guarda solo il
+WiFi: su una macchina collegata solo via cavo si sarebbe acceso a ogni
+riavvio. Torna con il collaudo previsto per la 1.5 (vedi la
+[roadmap](ROADMAP.md)).
+
+**Interfaccia**: nella pagina Rete il cambio di rete WiFi, il cambio di
+indirizzo IP e l'hotspot sono segnati **sperimentale**. Stato, ricerca delle
+reti e nome macchina, già collaudati, restano come sono.
+
+**Installazione**: alla fine `install.sh` avvisa se l'accesso è ancora senza
+password, e dice dove impostarla (Impostazioni → Nodo). Lo dicono anche il
+README e il manuale: un'installazione nuova nasce senza password.
+
+**Helper dei volumi**: in produzione `/usr/local/bin/fluxus-enable-volume.sh`
+era ancora la versione dell'installazione unica di prima (un solo argomento,
+cartella e utente fissi), diversa da quella del sorgente che le regole sudo di
+ogni istanza si aspettano. Allineato con `--volume-helper overwrite`: senza,
+il pulsante **Riprova** della 0.4.11 non poteva funzionare.
 
 ## 0.4.13
 

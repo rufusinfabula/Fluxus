@@ -7,7 +7,9 @@ o un mini-PC, con un comando, anche senza monitor collegato.
 
 Le fasi sono pensate per essere lavorate **una per volta**, ognuna verificabile
 per conto suo. **Il numero di fase e quello di versione coincidono**: la fase 1
-chiude sulla `0.1.0`, la fase 6 sulla `0.6.0`, poi la `1.0.0`.
+chiude sulla `0.1.0`, la fase 4 sulla `0.4.0`. Le fasi 5 e 6 (configurazione
+guidata, immagine SD) sono state spostate alla **1.5** il 2026-11-09: dalla
+`0.4.x` si va alla `1.0.0`, vedi *Verso la 1.0* più sotto.
 
 ## Punto di partenza
 
@@ -76,49 +78,30 @@ l'installer lavora sul sorgente che ha accanto. Vedi il
 [changelog](CHANGELOG.md#030) e la sezione *Installazione* delle
 [note tecniche](NOTE-TECNICHE.md).
 
-## Fase 4 — Rete e WiFi dal browser → `0.4.0` ✅
+## Fase 4 — Rete e WiFi dal browser → `0.4.0` — collaudata in parte
 
-**Fatta.** Una pagina Rete: stato della connessione, scansione delle reti
-WiFi, cambio rete, IP fisso o automatico, nome della macchina. Ogni modifica
-rischiosa (cambio WiFi, cambio IP) si applica subito ma con un ripristino
-automatico a tempo se nessuno la conferma — non taglia fuori chi la sta
-facendo dalla stessa rete che sta cambiando.
+Una pagina Rete: stato della connessione, scansione delle reti WiFi, cambio
+rete, IP fisso o automatico, nome della macchina. Ogni modifica rischiosa
+(cambio WiFi, cambio IP) si applica subito ma con un ripristino automatico a
+tempo se nessuno la conferma. E l'**hotspot di primo avvio**: se al boot non
+trova nessuna rete conosciuta, la macchina ne apre una propria a cui
+collegarsi col telefono. Vedi il [changelog](CHANGELOG.md#040) e la sezione
+*Rete* delle [note tecniche](NOTE-TECNICHE.md).
 
-E soprattutto l'**hotspot di primo avvio**: se al boot non trova nessuna rete
-conosciuta, la macchina ne apre una propria a cui collegarsi col telefono per
-configurarla — attivabile anche a mano dalla pagina Rete, per rientrare da
-un router cambiato senza accesso fisico. È ciò che rende utilizzabile un
-Raspberry Pi senza schermo portato in un ufficio nuovo, dove il WiFi è
-diverso e non c'è nessuno che sappia usare un terminale. Vedi il
-[changelog](CHANGELOG.md#040) e la sezione *Rete* delle
-[note tecniche](NOTE-TECNICHE.md).
-
-⚠️ Il collaudo dal vivo dell'attivazione hotspot (portare per davvero la
-scheda WiFi in modalità AP) non è stato ancora fatto su una macchina
-raggiunta via quella stessa rete: con una sola scheda WiFi interromperebbe
-la sessione usata per farlo. Va fatto con un percorso di rientro
-indipendente (cavo Ethernet) prima di considerare la fase collaudata sul
-campo come le precedenti — eventuali correzioni prendono la prossima terza
-cifra libera (`0.4.14`, …).
-
-## Fase 5 — Configurazione guidata al primo accesso → `0.5.0`
-
-Al primo collegamento, cinque passi: nome e fuso orario, rete, password,
-archiviazione, prima sorgente. Riutilizza le parti che già esistono
-(rilevamento dei dischi, verifica di raggiungibilità di una sorgente).
-
-## Fase 6 — Immagine SD pronta → `0.6.0`
-
-Un'immagine da scrivere su microSD con tutto già installato: si accende e si
-configura dal telefono.
-
-Ogni macchina flashata deve essere **distinta dalle altre** — identificativo,
-nome host e chiavi rigenerati al primo avvio — altrimenti due Fluxus sulla
-stessa rete si pestano i piedi.
+**Collaudati**: stato, scansione, nome macchina, la sola logica di
+rilevamento dell'hotspot. **Mai collaudati dal vivo**: l'accensione vera
+dell'hotspot, il cambio di rete WiFi e il cambio di IP con il loro
+ripristino. Dalla `0.4.14` questi tre sono segnati *sperimentale*
+nell'interfaccia e l'hotspot è **dormiente** (installato, non abilitato). Il
+loro collaudo è spostato alla 1.5, dove serve davvero.
 
 ---
 
-## Prima della 1.0
+## Verso la 1.0
+
+La 1.0 è Fluxus **completo per chi lo installa da terminale**: registra,
+estrae, archivia, si installa da GitHub e si governa con `fluxus`. Niente di
+non collaudato acceso di default.
 
 - ~~**Licenza**~~ — AGPL-3.0, fatta il 2026-08-01. Vedi [LICENSE](../LICENSE) e
   la sezione *Licenza* del [README](../README.md).
@@ -127,12 +110,47 @@ stessa rete si pestano i piedi.
 - ~~Decidere se il repository diventa pubblico~~ — pubblico dal 2026-08-01:
   <https://github.com/rufusinfabula/fluxus>.
 - ~~**Fluxus Connect**~~ — marker/cue da console esterne tramite un broker
-  pubblico separato (repository/prodotto a parte), fuori fase come
-  0.3.1/0.3.2. Vedi [CHANGELOG.md](CHANGELOG.md#046) e la sezione *Fluxus
-  Connect* delle [note tecniche](NOTE-TECNICHE.md).
+  pubblico separato (repository/prodotto a parte). Vedi
+  [CHANGELOG.md](CHANGELOG.md#046) e la sezione *Fluxus Connect* delle
+  [note tecniche](NOTE-TECNICHE.md).
 - ~~**Catalogo verso Fluxus Connect**~~ — oltre allo stato attivo, anche
-  registrazioni (storico), marker/cue, sorgenti e orari, fuori fase come
-  sopra (`0.4.9`). Vedi [CHANGELOG.md](CHANGELOG.md#049).
+  registrazioni (storico), marker/cue, sorgenti e orari (`0.4.9`).
+- ~~**Hotspot dormiente, rete sperimentale**~~ — `0.4.14`.
+- ~~**Helper dei volumi allineato**~~ — `0.4.14`: la copia machine-wide era
+  ancora quella dell'installazione unica di prima.
+- ~~**Installazione senza password dichiarata**~~ — `0.4.14`: lo dicono
+  l'installer, il README e il manuale.
+- **Installazione su una macchina pulita** — da GitHub, su un sistema appena
+  scritto, senza nulla di già presente. Finora l'installer è stato provato
+  solo su una macchina che aveva già le dipendenze.
+
+Sotto la 1.0 vale la regola "versione = fase". Dalla 1.0 in poi la numerazione
+segue il prodotto: correzioni sulla terza cifra, novità sulla seconda.
+
+---
+
+## 1.5 — Pronto all'uso
+
+Per chi un terminale non lo usa: si accende, ci si collega dal telefono, si
+configura. Erano le fasi 5 e 6 della roadmap originale, spostate dopo la 1.0
+perché non aggiungono funzioni a Fluxus ma un modo diverso di consegnarlo.
+
+- **Collaudo dal vivo della rete**: accensione dell'hotspot, cambio di rete
+  WiFi e di IP con ripristino. Va fatto con un percorso di rientro
+  indipendente (cavo Ethernet), meglio su un secondo Raspberry che sulla
+  macchina di produzione: con una sola scheda WiFi l'hotspot toglie la rete a
+  tutto il resto. Poi l'hotspot torna abilitato, e il controllo all'avvio deve
+  tenere conto anche del cavo.
+- **Configurazione guidata al primo accesso** (ex fase 5): nome e fuso orario,
+  rete, password, archiviazione, prima sorgente. Riutilizza le parti che già
+  esistono (rilevamento dei dischi, verifica di raggiungibilità di una
+  sorgente). Le installazioni esistenti devono risultare già configurate.
+- **Immagine SD pronta** (ex fase 6): un'immagine da scrivere su microSD con
+  tutto già installato. Ogni macchina flashata deve essere **distinta dalle
+  altre** — identificativo, nome host e chiavi rigenerati al primo avvio —
+  altrimenti due Fluxus sulla stessa rete si pestano i piedi.
+
+---
 
 ## Più avanti
 
