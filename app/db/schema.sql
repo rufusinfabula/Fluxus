@@ -85,9 +85,10 @@ CREATE TABLE IF NOT EXISTS markers (
     absolute_time      TEXT NOT NULL,
     label              TEXT,
     type               TEXT NOT NULL DEFAULT 'cue',
-    clip_status        TEXT DEFAULT 'n/a',
+    clip_status        TEXT DEFAULT 'n/a',  -- n/a | pending | ready | failed | expired
     clip_filename      TEXT,
     clip_trim_filename TEXT,
+    clip_ready_at      TEXT,  -- estrazione della clip: da qui conta la scadenza del cue
     origin             TEXT NOT NULL DEFAULT 'local',
     origin_label       TEXT,  -- nome della console (via Fluxus Connect), se noto
     created_at         TEXT DEFAULT (datetime('now'))

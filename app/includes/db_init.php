@@ -135,6 +135,22 @@ try {
             ON CONFLICT(key) DO UPDATE SET value = '7'");
     }
 
+    if ($_fm_cur < 8) {
+        // Istante in cui la clip di un cue è stata estratta (0.4.13). La
+        // scadenza dei cue conta da qui, non da created_at del marker: un
+        // marker vecchio promosso o ri-estratto oggi ha davanti i suoi giorni
+        // pieni. Le clip già pronte partono da created_at, cioè da dove la
+        // retention le contava finora: nessuna cambia scadenza con la migrazione.
+        $_fm_cols = array_column($_fm_mdb->query("PRAGMA table_info(markers)")->fetchAll(PDO::FETCH_ASSOC), 'name');
+        if (!in_array('clip_ready_at', $_fm_cols, true)) {
+            $_fm_mdb->exec("ALTER TABLE markers ADD COLUMN clip_ready_at TEXT");
+        }
+        $_fm_mdb->exec("UPDATE markers SET clip_ready_at = created_at
+            WHERE clip_status = 'ready' AND clip_ready_at IS NULL");
+        $_fm_mdb->exec("INSERT INTO settings (key, value) VALUES ('schema_version', '8')
+            ON CONFLICT(key) DO UPDATE SET value = '8'");
+    }
+
     unset($_fm_mdb, $_fm_cur, $_fm_cols, $_fm_add, $_fm_col, $_fm_sql);
 } catch (Exception $e) {
     // silenzioso: se la migrazione fallisce, le pagine che usano le nuove colonne segnaleranno l'errore

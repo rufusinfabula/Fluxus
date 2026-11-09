@@ -163,7 +163,7 @@ while IFS='|' read -r MID RECORDING_ID ELAPSED MEDIA_TYPE OUTPUT_DIR FBASE SOURC
     fi
 
     if [[ $OK -eq 1 && -s "$CLIP_OUT" ]]; then
-        sqlite3 -cmd ".timeout 5000" "$FM_DB" "UPDATE markers SET clip_status='ready', clip_filename='$(basename "$CLIP_OUT")' WHERE id=$MID;"
+        sqlite3 -cmd ".timeout 5000" "$FM_DB" "UPDATE markers SET clip_status='ready', clip_filename='$(basename "$CLIP_OUT")', clip_ready_at=datetime('now') WHERE id=$MID;"
         echo "OK marker=$MID -> $(basename "$CLIP_OUT")"
     else
         sqlite3 -cmd ".timeout 5000" "$FM_DB" "UPDATE markers SET clip_status='failed' WHERE id=$MID;"

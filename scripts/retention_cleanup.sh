@@ -111,7 +111,12 @@ cleanup_orphaned_record_logs() {
     done < <(find "$FM_LOGS" -maxdepth 1 -name 'fm-record-*.log' -mtime +30 -print0 2>/dev/null)
 }
 
-delete_cue() {
+# La scadenza di un cue tocca solo i FILE della sua clip (0.4.13). La riga resta
+# in markers come cue 'expired', con etichetta e posizione, e dall'interfaccia
+# si può estrarre di nuovo finché esiste la registrazione: le righe dei marker
+# se ne vanno solo con lei, in delete_recording(). Prima la scadenza cancellava
+# anche la riga, e un cue scaduto spariva dalla puntata senza lasciare traccia.
+expire_cue() {
     local MID="$1" SRC_ID="$2" CLIPF="$3" TRIMF="$4" CDIR="$5"
     local CLIP_DIR
     CLIP_DIR=$(clips_dir_for "$CDIR" "$SRC_ID")
@@ -121,11 +126,8 @@ delete_cue() {
     fi
     [[ -n "$CLIPF" ]] && rm -f "$CLIP_DIR/$CLIPF"
     [[ -n "$TRIMF" ]] && rm -f "$CLIP_DIR/$TRIMF"
-    # Stessa pragma di delete_recording(): nessuna cascade dipende da un marker
-    # (manual_clips referenzia recording_id, non un marker), ma resta accesa per
-    # coerenza — bash si comporta come PHP in ogni punto che cancella righe.
-    sqlite3 -cmd "PRAGMA foreign_keys = ON" -cmd ".timeout 5000" "$FM_DB" "DELETE FROM markers WHERE id=$MID;"
-    echo "  eliminato cue #$MID"
+    sqlite3 -cmd ".timeout 5000" "$FM_DB" "UPDATE markers SET clip_status='expired', clip_filename=NULL, clip_trim_filename=NULL WHERE id=$MID;"
+    echo "  scaduto cue #$MID: clip rimossa, cue conservato"
 }
 
 SOURCES=$(sq "SELECT id, COALESCE(max_recordings,0), COALESCE(max_days_recordings,0), COALESCE(max_clips_per_marker,0), COALESCE(max_days_clips,0) FROM sources WHERE active=1;")
@@ -146,18 +148,21 @@ while IFS='|' read -r SRC_ID MAXREC MAXDAYSREC MAXCLIPS MAXDAYSCLIPS; do
         done
     fi
 
+    # L'età di una clip conta da quando è stata estratta (clip_ready_at), non da
+    # quando è nato il marker: un marker vecchio promosso oggi scadrebbe al giro
+    # successivo, appena dopo l'estrazione. created_at resta solo come ripiego.
     if [[ "$MAXDAYSCLIPS" -gt 0 ]]; then
         while IFS='|' read -r MID CLIPF TRIMF CDIR; do
             [[ -z "$MID" ]] && continue
-            delete_cue "$MID" "$SRC_ID" "$CLIPF" "$TRIMF" "$CDIR"
-        done < <(sq "SELECT m.id, m.clip_filename, m.clip_trim_filename, COALESCE(r.clips_dir,'') FROM markers m JOIN recordings r ON r.id=m.recording_id WHERE r.source_id=$SRC_ID AND m.type='cue' AND m.clip_status='ready' AND julianday('now') - julianday(m.created_at) > $MAXDAYSCLIPS;")
+            expire_cue "$MID" "$SRC_ID" "$CLIPF" "$TRIMF" "$CDIR"
+        done < <(sq "SELECT m.id, m.clip_filename, m.clip_trim_filename, COALESCE(r.clips_dir,'') FROM markers m JOIN recordings r ON r.id=m.recording_id WHERE r.source_id=$SRC_ID AND m.type='cue' AND m.clip_status='ready' AND julianday('now') - julianday(COALESCE(m.clip_ready_at, m.created_at)) > $MAXDAYSCLIPS;")
     fi
 
     if [[ "$MAXCLIPS" -gt 0 ]]; then
         while IFS='|' read -r MID CLIPF TRIMF CDIR; do
             [[ -z "$MID" ]] && continue
-            delete_cue "$MID" "$SRC_ID" "$CLIPF" "$TRIMF" "$CDIR"
-        done < <(sq "SELECT m.id, m.clip_filename, m.clip_trim_filename, COALESCE(r.clips_dir,'') FROM markers m JOIN recordings r ON r.id=m.recording_id WHERE r.source_id=$SRC_ID AND m.type='cue' AND m.clip_status='ready' ORDER BY m.created_at DESC LIMIT -1 OFFSET $MAXCLIPS;")
+            expire_cue "$MID" "$SRC_ID" "$CLIPF" "$TRIMF" "$CDIR"
+        done < <(sq "SELECT m.id, m.clip_filename, m.clip_trim_filename, COALESCE(r.clips_dir,'') FROM markers m JOIN recordings r ON r.id=m.recording_id WHERE r.source_id=$SRC_ID AND m.type='cue' AND m.clip_status='ready' ORDER BY COALESCE(m.clip_ready_at, m.created_at) DESC LIMIT -1 OFFSET $MAXCLIPS;")
     fi
 done <<< "$SOURCES"
 

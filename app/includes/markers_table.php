@@ -64,6 +64,12 @@ $fmCuePlaySvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentCo
                 <span class="uk-text-meta" uk-icon="icon: clock; ratio: 0.8"></span> <span class="uk-text-meta">in estrazione&hellip;</span>
             <?php elseif ($m['clip_status'] === 'failed'): ?>
                 <span class="uk-text-danger">fallita</span>
+            <?php elseif ($m['clip_status'] === 'expired'): ?>
+                <div class="uk-flex uk-flex-middle" style="gap:4px;justify-content:center;">
+                    <span class="uk-text-meta" uk-tooltip="Clip cancellata alla scadenza: il cue resta finché c'è la registrazione">scaduta</span>
+                    <a href="#" class="fm-action-icon" uk-icon="icon: refresh; ratio: 0.8" uk-tooltip="Estrai di nuovo"
+                       onclick="fmReextractCue(<?= (int)$m['id'] ?>);return false;"></a>
+                </div>
             <?php elseif ($m['clip_status'] === 'ready'):
                 $clipUrl = $fmWebBase . '/api/download.php?cue_id=' . (int)$m['id'];
                 $trimUrl = $fmWebBase . '/api/download.php?cue_id=' . (int)$m['id'] . '&trim=1';
@@ -118,6 +124,21 @@ function fmPromoteMarker(id) {
               fmRefreshMarkersTable();
           } else {
               alert(d.error || 'Errore durante la promozione');
+          }
+      }).catch(function () { alert('Errore di rete'); });
+}
+
+function fmReextractCue(id) {
+    fetch(<?= json_encode($fmWebBase) ?> + '/api/marker.php?id=' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reextract' })
+    }).then(function (r) { return r.json(); })
+      .then(function (d) {
+          if (d.ok) {
+              fmRefreshMarkersTable();
+          } else {
+              alert(d.error || 'Errore durante la nuova estrazione');
           }
       }).catch(function () { alert('Errore di rete'); });
 }

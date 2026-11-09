@@ -121,15 +121,20 @@ if ($method === 'PATCH') {
 
     $input = json_decode(file_get_contents('php://input'), true);
     $action = is_array($input) ? ($input['action'] ?? '') : '';
-    if ($action !== 'promote') fmError('Azione non valida');
+    if (!in_array($action, ['promote', 'reextract'], true)) fmError('Azione non valida');
 
-    $stmt = $db->prepare('SELECT m.type, r.media_type FROM markers m
+    $stmt = $db->prepare('SELECT m.type, m.clip_status, r.media_type FROM markers m
         JOIN recordings r ON r.id = m.recording_id WHERE m.id = ?');
     $stmt->execute([$id]);
     $marker = $stmt->fetch();
     if (!$marker) fmError('Marker non trovato', 404);
 
-    if ($marker['type'] !== 'marker') fmError('Solo un marker può essere promosso a cue.');
+    if ($action === 'promote' && $marker['type'] !== 'marker') fmError('Solo un marker può essere promosso a cue.');
+    // Un cue scaduto ha perso solo il file della clip (retention_cleanup.sh):
+    // torna in coda come un marker appena promosso.
+    if ($action === 'reextract' && ($marker['type'] !== 'cue' || $marker['clip_status'] !== 'expired')) {
+        fmError('Si può estrarre di nuovo solo un cue scaduto.');
+    }
     // Le sorgenti CLOCK non producono alcun file: non c'è nulla da tagliare,
     // qualunque sia lo stato della registrazione (stessa guardia di sopra).
     if ($marker['media_type'] === 'clock') {

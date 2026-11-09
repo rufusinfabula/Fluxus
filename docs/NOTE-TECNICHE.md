@@ -675,9 +675,10 @@ CREATE TABLE markers (
     absolute_time      TEXT NOT NULL,
     label              TEXT,
     type               TEXT NOT NULL DEFAULT 'cue',  -- marker | cue
-    clip_status        TEXT DEFAULT 'n/a',  -- n/a | pending | ready | failed
+    clip_status        TEXT DEFAULT 'n/a',  -- n/a | pending | ready | failed | expired
     clip_filename      TEXT,
     clip_trim_filename TEXT,   -- solo per cue AUDIO (da EDIT)
+    clip_ready_at      TEXT,   -- estrazione della clip (0.4.13): da qui conta max_days_clips
     origin             TEXT NOT NULL DEFAULT 'local',  -- local | remote (Fluxus Remote, v2.1)
     created_at         TEXT DEFAULT (datetime('now'))
 );
@@ -1634,15 +1635,35 @@ Per ogni sorgente attiva legge i 4 limiti da `sources` (0 = nessun limite):
   i cue collegati) con `start_time` più vecchio di N giorni.
 - `max_recordings`: tiene solo le N registrazioni più recenti (non
   `status='recording'`), elimina le eccedenti più vecchie.
-- `max_days_clips`: elimina i cue (`type='cue'`, `clip_status='ready'`) con
-  `created_at` più vecchio di N giorni (file clip + eventuale trim + riga
-  `markers`).
-- `max_clips_per_marker`: tiene solo gli N cue più recenti per sorgente,
-  elimina gli eccedenti.
+- `max_days_clips`: fa scadere i cue (`type='cue'`, `clip_status='ready'`)
+  la cui clip è stata estratta più di N giorni fa (`clip_ready_at`, con
+  ripiego su `created_at`).
+- `max_clips_per_marker`: tiene solo le N clip di cue più recenti per
+  sorgente, fa scadere le eccedenti.
 
 I valori sono configurabili per sorgente nel form di `sources.php` (campi
-"Max registrazioni", "Max giorni registrazioni", "Max cue", "Max giorni
-cue"), default 30/45/100/20 rispettivamente (vedi schema `sources`).
+"Max registrazioni", "Max giorni registr.", "Max CUE clip", "Max giorni per
+CUE clip"), default 30/45/100/20 rispettivamente (vedi schema `sources`).
+
+### La scadenza di un cue tocca solo i file (0.4.13)
+
+Scadere vuol dire perdere **il file**, non la riga: `expire_cue()` cancella la
+clip (e l'eventuale trim), azzera `clip_filename`/`clip_trim_filename` e mette
+`clip_status='expired'`. Il cue resta nella puntata con etichetta e posizione,
+e dalla tabella dei marker si estrae di nuovo con un clic (`api/marker.php`,
+azione `reextract`: torna `pending` e lo riprende `extract_clips.sh`). **Le
+righe di `markers` — marker e cue — se ne vanno solo con la loro
+registrazione**, in `delete_recording()` o dall'interfaccia.
+
+Prima della 0.4.13 la scadenza cancellava anche la riga, e contava da
+`created_at` del marker. Due effetti, entrambi visti in produzione: un cue
+scaduto spariva dalla puntata senza traccia né modo di recuperarlo, e un marker
+di una puntata di più di N giorni fa, promosso a cue, veniva estratto e poi
+cancellato al primo giro di retention, entro mezz'ora. Per questo l'età ora
+conta da `clip_ready_at`, scritto da `extract_clips.sh` a ogni estrazione: una
+promozione o una nuova estrazione hanno sempre i loro N giorni pieni. La
+migrazione allo schema 8 riempie `clip_ready_at` delle clip già pronte con
+`created_at`, quindi nessuna clip esistente ha cambiato scadenza.
 
 ### Due bug corretti (0.3.2, 2026-08-01)
 

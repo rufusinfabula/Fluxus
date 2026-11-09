@@ -187,11 +187,18 @@ In fondo al modale, quattro limiti che tengono lo spazio sotto controllo da soli
 |---|---|---|
 | Max registrazioni | tiene le N più recenti | 30 |
 | Max giorni registr. | cancella quelle più vecchie di N giorni | 45 |
-| Max clip per marker | tiene le N clip più recenti | 100 |
-| Max giorni clip | cancella le clip più vecchie di N giorni | 20 |
+| Max CUE clip | tiene le N clip di cue più recenti | 100 |
+| Max giorni per CUE clip | cancella le clip di cue estratte più di N giorni fa | 20 |
 
 La pulizia gira ogni mezz'ora. **Cancella davvero i file**: se una registrazione
 ti serve, scaricala prima che i limiti la raggiungano.
+
+Per i cue si cancella solo **la clip**: il cue resta nella tabella dei marker
+come *scaduta*, con la sua etichetta, e il pulsante con la freccia circolare
+(**Estrai di nuovo**) rifà la clip finché la registrazione esiste. I giorni
+contano da quando la clip è stata estratta, quindi anche un marker vecchio
+promosso oggi, o un cue estratto di nuovo, ha davanti i suoi giorni pieni.
+Marker e cue spariscono solo quando si cancella la loro registrazione.
 
 ### Volume di archiviazione
 

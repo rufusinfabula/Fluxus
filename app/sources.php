@@ -334,11 +334,11 @@ include __DIR__ . '/includes/head.php';
                 </div>
 
                 <div class="uk-width-1-2@s fm-field-cue-retention">
-                    <label class="uk-form-label">Max clip per marker</label>
+                    <label class="uk-form-label">Max CUE clip</label>
                     <input class="uk-input uk-form-small" type="number" name="max_clips_per_marker" id="fm-f-max-clips" value="100" min="0">
                 </div>
                 <div class="uk-width-1-2@s fm-field-cue-retention">
-                    <label class="uk-form-label">Max giorni clip</label>
+                    <label class="uk-form-label">Max giorni per CUE clip</label>
                     <input class="uk-input uk-form-small" type="number" name="max_days_clips" id="fm-f-max-days-clips" value="20" min="0">
                 </div>
 

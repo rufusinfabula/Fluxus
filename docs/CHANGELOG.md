@@ -17,6 +17,24 @@ nessuna fase copre.
 
 ---
 
+## 0.4.13
+
+**Cambiato**: la scadenza dei cue (*Max giorni per CUE clip*, *Max CUE clip*)
+cancella solo il **file** della clip. Il cue resta nella puntata come
+*scaduta*, con etichetta e posizione, e un pulsante **Estrai di nuovo** (freccia
+circolare) nella tabella dei marker rifà la clip. Marker e cue se ne vanno dal
+database solo con la loro registrazione. Prima un cue scaduto spariva del
+tutto, marker compreso.
+
+**Fix**: i giorni di un cue contano da quando la clip è stata estratta, non da
+quando è nato il marker. Prima un marker di una puntata di più di 20 giorni fa,
+promosso a cue, veniva estratto e cancellato al giro di pulizia successivo.
+Nuova colonna `markers.clip_ready_at` (schema 8); le clip già pronte la
+ricevono uguale a `created_at`, quindi la loro scadenza non cambia.
+
+**Interfaccia**: nel modale della sorgente "Max clip per marker" e "Max giorni
+clip" diventano **"Max CUE clip"** e **"Max giorni per CUE clip"**.
+
 ## 0.4.12
 
 **Fix**: i cue video estratti da registrazioni segmentate pesavano centinaia di
