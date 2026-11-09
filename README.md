@@ -9,17 +9,19 @@ angolo che registra da sola, giorno dopo giorno, e a cui si chiede conto dal
 browser. Nessun servizio cloud, nessuna porta aperta verso Internet, nessun
 abbonamento.
 
-> **Stato: in lavorazione (`0.3.0`, tre fasi su sei).**
-> Da questa versione Fluxus **si installa** con un comando, e si può installare
-> due volte sulla stessa macchina senza che le due copie si tocchino. Quel che
-> manca per la 1.0 sta nella [roadmap](docs/ROADMAP.md): configurazione della
-> rete dal browser, procedura guidata al primo accesso, immagine SD pronta.
+> **Stato: in lavorazione (`0.4.13`, quattro fasi su sei).**
+> Fluxus **si installa** con un comando, si può installare due volte sulla
+> stessa macchina senza che le due copie si tocchino, e la rete si configura dal
+> browser. Quel che manca per la 1.0 sta nella [roadmap](docs/ROADMAP.md):
+> procedura guidata al primo accesso, immagine SD pronta.
 >
 > Fatto finora: percorsi, nomi e utente di sistema non sono più scritti nel
 > codice ma vengono da un file di configurazione, uno per installazione;
 > l'interfaccia non chiede più niente a Internet, perché la macchina che va
-> configurata è proprio quella che una connessione non ce l'ha ancora; e c'è
-> l'installer, con il comando `fluxus` per governare ciò che ha installato.
+> configurata è proprio quella che una connessione non ce l'ha ancora; c'è
+> l'installer, con il comando `fluxus` per governare ciò che ha installato; e
+> WiFi, indirizzo e nome della macchina si cambiano da una pagina Rete, con un
+> hotspot proprio quando al primo avvio non trova nessuna rete conosciuta.
 
 ---
 

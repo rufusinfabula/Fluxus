@@ -98,7 +98,8 @@ scheda WiFi in modalità AP) non è stato ancora fatto su una macchina
 raggiunta via quella stessa rete: con una sola scheda WiFi interromperebbe
 la sessione usata per farlo. Va fatto con un percorso di rientro
 indipendente (cavo Ethernet) prima di considerare la fase collaudata sul
-campo come le precedenti — eventuali correzioni prendono `0.4.1`/`0.4.2`.
+campo come le precedenti — eventuali correzioni prendono la prossima terza
+cifra libera (`0.4.14`, …).
 
 ## Fase 5 — Configurazione guidata al primo accesso → `0.5.0`
 

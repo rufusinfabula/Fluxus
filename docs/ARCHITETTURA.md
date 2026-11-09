@@ -36,7 +36,9 @@ cui il progetto proviene. Vedi *Configurazione* più sotto.
 4. Un timer estrae i **cue** in clip autonome, con pre-roll e post-roll
    configurabili.
 5. Registrazioni e clip si riascoltano e si scaricano dal browser. Una
-   **retention** per sorgente cancella il vecchio da sola.
+   **retention** per sorgente cancella il vecchio da sola: delle registrazioni
+   tutto, dei cue solo la clip, che si può estrarre di nuovo finché c'è la
+   registrazione.
 
 Ogni sorgente ha un `media_type` (`audio` o `video`) che determina formato di
 output (MP3 / MP4), parametri ffmpeg e funzioni disponibili in interfaccia.
@@ -274,7 +276,7 @@ prefisso dei servizi è di qualcun altro, o se c'è una registrazione in corso. 
 
 ## Database
 
-SQLite, schema in [db/schema.sql](db/schema.sql), versione corrente **5**.
+SQLite, schema in [db/schema.sql](db/schema.sql), versione corrente **8**.
 
 | Tabella | Contiene |
 |---|---|
@@ -282,14 +284,15 @@ SQLite, schema in [db/schema.sql](db/schema.sql), versione corrente **5**.
 | `sources` | sorgenti: `media_type`, `type`, `url`/`device`, qualità, retention, volume |
 | `schedules` | orari: `on_calendar`, `slot_duration`, `segment_duration` |
 | `recordings` | una riga per registrazione: `output_dir`, `clips_dir`, tempi, `status`, `duration_seconds`, `ffmpeg_pid`, `notes` |
-| `markers` | marker e cue: `elapsed_seconds`, `type`, `clip_status`, `clip_filename`, `origin` |
+| `markers` | marker e cue: `elapsed_seconds`, `type`, `clip_status` (`n/a`/`pending`/`ready`/`failed`/`expired`), `clip_filename`, `clip_ready_at`, `origin`, `origin_label` |
 | `manual_clips` | clip da ritaglio manuale — tabella viva, funzione in quarantena |
 | `storage_volumes` | volumi di archiviazione; `id=1` è il volume interno, non eliminabile |
 | `federation_peers`, `federation_log` | predisposte, **nessun codice le usa** |
 
 `includes/db_init.php` gira a ogni request e fa due cose: crea il DB al primo
 avvio, e applica le **migrazioni incrementali** basate su `schema_version`
-(v1→v2 retention, v2→v3 `origin`, v3→v4 `video_quality`, v4→v5 volumi). Una
+(v1→v2 retention, v2→v3 `origin`, v3→v4 `video_quality`, v4→v5 volumi,
+v5→v6 `clock_origin`, v6→v7 `origin_label`, v7→v8 `clip_ready_at`). Una
 migrazione nuova va aggiunta come blocco `if ($cur < N)`, **mai riscrivendo
 `schema.sql`** per i DB già in produzione.
 
@@ -399,7 +402,7 @@ Cose da sapere prima di toccarlo:
 | `run_schedule.sh {schedule_id}` | invocato dal timer. Verifica che schedule e sorgente siano attivi, costruisce `filename_base` (`{prefisso}_{YYYY-MM-DD_HH-MM}`), inserisce la riga, lancia `record.sh`. Logga **sempre** l'esito, anche quando non registra |
 | `extract_clips.sh` | ogni 30s. Lock `tmp/clip_queue.lock`. Audio: `atrim` + libmp3lame. Video: `-accurate_seek -ss … -c copy`. Pre/post-roll letti dalle settings a ogni giro |
 | `stop_recording.sh {id}` | crea `tmp/stop-{id}` **prima** del kill (è così che il supervisore distingue lo stop voluto da una caduta), attende ~6s che `record.sh` finalizzi, e chiude la riga solo se lui non l'ha fatto |
-| `retention_cleanup.sh` | ogni 30min. Applica i 4 limiti per sorgente. **Salta** ciò che sta su un volume scollegato, per non lasciare file orfani |
+| `retention_cleanup.sh` | ogni 30min. Applica i 4 limiti per sorgente. Un cue scaduto perde solo il file (`clip_status='expired'`): le righe di `markers` se ne vanno solo con la registrazione. **Salta** ciò che sta su un volume scollegato, per non lasciare file orfani |
 | `preview.sh` | relay ffmpeg → HLS in `tmp/preview/{source_id}/`. Video in copy, audio sempre in AAC (l'unico che i browser leggono dentro HLS) |
 | `remote_sync.php` | ogni 5s: manda al relay le registrazioni attive, recupera i marker premuti da fuori LAN |
 
