@@ -2713,6 +2713,52 @@ Nessuna modifica di schema (`media_type`/`type` erano già testo libero,
 nessun `ALTER TABLE`, nessun bump di `schema_version`) — fuori fase come già
 0.3.1/0.3.2, senza toccare il lavoro in corso sulla fase 4.
 
+### Caricamenti: tetto del server e limite in Impostazioni (1.0.1, 2026-11-24)
+
+Il caricamento dell'audio esterno di una sessione CLOCK
+(`api/clock_upload.php`) rifiutava un file di 38 MB con *"File troppo grande:
+superato il limite di caricamento del server"*. Fluxus non impostava nessun
+limite: valevano quelli di serie del `php.ini` di Debian, `post_max_size = 8M`
+e `upload_max_filesize = 2M`. Il `client_max_body_size 100M` di nginx che c'era
+sulla macchina di sviluppo stava nel vhost condiviso, non nel modello di
+Fluxus: su un'installazione pulita sarebbe valso il default di nginx, 1 MB.
+
+Due livelli, perché il limite vero lo applicano nginx e PHP, che si
+configurano all'installazione, mentre ciò che si cambia dall'interfaccia vive
+nel database:
+
+- **Tetto del server**, `FLUXUS_UPLOAD_MAX_MB` nel file dell'istanza
+  (predefinito 2048, opzione `--upload-max-mb` dell'installer). Il modello
+  nginx lo applica in una `location =` dedicata **solo a
+  `api/clock_upload.php`**: `client_max_body_size` per nginx e, via
+  `fastcgi_param PHP_VALUE`, `upload_max_filesize`/`post_max_size` per PHP. Il
+  corpo della richiesta ha 16 MB di margine sul file (campi del form,
+  intestazioni multipart). Il `php.ini` di sistema non si tocca: è condiviso
+  con gli altri siti della macchina. Una `location =` vince sempre sulle regex,
+  quindi non dipende dall'ordine dentro il vhost.
+- **Limite di tutti i giorni**, `settings.upload_max_mb` (predefinito 500,
+  Impostazioni → Caricamenti), fra 1 MB e il tetto. Lo controllano la pagina
+  della registrazione prima di partire — un file troppo grande non viaggia per
+  minuti per essere rifiutato — e `clock_upload.php` sulla `Content-Length`.
+  `fmUploadLimitMb()` non restituisce mai più del tetto, anche se il tetto
+  viene abbassato dopo. Nessuna migrazione: un valore assente vale 500.
+
+⚠️ `PHP_VALUE` passato da nginx resta impostato nel processo di PHP-FPM che ha
+servito la richiesta, e quel pool è condiviso con gli altri siti: un worker
+può quindi applicare il tetto di Fluxus anche a una richiesta altrui. È
+innocuo, perché a ogni sito il corpo lo limita prima nginx, con il suo
+`client_max_body_size`; un pool PHP-FPM tutto di Fluxus lo eviterebbe, al
+prezzo di un file di sistema in più.
+
+Il caricamento passa da `XMLHttpRequest` e non da `fetch`, che non riporta
+l'avanzamento dell'invio: con qualche centinaio di MB serve vederlo. Una
+risposta che non è JSON (un 413 o un 504 di nginx, prima di arrivare a PHP)
+ha un messaggio suo, invece del vecchio *"Errore di rete"*.
+
+Restano due limiti di tempo: la conversione in MP3 di un file che non lo è già
+ha `timeout 300` e la richiesta `fastcgi_read_timeout 300`. Un WAV di qualche
+ora può non starci; un MP3 non si converte e passa subito.
+
 ## Vincoli critici
 
 1. Non modificare record.sh dopo la creazione iniziale. Eccezioni fatte finora,

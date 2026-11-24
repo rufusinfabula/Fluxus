@@ -44,6 +44,20 @@ function fmFormatBytes(?int $bytes): string {
     return sprintf('%s %s', $i === 0 ? $val : number_format($val, 1), $units[$i]);
 }
 
+/**
+ * Limite in MB dei file caricati dal browser (audio esterno di una sessione
+ * CLOCK): quello scelto in Impostazioni → Caricamenti, mai oltre il tetto che
+ * nginx e PHP applicano davvero (FM_UPLOAD_CEILING_MB, dal file
+ * dell'istanza). Un MB qui è 1024×1024 byte, come in fmFormatBytes().
+ */
+const FM_UPLOAD_DEFAULT_MB = 500;
+
+function fmUploadLimitMb(): int {
+    $mb = (int)fmSetting('upload_max_mb', (string)FM_UPLOAD_DEFAULT_MB);
+    if ($mb < 1) $mb = FM_UPLOAD_DEFAULT_MB;
+    return min($mb, FM_UPLOAD_CEILING_MB);
+}
+
 // Somma su disco dei file di una registrazione: file singolo ({base}.mp3|mp4) oppure
 // tutti i segmenti ({base}_NNN.mp3|mp4). Ritorna 0 se non c'è nulla su disco.
 function fmRecordingSize(array $rec): int {

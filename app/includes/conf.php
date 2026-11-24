@@ -129,6 +129,9 @@ function fmInstanceConf(): array {
     $c['FLUXUS_MEDIAMTX_API']     = rtrim($c['FLUXUS_MEDIAMTX_API'] ?? 'http://127.0.0.1:9997', '/');
     $c['FLUXUS_HW_ENCODER']       = $c['FLUXUS_HW_ENCODER']      ?? 'libx264';
     $c['FLUXUS_HW_ENCODER_OPTS']  = $c['FLUXUS_HW_ENCODER_OPTS'] ?? '-preset veryfast -crf 23';
+    // Solo dell'applicazione (e dell'installer, che la scrive nella regola di
+    // nginx): nessuno script la usa, quindi fluxus-env.sh non la deriva.
+    $c['FLUXUS_UPLOAD_MAX_MB']    = $c['FLUXUS_UPLOAD_MAX_MB']   ?? '2048';
 
     // I segreti del relay stanno accanto, in un file con permessi più stretti.
     $remote = dirname($file) . '/' . $i . '.remote.conf';

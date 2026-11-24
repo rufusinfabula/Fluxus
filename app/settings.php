@@ -8,9 +8,24 @@ $db = fmDB();
 $saved = false;
 $errors = [];
 
+// Il box Caricamenti ha un form suo, con un solo campo: non porta avanti gli
+// altri valori della pagina e quindi non passa dal salvataggio generale qui
+// sotto, che li vuole tutti.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['fm_form'] ?? '') === 'upload') {
+    $uploadMaxMb = (int)($_POST['upload_max_mb'] ?? 0);
+    if ($uploadMaxMb < 1 || $uploadMaxMb > FM_UPLOAD_CEILING_MB) {
+        $errors[] = 'Il limite di caricamento deve essere tra 1 e ' . FM_UPLOAD_CEILING_MB
+            . ' MB (il tetto del server per questa istanza).';
+    } else {
+        fmSetSetting('upload_max_mb', (string)$uploadMaxMb);
+        header('Location: settings.php?saved=1#caricamenti');
+        exit;
+    }
+}
+
 // Il box Archiviazione non passa da qui: ordine dei volumi e destinazioni
 // audio/video si salvano da soli a ogni movimento, via api/volume_order.php.
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['fm_form'] ?? '') !== 'upload') {
     $nodeName = trim($_POST['node_name'] ?? '');
     $timezone = trim($_POST['timezone'] ?? 'Europe/Rome');
     $authEnabled = !empty($_POST['auth_enabled']) ? '1' : '0';
@@ -84,6 +99,7 @@ $authEnabled = fmSetting('auth_enabled', '0') === '1';
 $cuePreRoll = (int)fmSetting('cue_pre_roll', '30');
 $cuePostRoll = (int)fmSetting('cue_post_roll', '90');
 $markerAutosaveSeconds = (int)fmSetting('marker_autosave_seconds', '8');
+$uploadMaxMb = fmUploadLimitMb();
 $connectUrl = FM_CONNECT_URL;
 $connectToken = FM_CONNECT_TOKEN;
 $connectConfigured = $connectUrl !== '' && $connectToken !== '';
@@ -138,6 +154,7 @@ include __DIR__ . '/includes/head.php';
     <nav class="fm-toc" id="fm-settings-toc">
         <a href="#marker-cue">Marker &amp; Cue</a>
         <a href="#archiviazione">Archiviazione</a>
+        <a href="#caricamenti">Caricamenti</a>
         <a href="#rete">Rete</a>
         <a href="#fluxus-connect">Fluxus Connect</a>
         <a href="#nodo">Nodo</a>
@@ -640,6 +657,24 @@ document.addEventListener('DOMContentLoaded', function () {
     paintBadges();
 });
 </script>
+
+<div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="caricamenti">
+    <h3 class="fm-section-title uk-margin-small-bottom">Caricamenti</h3>
+    <p class="uk-text-meta uk-margin-remove-top">Dimensione massima del file audio che si può caricare dal browser per collegarlo a una sessione CLOCK. Il server di questa istanza accetta fino a <span class="fm-mono"><?= (int)FM_UPLOAD_CEILING_MB ?> MB</span>: per andare oltre va alzato <span class="fm-mono">FLUXUS_UPLOAD_MAX_MB</span> in <span class="fm-mono"><?= fmH(FM_CONF_FILE) ?></span> e poi lanciato <span class="fm-mono">sudo fluxus --instance <?= fmH(FM_INSTANCE) ?> update</span>.</p>
+    <form method="post" action="settings.php#caricamenti">
+        <input type="hidden" name="fm_form" value="upload">
+        <div class="uk-grid-small" uk-grid>
+            <div class="uk-width-1-3@m">
+                <label class="uk-form-label" for="fm-set-upload-max">Limite di caricamento (MB)</label>
+                <input class="uk-input uk-form-small fm-mono" type="number" name="upload_max_mb" id="fm-set-upload-max" min="1" max="<?= (int)FM_UPLOAD_CEILING_MB ?>" step="1" value="<?= (int)$uploadMaxMb ?>" required style="width:110px;">
+                <div class="uk-text-meta" style="font-size:11px;">1–<?= (int)FM_UPLOAD_CEILING_MB ?> MB. Predefinito <?= (int)FM_UPLOAD_DEFAULT_MB ?> MB.</div>
+            </div>
+        </div>
+        <div class="uk-margin-top">
+            <button type="submit" class="uk-button uk-button-primary uk-button-small">Salva</button>
+        </div>
+    </form>
+</div>
 
 <div class="uk-card uk-card-default uk-card-body fm-card uk-margin-bottom" id="rete">
     <h3 class="fm-section-title uk-margin-small-bottom">Rete</h3>

@@ -462,12 +462,14 @@ if (!$isRecording) {
                 Puoi collegare a questa sessione l'audio registrato nel frattempo da un
                 dispositivo esterno: i marker verranno posizionati rispetto a questo file.
                 Un solo caricamento per registrazione — non è prevista sostituzione.
+                File fino a <span class="fm-mono"><?= (int)fmUploadLimitMb() ?> MB</span>.
             </div>
             <div class="uk-flex uk-flex-middle" style="gap:8px;flex-wrap:wrap;">
                 <input type="file" id="fm-clock-file" accept="audio/*" class="uk-input uk-form-small" style="max-width:240px;">
                 <input type="datetime-local" id="fm-clock-start" class="uk-input uk-form-small fm-mono" style="width:200px;" step="1">
                 <button type="button" class="uk-button uk-button-primary uk-button-small" id="fm-clock-upload-btn">Carica e collega audio</button>
             </div>
+            <progress class="uk-progress" id="fm-clock-upload-progress" value="0" max="100" style="margin:8px 0 0;max-width:460px;display:none;"></progress>
             <div class="uk-text-small" id="fm-clock-upload-msg" style="margin-top:6px;display:none;"></div>
         </div>
         <?php endif; ?>
@@ -703,19 +705,35 @@ if (!$isRecording) {
     }
 
     var clockUploadBtn = document.getElementById('fm-clock-upload-btn');
+    // Limite di Impostazioni → Caricamenti: controllato qui prima di partire,
+    // così un file troppo grande non viaggia per minuti per essere rifiutato.
+    // Il server lo ricontrolla comunque.
+    var clockUploadLimitMb = <?= (int)fmUploadLimitMb() ?>;
     if (clockUploadBtn) {
         clockUploadBtn.addEventListener('click', function () {
             var file = clockFileInput.files[0];
             var msgEl = document.getElementById('fm-clock-upload-msg');
+            var progressEl = document.getElementById('fm-clock-upload-progress');
 
             function showMsg(text, ok) {
                 msgEl.style.display = '';
                 msgEl.style.color = ok ? '#32d296' : '#f0506e';
                 msgEl.textContent = text;
             }
+            function mb(bytes) { return (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB'; }
+            function fail(text) {
+                clockUploadBtn.disabled = false;
+                progressEl.style.display = 'none';
+                showMsg(text, false);
+            }
 
             if (!file) { showMsg('Seleziona un file audio.', false); return; }
             if (!clockStartInput.value) { showMsg("Indica l'orario di inizio.", false); return; }
+            if (file.size > clockUploadLimitMb * 1048576) {
+                showMsg('File troppo grande (' + mb(file.size) + '): il limite di caricamento è '
+                    + clockUploadLimitMb + ' MB (Impostazioni → Caricamenti).', false);
+                return;
+            }
             if (!confirm('Caricare questo file come contenuto della sessione CLOCK? Non sarà possibile sostituirlo in seguito.')) return;
 
             var fd = new FormData();
@@ -724,29 +742,49 @@ if (!$isRecording) {
             fd.append('audio', file);
 
             clockUploadBtn.disabled = true;
-            showMsg('Caricamento in corso…', true);
+            progressEl.value = 0;
+            progressEl.style.display = '';
+            showMsg('Caricamento in corso… 0 di ' + mb(file.size), true);
 
-            fetch(base + '/api/clock_upload.php', { method: 'POST', body: fd })
-                .then(function (r) {
-                    return r.json().then(function (d) { return { status: r.status, body: d }; });
-                })
-                .then(function (res) {
-                    if (res.status === 401) {
-                        clockUploadBtn.disabled = false;
-                        window.fmSessionExpired('Il file audio non è stato caricato.', null);
-                        return;
-                    }
-                    if (res.body && res.body.ok) {
-                        showMsg('Audio collegato — durata ' + (res.body.duration_hms || '') + '. Ricarico…', true);
-                        setTimeout(function () { location.reload(); }, 1200);
-                    } else {
-                        clockUploadBtn.disabled = false;
-                        showMsg((res.body && res.body.error) || 'Errore durante il caricamento', false);
-                    }
-                }).catch(function () {
+            // XMLHttpRequest e non fetch: fetch non dice quanto del file è già
+            // partito, e con qualche centinaio di MB serve vederlo.
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', base + '/api/clock_upload.php');
+            xhr.upload.addEventListener('progress', function (e) {
+                if (!e.lengthComputable) return;
+                var pct = Math.floor(e.loaded / e.total * 100);
+                progressEl.value = pct;
+                showMsg(pct < 100
+                    ? 'Caricamento in corso… ' + mb(e.loaded) + ' di ' + mb(e.total) + ' (' + pct + '%)'
+                    : 'File caricato: elaborazione sul server (conversione e durata)…', true);
+            });
+            xhr.addEventListener('load', function () {
+                var d = null;
+                try { d = JSON.parse(xhr.responseText); } catch (e) { d = null; }
+                if (xhr.status === 401) {
                     clockUploadBtn.disabled = false;
-                    showMsg('Errore di rete', false);
-                });
+                    progressEl.style.display = 'none';
+                    window.fmSessionExpired('Il file audio non è stato caricato.', null);
+                    return;
+                }
+                if (d && d.ok) {
+                    progressEl.value = 100;
+                    showMsg('Audio collegato — durata ' + (d.duration_hms || '') + '. Ricarico…', true);
+                    setTimeout(function () { location.reload(); }, 1200);
+                    return;
+                }
+                if (d && d.error) { fail(d.error); return; }
+                // Risposta non JSON: l'ha data nginx prima di arrivare a PHP.
+                if (xhr.status === 413) {
+                    fail('File troppo grande per il server: supera il tetto di caricamento di questa istanza.');
+                } else if (xhr.status === 504) {
+                    fail('Il server ha impiegato troppo a elaborare il file (timeout).');
+                } else {
+                    fail('Errore durante il caricamento (HTTP ' + xhr.status + ').');
+                }
+            });
+            xhr.addEventListener('error', function () { fail('Errore di rete: caricamento interrotto.'); });
+            xhr.send(fd);
         });
     }
 

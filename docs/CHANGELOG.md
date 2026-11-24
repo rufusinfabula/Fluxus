@@ -48,6 +48,26 @@ dal gruppo `www-data`, dove l'installer non lo mette e dove non gli serve: un
 servizio che riceve connessioni dalla rete non deve poter leggere o bloccare
 il database.
 
+**Caricamento dell'audio di una sessione CLOCK: limite in Impostazioni.**
+Un file di 38 MB veniva rifiutato come *troppo grande*: Fluxus non fissava
+nessun limite, e valevano quelli di serie di PHP (8 MB per la richiesta, 2 MB
+per il file). Ora:
+
+- nuovo riquadro **Impostazioni → Caricamenti**: il limite di tutti i giorni,
+  **500 MB** se non lo si cambia;
+- il server accetta fino a un **tetto** per istanza, `FLUXUS_UPLOAD_MAX_MB`
+  nel file dell'istanza (2048 MB, opzione `--upload-max-mb` dell'installer),
+  applicato da nginx e PHP **solo** alla pagina che riceve il caricamento: il
+  `php.ini` di sistema e gli altri siti della macchina restano come sono;
+- la pagina della registrazione mostra il limite, rifiuta subito un file
+  troppo grande invece di caricarlo per niente, e durante l'invio mostra
+  quanto è già partito;
+- messaggi chiari anche quando a rifiutare è nginx (prima: *"Errore di rete"*).
+
+Serve rilanciare l'installer (`sudo fluxus update`), che rigenera la regola di
+nginx dell'istanza. Perché è fatto così: [note tecniche](NOTE-TECNICHE.md),
+*Caricamenti*.
+
 **Documentazione**: nuova pagina [SVILUPPO.md](SVILUPPO.md) che raccoglie in
 un posto solo le regole di sviluppo, collaudo, rilascio e manutenzione — prima
 sparse fra note tecniche, roadmap e appunti locali.

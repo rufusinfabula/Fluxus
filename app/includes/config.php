@@ -56,6 +56,14 @@ define('FM_VOLUME_DIR', FM_INSTANCE);
 define('FM_SESSIONS',    FM_BASE . '/sessions');
 define('FM_SESSION_TTL', 21600);              // secondi (6h)
 
+// Tetto dei caricamenti dal browser (audio esterno per una sessione CLOCK), in
+// MB. È il limite che nginx e PHP applicano nella location di
+// api/clock_upload.php, scritto dall'installer: il valore scelto in
+// Impostazioni → Caricamenti può solo stare sotto. Vedi NOTE-TECNICHE.md.
+$_fmUploadCeiling = (int)$_fmConf['FLUXUS_UPLOAD_MAX_MB'];
+define('FM_UPLOAD_CEILING_MB', $_fmUploadCeiling > 0 ? $_fmUploadCeiling : 2048);
+unset($_fmUploadCeiling);
+
 // Durata massima di un relay di anteprima lasciato aperto (preview.sh).
 define('FM_PREVIEW_TTL', 900);                // secondi (15 min)
 

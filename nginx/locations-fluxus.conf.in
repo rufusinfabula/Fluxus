@@ -11,6 +11,23 @@
 # vhost, altrimenti il timeout lungo non viene applicato e l'estrazione di una
 # clip lunga muore a metà.
 
+    # Caricamento dell'audio esterno di una sessione CLOCK: l'unica pagina che
+    # riceve file grandi. Il tetto vale solo qui — corpo della richiesta per
+    # nginx, upload_max_filesize/post_max_size per PHP — e viene da
+    # FLUXUS_UPLOAD_MAX_MB; il php.ini di sistema e gli altri siti del vhost
+    # restano come sono. Il limite di tutti i giorni (Impostazioni →
+    # Caricamenti) lo controlla poi l'applicazione, sotto questo tetto.
+    # Una location '=' vince sempre sulle regex, quindi l'ordine qui non conta.
+    location = @FLUXUS_WEB_BASE@/api/clock_upload.php {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:@FLUXUS_PHP_FPM_SOCK@;
+        fastcgi_read_timeout 300;
+        fastcgi_param FLUXUS_CONF @FLUXUS_CONF_FILE@;
+        client_max_body_size @FLUXUS_UPLOAD_BODY_MB@m;
+        fastcgi_param PHP_VALUE "upload_max_filesize=@FLUXUS_UPLOAD_MAX_MB@M
+post_max_size=@FLUXUS_UPLOAD_BODY_MB@M";
+    }
+
     # PHP — Fluxus ha bisogno di un timeout più lungo (estrazione clip ffmpeg)
     location ~ ^@FLUXUS_WEB_BASE@/.*\.php$ {
         include snippets/fastcgi-php.conf;

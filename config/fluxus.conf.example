@@ -109,3 +109,14 @@ FLUXUS_MEDIAMTX_API=http://127.0.0.1:9997
 # su quella macchina l'unico valore sensato è libx264.
 FLUXUS_HW_ENCODER=libx264
 FLUXUS_HW_ENCODER_OPTS=-preset veryfast -crf 23
+
+
+# ── Caricamenti dal browser ───────────────────────────────────────────────────
+
+# Tetto, in MB, del file che si può caricare dall'interfaccia (l'audio esterno
+# da collegare a una sessione CLOCK). nginx e PHP lo applicano solo alla
+# pagina che riceve il caricamento; il php.ini di sistema resta com'è. Il
+# limite di tutti i giorni si sceglie in Impostazioni → Caricamenti, e può
+# solo stare sotto questo valore. Dopo averlo cambiato va rigenerata la regola
+# di nginx:  sudo fluxus --instance <istanza> update
+FLUXUS_UPLOAD_MAX_MB=2048

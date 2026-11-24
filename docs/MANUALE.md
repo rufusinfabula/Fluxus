@@ -427,7 +427,7 @@ durata, dimensione e stato.
 
 ## 8. Impostazioni
 
-L'ingranaggio in alto a destra. Tre riquadri.
+L'ingranaggio in alto a destra.
 
 ### Marker & Cue
 
@@ -476,6 +476,15 @@ un click: Fluxus lo rimonta come si deve e crea le cartelle che gli servono.
 >
 > Quando un disco esterno viene scollegato, le registrazioni programmate **non
 > si perdono**: finiscono sulla microSD interna, con una nota che spiega perché.
+
+### Caricamenti
+
+- **Limite di caricamento** (MB, predefinito 500) — il file più grande che si
+  può caricare dal browser per collegarlo a una sessione CLOCK.
+
+Il riquadro dice anche fin dove si può alzare: è il **tetto del server**,
+deciso all'installazione (2048 MB se nessuno l'ha cambiato). Per andare oltre
+serve chi gestisce la macchina: lo trova scritto nel riquadro stesso.
 
 ### Nodo
 

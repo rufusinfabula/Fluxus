@@ -176,6 +176,9 @@ Server web
   --nginx-vhost FILE     vhost in cui inserire l'inclusione
                          (predefinito: /etc/nginx/sites-available/default)
   --php-fpm-sock FILE    socket di PHP-FPM (predefinito: rilevato)
+  --upload-max-mb N      tetto in MB dei file caricati dal browser (predefinito:
+                         2048). Il limite di tutti i giorni si sceglie in
+                         Impostazioni, sotto questo valore
 
 Server RTMP (MediaMTX)
   --mediamtx MODO        instance  un MediaMTX dedicato all'istanza (predefinito)
@@ -217,6 +220,7 @@ UTENTE=''
 GRUPPO=''
 PREFISSO=''; PREFISSO_DATO=0
 PHP_FPM_SOCK=''
+UPLOAD_MAX_MB=''
 NGINX_MODO='auto'
 NGINX_VHOST=''
 MEDIAMTX_MODO='instance'
@@ -250,6 +254,7 @@ while [[ $# -gt 0 ]]; do
         --group)             GRUPPO=$(valore "$@"); shift 2 ;;
         --unit-prefix)       PREFISSO=$(valore "$@"); PREFISSO_DATO=1; shift 2 ;;
         --php-fpm-sock)      PHP_FPM_SOCK=$(valore "$@"); shift 2 ;;
+        --upload-max-mb)     UPLOAD_MAX_MB=$(valore "$@"); shift 2 ;;
         --nginx)             NGINX_MODO=$(valore "$@"); shift 2 ;;
         --nginx-vhost)       NGINX_VHOST=$(valore "$@"); shift 2 ;;
         --mediamtx)          MEDIAMTX_MODO=$(valore "$@"); shift 2 ;;
@@ -407,6 +412,16 @@ else
 fi
 [[ "$RTMP_PORT" =~ ^[0-9]+$ && "$MEDIAMTX_API_PORT" =~ ^[0-9]+$ ]] || muori "le porte vogliono un numero"
 
+# Tetto dei caricamenti dal browser. nginx e PHP lo applicano solo alla
+# location di api/clock_upload.php: il php.ini di sistema e gli altri siti del
+# vhost restano come sono. Vedi NOTE-TECNICHE.md, *Caricamenti*.
+predefinito UPLOAD_MAX_MB FLUXUS_UPLOAD_MAX_MB 2048
+[[ "$UPLOAD_MAX_MB" =~ ^[1-9][0-9]*$ ]] && (( UPLOAD_MAX_MB <= 16384 )) \
+    || muori "--upload-max-mb vuole un numero di MB fra 1 e 16384"
+# Margine per il resto della richiesta (campi del form, intestazioni
+# multipart): il tetto vale per il file, il corpo può essere un poco più grande.
+UPLOAD_BODY_MB=$((UPLOAD_MAX_MB + 16))
+
 MEDIAMTX_CONF="$CONF_DIR/$ISTANZA.mediamtx.yml"
 MEDIAMTX_USER='mediamtx'
 
@@ -556,6 +571,7 @@ if ! (( SILENZIOSO )); then
         'configurazione' "$CONF_FILE" \
         'nginx'          "$([[ $NGINX_MODO == auto ]] && echo "$NGINX_VHOST" || echo 'solo snippet')" \
         'PHP-FPM'        "$PHP_FPM_SOCK" \
+        'caricamenti'    "fino a $UPLOAD_MAX_MB MB (tetto)" \
         'MediaMTX'       "$([[ $MEDIAMTX_MODO == instance ]] && echo "$MEDIAMTX_UNIT — RTMP $RTMP_PORT, API $MEDIAMTX_API_PORT" || echo 'non gestito')" \
         'rotazione log'  "$LOGROTATE_FILE" \
         'sorgente'       "$SORGENTE ($VERSIONE)"
@@ -648,6 +664,11 @@ FLUXUS_MEDIAMTX_API=http://127.0.0.1:$MEDIAMTX_API_PORT
 # della sorgente. Il Raspberry Pi 5 non ha encoder H.264 hardware.
 FLUXUS_HW_ENCODER=libx264
 FLUXUS_HW_ENCODER_OPTS=-preset veryfast -crf 23
+
+# ── Caricamenti dal browser ──
+# Tetto in MB dei file caricati dall'interfaccia (audio esterno di una sessione
+# CLOCK). Il limite di tutti i giorni si sceglie in Impostazioni, sotto questo.
+FLUXUS_UPLOAD_MAX_MB=$UPLOAD_MAX_MB
 FINE
 fatto "$CONF_FILE"
 
@@ -824,6 +845,8 @@ SEGNAPOSTO=(
     [FLUXUS_CONF_FILE]="$CONF_FILE"
     [FLUXUS_UNIT_PREFIX]="$PREFISSO"
     [FLUXUS_PHP_FPM_SOCK]="$PHP_FPM_SOCK"
+    [FLUXUS_UPLOAD_MAX_MB]="$UPLOAD_MAX_MB"
+    [FLUXUS_UPLOAD_BODY_MB]="$UPLOAD_BODY_MB"
     [FLUXUS_SUDO_ALIAS]="$SUDO_ALIAS"
     [FLUXUS_RTMP_PORT]="$RTMP_PORT"
     [FLUXUS_MEDIAMTX_API_PORT]="$MEDIAMTX_API_PORT"

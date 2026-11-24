@@ -23,12 +23,26 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     fmError('Metodo non consentito', 405);
 }
 
+// Limite scelto in Impostazioni → Caricamenti, sotto il tetto di nginx e PHP
+// (vedi NOTE-TECNICHE.md, *Caricamenti*). Si controlla sulla lunghezza della
+// richiesta, che comprende anche i campi del form: 1 MB di margine.
+$limitMb = fmUploadLimitMb();
+$tooBigMsg = 'File troppo grande: il limite di caricamento è ' . $limitMb
+    . ' MB (Impostazioni → Caricamenti).';
+if ((int)($_SERVER['CONTENT_LENGTH'] ?? 0) > ($limitMb + 1) * 1048576) {
+    fmError($tooBigMsg, 413);
+}
+
 // PHP svuota silenziosamente $_POST e $_FILES se il body supera post_max_size:
 // nessun UPLOAD_ERR_* da leggere, perché non c'è alcun file. Senza questo
 // controllo l'endpoint darebbe un fuorviante "recording_id mancante" invece di
 // spiegare che il file è troppo grande (bug reale trovato testando in produzione).
+// Dalla 1.0.1 post_max_size lo fissa nginx per questa sola pagina: se si arriva
+// qui, la regola di nginx dell'istanza è vecchia o non è quella di Fluxus.
 if (empty($_POST) && empty($_FILES) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-    fmError('File troppo grande: superato il limite di caricamento del server.', 413);
+    fmError('File troppo grande per il server: PHP accetta al massimo '
+        . ini_get('post_max_size') . '. Va rigenerata la regola di nginx dell\'istanza'
+        . ' (sudo fluxus update).', 413);
 }
 
 $recordingId = (int)($_POST['recording_id'] ?? 0);
@@ -46,8 +60,11 @@ try {
 if (empty($_FILES['audio']) || !is_uploaded_file($_FILES['audio']['tmp_name'] ?? '')) {
     $err = $_FILES['audio']['error'] ?? UPLOAD_ERR_NO_FILE;
     fmError($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE
-        ? 'File troppo grande: superato il limite di caricamento del server.'
-        : 'File audio mancante.');
+        ? $tooBigMsg
+        : ($err === UPLOAD_ERR_PARTIAL ? 'Caricamento interrotto: il file è arrivato solo in parte.'
+        : ($err === UPLOAD_ERR_NO_TMP_DIR || $err === UPLOAD_ERR_CANT_WRITE
+            ? 'Il server non riesce a scrivere il file temporaneo (spazio o permessi).'
+            : 'File audio mancante.')));
 }
 
 $db = fmDB();
